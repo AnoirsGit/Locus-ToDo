@@ -1,0 +1,24 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/router/router.dart';
+import 'shared/theme/theme.dart';
+
+void main() {
+  runApp(const ProviderScope(child: LocusApp()));
+}
+
+class LocusApp extends ConsumerWidget {
+  const LocusApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
+      title: 'Цикл',
+      theme: AppTheme.dark,
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
