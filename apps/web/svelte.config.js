@@ -6,11 +6,18 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter(),
+    files: {
+      appTemplate: 'src/app/app.html',
+    },
     alias: {
-      $components: 'src/lib/components',
-      $stores: 'src/lib/stores',
-      $types: 'src/lib/types',
-      $utils: 'src/lib/utils',
+      '$widgets/*': 'src/widgets/*',
+      '$features/*': 'src/features/*',
+      '$entities/*': 'src/entities/*',
+      '$shared/*': 'src/shared/*',
+      $widgets: 'src/widgets',
+      $features: 'src/features',
+      $entities: 'src/entities',
+      $shared: 'src/shared',
     },
   },
 }

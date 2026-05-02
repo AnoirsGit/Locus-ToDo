@@ -1,10 +1,6 @@
 <script lang="ts">
-  import type { TaskView } from '@locus/shared'
-  import Board from '$components/Board.svelte'
-  import Sidebar from '$components/Sidebar.svelte'
+  import { goto } from '$app/navigation'
+  import { onMount } from 'svelte'
 
-  let currentView = $state<TaskView>('week')
+  onMount(() => goto('/week'))
 </script>
-
-<Sidebar bind:currentView />
-<Board {currentView} />

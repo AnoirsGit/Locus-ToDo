@@ -2,17 +2,32 @@
 
 > Load when: web app (apps/web) — components, stores, routing, UI.
 
+## Stack
+
+| Tool             | Version  | Role                              |
+|------------------|----------|-----------------------------------|
+| SvelteKit        | 2.x      | Framework + file-based routing    |
+| Svelte           | 5.x      | UI + runes reactivity             |
+| Tailwind CSS     | 4.x      | Styling (Vite plugin, no config file) |
+| shadcn-svelte    | latest   | UI component primitives           |
+| bits-ui          | 2.x      | Headless primitives (shadcn dep)  |
+| lucide-svelte    | 1.x      | Icons                             |
+| clsx + tw-merge  | —        | `cn()` utility                    |
+
+---
+
 ## Architecture: Feature-Sliced Design (FSD)
 
 ```
 apps/web/src/
-├── app/                 # App init, global styles
-│   └── app.css
+├── app.html                        # SvelteKit entry HTML
+├── app.css                         # @import "tailwindcss" + @theme tokens
 │
-├── pages/               # Pages = SvelteKit routes
-│   ├── (app)/           # Authenticated layout with sidebar
-│   │   ├── +layout.svelte
-│   │   ├── day/+page.svelte
+├── routes/                         # = FSD "pages" layer (SvelteKit routing)
+│   ├── +layout.svelte              # Root layout — imports app.css
+│   ├── +page.svelte                # Redirects → /week
+│   ├── (app)/                      # Authenticated shell
+│   │   ├── +layout.svelte          # Sidebar + main wrapper
 │   │   ├── week/+page.svelte
 │   │   ├── month/+page.svelte
 │   │   ├── year/+page.svelte
@@ -22,33 +37,51 @@ apps/web/src/
 │       ├── login/+page.svelte
 │       └── register/+page.svelte
 │
-├── widgets/             # Composite UI blocks, not reusable in isolation
-│   ├── sidebar/
-│   │   └── Sidebar.svelte
-│   └── task-board/
-│       └── TaskBoard.svelte
-│
-├── features/            # User actions (create, complete, delete, send form, edit form)
-│   ├── create-task/
-│   │   ├── CreateTaskModal.svelte
-│   │   └── create-task.ts       # UI-layer use case
-│   ├── complete-task/
-│   │   └── complete-task.ts
-│   └── replan-task/
-│       └── replan-task.ts
-│
-├── entities/            # Business objects and their UI representation
-│   └── task/
-│       ├── TaskCard.svelte      # Task card widget
-│       ├── TaskLevel.svelte     # Level badge (📅/🗓️/🎯)
-│       └── task.store.svelte.ts # $state-based task store
-│
-└── shared/              # Reusable with no domain context
-    ├── ui/              # Base components (Button, Modal, Badge)
-    ├── api/             # fetch wrappers for API
-    │   └── tasks.api.ts
-    └── lib/
-        └── date.ts      # Date / deadline utilities
+└── lib/
+    ├── widgets/                    # Composite screen sections
+    │   ├── sidebar/
+    │   │   ├── Sidebar.svelte
+    │   │   └── index.ts
+    │   └── task-list/
+    │       ├── TaskList.svelte
+    │       └── index.ts
+    │
+    ├── features/                   # User actions / orchestration
+    │   ├── create-task/index.ts    # createTask(input) → calls entity api + store
+    │   ├── toggle-task/index.ts   # toggleTask(id) → done ↔ todo
+    │   └── replan-task/index.ts    # replanTask({ id, level, periodStart })
+    │
+    ├── entities/
+    │   └── task/
+    │       ├── api/
+    │       │   └── tasks.api.ts    # tasksApi.getAll / create / update / remove
+    │       ├── model/
+    │       │   ├── task.types.ts   # re-exports from @locus/shared
+    │       │   └── task.store.svelte.ts  # $state store: tasks, loading, error
+    │       ├── ui/                 # Dumb components (props only, no API calls)
+    │       │   ├── TaskCard.svelte
+    │       │   └── TaskLevelBadge.svelte
+    │       └── index.ts            # Public barrel export
+    │
+    └── shared/
+        ├── ui/                     # shadcn-svelte components (added via CLI)
+        ├── api/
+        │   └── client.ts           # Base fetch wrapper: api.get/post/patch/delete
+        └── lib/
+            ├── utils.ts            # cn() = clsx + twMerge
+            └── index.ts
+```
+
+---
+
+## Aliases (svelte.config.js)
+
+```js
+'$widgets/*'  → 'src/lib/widgets/*'
+'$features/*' → 'src/lib/features/*'
+'$entities/*' → 'src/lib/entities/*'
+'$shared/*'   → 'src/lib/shared/*'
+// also without /* for barrel imports
 ```
 
 ---
@@ -70,19 +103,78 @@ apps/web/src/
 
 ### Import direction
 
-`pages → widgets → features → entities → shared` — downward only, never up.  
+`routes → widgets → features → entities → shared` — downward only, never up.  
 Slices at the same layer must not import each other — use `@x` instead.  
+Each slice exposes a public API via `index.ts`.
 
 ### Cross-imports: `@x`
 
-When entity A genuinely needs something from entity B, A creates `@x/b.ts` and re-exports **only** the minimum needed. No broad re-exports.
+When entity A genuinely needs something from entity B, A creates `@x/b.ts` and re-exports **only** the minimum needed.
 
 ```
-entities/task/@x/user.ts    → exports TaskType so user entity can reference tasks
-entities/user/@x/task.ts    → exports useUserStore so task can check auth state
+entities/task/@x/user.ts   → exports TaskType so user entity can reference tasks
+entities/user/@x/task.ts   → exports useUserStore so task can check auth state
 ```
 
-Same pattern at widget level when a widget reuses an internal component of another widget.  
 **Create `@x` only** for a real business need — never speculatively.
 
 ---
+
+## Tailwind v4 Notes
+
+- No `tailwind.config.js` — configuration lives in `app.css` via `@theme { ... }`
+- Custom tokens defined in `@theme`: `--color-background`, `--color-accent`, etc.
+- Vite plugin: `tailwindcss()` from `@tailwindcss/vite` (before `sveltekit()`)
+- `app.css` starts with `@import "tailwindcss"` — no `@tailwind` directives
+
+## shadcn-svelte Notes
+
+- `components.json` configured to output to `$lib/shared/ui`
+- Add components: `npx shadcn-svelte@latest add <component>`
+- Components land in `src/lib/shared/ui/<component>/`
+
+---
+
+## State Management: Svelte 5 Runes
+
+```ts
+// entities/task/model/task.store.svelte.ts
+const state = $state<State>({ tasks: [], loading: false, error: null })
+
+export const taskStore = {
+  get tasks() { return state.tasks },
+  // mutators: setTasks, upsert, remove ...
+}
+```
+
+- `$state` in `.svelte.ts` modules — reactive anywhere without `.subscribe()`
+- `$derived` for computed values, `$effect` for side effects
+- `$bindable()` only for two-way UI bindings in components
+
+---
+
+## Routing
+
+```
+/           → redirect → /week
+/week       → Week view
+/month      → Month view
+/year       → Year view
+/backlog    → Backlog
+/archive    → Archive
+/login      → Login (auth group)
+/register   → Register (auth group)
+```
+
+---
+
+## Decisions
+
+| Date       | Decision                                  | Reason                                      |
+|------------|-------------------------------------------|---------------------------------------------|
+| 2026-05-01 | SvelteKit 5 + Runes                       | Reactivity without boilerplate, SSR         |
+| 2026-05-01 | FSD                                       | Scalable structure, clear layer boundaries  |
+| 2026-05-01 | `.svelte.ts` stores                       | Svelte 5 runes work in .ts files            |
+| 2026-05-01 | Tailwind v4 + @tailwindcss/vite           | No config file, CSS-native tokens           |
+| 2026-05-01 | shadcn-svelte → `shared/ui`               | FSD: base UI primitives belong in shared    |
+| 2026-05-01 | `cn()` = clsx + tailwind-merge            | Standard shadcn utility                     |

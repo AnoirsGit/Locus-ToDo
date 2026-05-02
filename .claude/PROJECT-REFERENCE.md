@@ -5,7 +5,7 @@
 ## What is this
 
 "Цикл" — a self-disciplined task manager across three time horizons (Week / Month / Year).  
-Tasks auto-archive on completion and auto-fail to backlog on missed deadlines.
+Tasks auto-archive on completion. Missed deadlines get one penalty period (`overdue`), then move to `backlog`.
 
 ---
 
@@ -44,12 +44,15 @@ Tasks auto-archive on completion and auto-fail to backlog on missed deadlines.
 | Table                | Key columns                                                        |
 |----------------------|--------------------------------------------------------------------|
 | `users`              | id, email, name, password_hash                                     |
-| `tasks`              | id, user_id, title, level, status, deadline, done_at, archive_delay_minutes |
-| `recurring_templates`| id, user_id, title, level, recurring_config (JSONB)                |
+| `tasks`              | id, user_id, title, description, level                             |
+| `recurring_configs`  | id, task_id (UNIQUE), day_of_week, day_of_month, is_active         |
+| `task_periods`       | id, task_id, user_id, period_type, period_start/end, status, target_date, sort_order |
 
-Relations: `tasks.user_id → users.id`, `recurring_templates.user_id → users.id`
+Relations: `tasks.user_id → users.id`, `recurring_configs.task_id → tasks.id`, `task_periods.task_id → tasks.id`
 
-**Not confirmed:** column types, indexes, partitioning, soft-delete strategy.
+Statuses: `todo | done | overdue | backlog | archived` (`overdue` = DB status, штрафной период; failed = derived: `archived` + `done_at IS NULL`)
+
+**Not confirmed:** indexes, partitioning, soft-delete strategy, refresh token storage.
 
 ---
 

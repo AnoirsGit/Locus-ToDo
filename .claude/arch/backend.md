@@ -92,11 +92,48 @@ DELETE /api/tasks/:id
 
 ---
 
+## Scheduler Logic
+
+Шедулер запускается периодически (MVP: `setInterval`, hourly). Конвертирует время в часовой пояс пользователя для определения границ периода.
+
+### Переход по окончании первого периода
+
+```
+IF period_end < now() (в tz пользователя)
+  AND status = 'todo'
+  → status = 'overdue'   (штрафной период начался)
+
+IF period_end < now()
+  AND status = 'done'
+  → status = 'archived', archived_at = now()
+```
+
+### Переход по окончании штрафного периода
+
+Штрафной период = следующий аналогичный период (следующая неделя / месяц / год).
+
+```
+IF penalty_period_end < now()
+  AND status = 'overdue'
+  → status = 'backlog', backlog_at = now()
+```
+
+> Для recurring-задач штрафной период не применяется — пропущенный период сразу `archived` (failure), новый `todo` создаётся автоматически.
+
+### Валидация DELETE /api/tasks/:id
+
+```
+IF EXISTS (SELECT 1 FROM task_periods WHERE task_id = :id AND status = 'archived')
+  → 400/409: "Cannot delete task with archived periods"
+```
+
 ## Decisions
 
 | Date       | Decision                                     | Reason                                   |
 |------------|----------------------------------------------|------------------------------------------|
 | 2026-05-01 | Fastify 5                                    | Performance, TypeScript first-class      |
 | 2026-05-01 | Scheduler inside API process (setInterval)   | MVP; separate worker in the future       |
-| 2026-05-01 | JSONB for `recurring_config`                 | Flexibility without extra tables         |
 | 2026-05-01 | Hexagonal Architecture                       | Isolate business logic from Fastify/pg   |
+| 2026-05-02 | `recurring_configs` — отдельная реляционная таблица | Чистое 1:1; presence = recurring; JSONB вариант отклонён |
+| 2026-05-02 | Шедулер: двухэтапная просрочка (todo→overdue→backlog) | Штрафной период как MVP-дисциплина; один шанс исправиться до backlog |
+| 2026-05-02 | DELETE /api/tasks/:id блокируется при наличии archived-периодов | Защита истории; API возвращает 409/400 если EXISTS archived task_period |

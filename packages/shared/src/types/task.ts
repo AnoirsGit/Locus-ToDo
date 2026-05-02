@@ -1,65 +1,71 @@
-// ─── Enums ────────────────────────────────────────────────────────────────────
-
 export type TaskLevel = 'week' | 'month' | 'year'
 
-export type TaskStatus =
-  | 'todo'
-  | 'done'
-  | 'archived'
-  | 'failed'
-  | 'backlog'
+export type TaskStatus = 'todo' | 'done' | 'backlog' | 'archived'
 
-// ─── Core Task ────────────────────────────────────────────────────────────────
+// --- Task -----------------------------------------------------------------------
 
 export type Task = {
   id: string
+  userId: string
   title: string
   description?: string
   level: TaskLevel
+  recurringConfig?: RecurringConfig
+  createdAt: string
+  updatedAt: string
+}
+
+// --- Recurring Config -----------------------------------------------------------
+
+export type RecurringConfig = {
+  id: string
+  taskId: string
+  /** week-level: 0 (Sun) - 6 (Sat). Null = start of week */
+  dayOfWeek?: number
+  /** month-level: 1-31. Null = 1st */
+  dayOfMonth?: number
+  isActive: boolean
+  createdAt: string
+}
+
+// --- Task Period ----------------------------------------------------------------
+
+export type TaskPeriod = {
+  id: string
+  taskId: string
+  userId: string
+
+  periodType: TaskLevel
+  periodStart: string // ISO date -- Mon / Jan 1 / 1st of month
+  periodEnd: string   // ISO date -- Sun / Dec 31 / last of month
+
   status: TaskStatus
 
-  /** For year-level tasks: which month is the deadline (1–12) */
+  /** week-tasks only: planned day within the week */
+  targetDate?: string
+  /** year-tasks only: deadline narrows to a specific month (1-12) */
   deadlineMonth?: number
 
-  /** Timestamp when the task was marked done — starts the archive delay */
+  sortOrder: number
+
   doneAt?: string
-
-  /** Minutes to wait in Done state before auto-archiving (default: 120) */
-  archiveDelayMinutes: number
-
-  /** Deadline ISO date — set automatically based on level + creation date */
-  deadline: string
-
-  /** Whether this is a recurring task */
-  isRecurring: boolean
-  recurringConfig?: RecurringConfig
-
-  /** Tags from backlog flow */
-  failedAt?: string
+  backlogAt?: string
   archivedAt?: string
 
   createdAt: string
   updatedAt: string
-  userId: string
 }
 
-// ─── Recurring ────────────────────────────────────────────────────────────────
-
-export type RecurringConfig = {
-  level: TaskLevel
-  /** For week-level: 0 (Sun) – 6 (Sat) */
-  dayOfWeek?: number
-  /** For month-level: 1–31 */
-  dayOfMonth?: number
-}
-
-// ─── View helpers ─────────────────────────────────────────────────────────────
+// --- View helpers ---------------------------------------------------------------
 
 export type TaskView = 'day' | 'week' | 'month' | 'year' | 'backlog' | 'archive'
 
+/** Task + its current period -- what the UI works with */
+export type TaskWithPeriod = Task & { period: TaskPeriod }
+
 export type GroupedTasks = {
-  primary: Task[]
-  week: Task[]
-  month: Task[]
-  year: Task[]
+  primary: TaskWithPeriod[]
+  week: TaskWithPeriod[]
+  month: TaskWithPeriod[]
+  year: TaskWithPeriod[]
 }
