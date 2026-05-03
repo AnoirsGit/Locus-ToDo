@@ -13,6 +13,7 @@ export const userStore = {
   get isAuthed() { return state.user !== null },
 
   set: (user: User) => { state.user = user },
+  patch: (p: Partial<User>) => { if (state.user) state.user = { ...state.user, ...p } },
   clear: () => { state.user = null },
   setLoading: (v: boolean) => { state.loading = v },
 }

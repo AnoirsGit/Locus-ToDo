@@ -1,6 +1,6 @@
-export type TaskLevel = 'week' | 'month' | 'year'
+export type TaskLevel = 'day' | 'week' | 'month' | 'year'
 
-export type TaskStatus = 'todo' | 'done' | 'backlog' | 'archived'
+export type TaskStatus = 'todo' | 'done' | 'overdue' | 'backlog' | 'archived'
 
 // --- Task -----------------------------------------------------------------------
 
