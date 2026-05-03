@@ -129,7 +129,7 @@
   }
 </script>
 
-<form onsubmit={handleSubmit} class="flex flex-col gap-3 p-3 rounded border border-gray-700 bg-gray-900/50">
+<form onsubmit={handleSubmit} class="flex flex-col">
   <TaskFormFields
     bind:title
     bind:description
@@ -140,18 +140,18 @@
     bind:dayOfWeek
     bind:dayOfMonth
   />
-  <div class="flex gap-2 justify-end pt-1">
+  <div class="flex gap-2 justify-end p-4 border-t border-gray-800">
     <button
       type="button"
       onclick={onCancel}
-      class="text-sm text-gray-500 hover:text-gray-300 px-2 py-1"
+      class="text-sm text-gray-500 hover:text-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
     >
       Отмена
     </button>
     <button
       type="submit"
       disabled={!title.trim()}
-      class="bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm text-white px-3 py-1 rounded"
+      class="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm text-white px-4 py-1.5 rounded-lg transition-colors"
     >
       Создать
     </button>

@@ -6,7 +6,7 @@
   type Props = {
     task: TaskWithPeriod
     onToggle?: (periodId: string) => void
-    onEdit?: (periodId: string) => void
+    onEdit?: (task: TaskWithPeriod) => void
     showLevel?: boolean
   }
   const { task, onToggle, onEdit, showLevel = true }: Props = $props()
@@ -22,7 +22,7 @@
 </script>
 
 <div
-  class="flex items-start gap-2 p-3 rounded border-y border-r"
+  class="flex items-start gap-2 p-3 rounded border-y border-r select-none"
   class:border-l-2={isChecked}
   class:border-l={!isChecked}
   class:border-gray-700={!isOverdue && !isChecked}
@@ -34,7 +34,7 @@
   {#if onEdit && !isArchived}
     <button
       class="mt-0.5 flex-shrink-0 text-gray-600 hover:text-gray-400 transition-colors"
-      onclick={() => onEdit(p.id)}
+      onclick={() => onEdit(task)}
       aria-label="Редактировать задачу"
     >
       <svg class="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none">

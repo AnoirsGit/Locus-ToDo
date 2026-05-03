@@ -1,19 +1,16 @@
 <script lang="ts">
   import { taskStore, TaskCard } from '$entities/task'
   import { MONTH_NAMES_SHORT, DAY_NAMES_SHORT } from '$entities/task'
-  import type { TaskWithPeriod } from '$entities/task'
+  import type { TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
-  import { createTask, CreateTaskForm } from '$features/create-task'
-  import { EditTaskForm } from '$features/edit-task'
+  import { createTask } from '$features/create-task'
   import { TaskModal } from '$widgets/task-modal'
 
   type ModalState =
-    | { mode: 'create'; defaultLevel: 'day'; defaultPeriodStart: string }
+    | { mode: 'create'; defaultLevel: TaskLevel; defaultPeriodStart: string }
     | { mode: 'edit'; task: TaskWithPeriod }
 
   let weekOffset = $state(0)
-  let creatingNew = $state(false)
-  let editingPeriodId = $state<string | null>(null)
 
   // Day-column quick-create
   let quickCreateDay = $state<string | null>(null)
@@ -153,117 +150,144 @@
     </div>
   </div>
 
-  <!-- ── Задачи недели ──────────────────────────────────── -->
+  <!-- ── Канбан: полоска недели + столбцы дней ─────────── -->
   <section class="mb-8">
-    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Задачи недели</h2>
-
-    {#if weekTasks.length > 0}
-      <div class="flex flex-col gap-2">
-        {#each weekTasks as task (task.period.id)}
-          {#if editingPeriodId === task.period.id}
-            <EditTaskForm {task} onClose={() => { editingPeriodId = null }} />
-          {:else}
-            <TaskCard {task} onToggle={toggleTask} onEdit={(id) => { editingPeriodId = id }} showLevel={false} />
-          {/if}
-        {/each}
-      </div>
-    {:else}
-      <p class="text-sm text-gray-600">Нет задач</p>
-    {/if}
-
-    {#if creatingNew}
-      <div class="mt-2">
-        <CreateTaskForm
-          defaultLevel="week"
-          onSuccess={() => { creatingNew = false }}
-          onCancel={() => { creatingNew = false }}
-        />
-      </div>
-    {:else}
-      <button
-        onclick={() => { creatingNew = true }}
-        class="mt-2 text-sm text-gray-600 hover:text-gray-400 border border-dashed border-gray-800 hover:border-gray-700 rounded px-3 py-2 w-full text-left transition-colors"
-      >
-        + Добавить задачу
-      </button>
-    {/if}
-  </section>
-
-  <!-- ── По дням (kanban) ─────────────────────────────── -->
-  <section class="mb-8">
-    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">По дням</h2>
+    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Задачи недели</h2>
     <div class="overflow-x-auto pb-1" bind:this={kanbanRef}>
-      <div class="flex gap-3 min-w-max">
-        {#each weekDays as day (toISO(day))}
-          {@const key = toISO(day)}
-          {@const isToday = key === today}
-          {@const dayTasks = tasksByDay.get(key) ?? []}
-          <div
-            data-date={key}
-            class="w-52 flex-shrink-0 flex flex-col rounded border border-gray-800"
-          >
-            <!-- Column header -->
-            <div
-              class="px-3 py-2 border-b border-gray-800 flex items-center gap-2"
-              class:bg-gray-800={isToday}
+      <div class="min-w-max">
+
+        <!-- Week tasks strip -->
+        <div class="flex items-center gap-2 flex-wrap mb-3 pb-3 border-b border-gray-800 min-h-10">
+          {#each weekTasks as task (task.period.id)}
+            {@const isDone    = task.period.status === 'done'}
+            {@const isOverdue = task.period.status === 'overdue'}
+            <div class="group flex items-center gap-2 px-3 py-1.5 rounded border text-xs transition-colors select-none
+              {isDone    ? 'border-green-800 bg-green-900/20 opacity-70'  :
+               isOverdue ? 'border-yellow-800 bg-yellow-900/10'           :
+                           'border-gray-700 bg-gray-800/40 hover:border-gray-600'}"
             >
-              <span class="text-xs text-gray-500 uppercase tracking-wide">{DAY_NAMES_SHORT[day.getDay()]}</span>
+              <!-- title -->
               <span
-                class="text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full"
-                class:bg-blue-600={isToday}
-                class:text-white={isToday}
-                class:text-gray-400={!isToday}
-              >{day.getDate()}</span>
-            </div>
+                class="max-w-48 truncate"
+                class:line-through={isDone}
+                class:text-gray-500={isDone}
+                class:text-yellow-400={isOverdue}
+                class:text-gray-300={!isDone && !isOverdue}
+              >{task.title}</span>
 
-            <!-- Task cards -->
-            <div class="p-2 flex flex-col gap-2 min-h-24 flex-1">
-              {#each dayTasks as task (task.period.id)}
-                <TaskCard
-                  {task}
-                  onToggle={toggleTask}
-                  onEdit={() => { modal = { mode: 'edit', task } }}
-                  showLevel={false}
-                />
-              {/each}
-            </div>
-
-            <!-- Column footer: quick-create or add button -->
-            <div class="p-2 border-t border-gray-800/50">
-              {#if quickCreateDay === key}
-                <div class="flex items-center gap-1">
-                  <input
-                    type="text"
-                    bind:value={quickTitle}
-                    onkeydown={(e) => handleQuickKeydown(e, key)}
-                    placeholder="Название задачи..."
-                    autofocus
-                    class="flex-1 text-xs bg-gray-800 text-gray-200 placeholder-gray-600 border border-gray-700 rounded px-2 py-1.5 outline-none focus:border-blue-600"
-                  />
-                  <!-- Expand to full modal -->
-                  <button
-                    type="button"
-                    onclick={() => { cancelQuickCreate(); modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: key } }}
-                    class="p-1 text-gray-500 hover:text-gray-300 rounded hover:bg-gray-700 transition-colors flex-shrink-0"
-                    aria-label="Открыть полную форму"
-                    title="Открыть полную форму"
-                  >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
-                      <path d="M10 2h4v4M14 2l-5 5M6 14H2v-4M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              {:else}
-                <button
-                  onclick={() => startQuickCreate(key)}
-                  class="w-full text-left text-xs text-gray-600 hover:text-gray-400 py-1 px-1 rounded hover:bg-gray-800/50 transition-colors"
-                >
-                  + Добавить задачу
-                </button>
+              {#if task.recurringConfig}
+                <span class="text-gray-600 flex-shrink-0">↻</span>
               {/if}
+
+              <!-- edit (hover) -->
+              <button
+                onclick={() => { modal = { mode: 'edit', task } }}
+                class="flex-shrink-0 text-gray-600 hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="Редактировать"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 14 14" fill="none">
+                  <path d="M9.5 2.5L11.5 4.5M2 10L2.5 12L4.5 11.5L11.5 4.5L9.5 2.5L2 10Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <!-- status circle -->
+              <button
+                onclick={() => toggleTask(task.period.id)}
+                class="flex-shrink-0 w-3.5 h-3.5 rounded-full transition-all flex items-center justify-center
+                  {isDone ? 'bg-green-600' : isOverdue ? 'border border-yellow-500' : 'border border-gray-600 hover:border-gray-400'}"
+                aria-label={isDone ? 'Снять отметку' : 'Отметить выполненной'}
+              >
+                {#if isDone}
+                  <svg class="w-2 h-2 text-white" viewBox="0 0 8 8" fill="none">
+                    <path d="M1.5 4l1.5 1.5L6.5 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                {/if}
+              </button>
             </div>
-          </div>
-        {/each}
+          {/each}
+
+          <!-- Add week task -->
+          <button
+            onclick={() => { modal = { mode: 'create', defaultLevel: 'week', defaultPeriodStart: toISO(weekDays[0]) } }}
+            class="flex-shrink-0 text-xs text-gray-700 hover:text-gray-500 px-1.5 py-1 rounded hover:bg-gray-800/50 transition-colors"
+          >
+            + Добавить
+          </button>
+        </div>
+
+        <!-- Day columns -->
+        <div class="flex gap-3">
+          {#each weekDays as day (toISO(day))}
+            {@const key = toISO(day)}
+            {@const isToday = key === today}
+            {@const dayTasks = tasksByDay.get(key) ?? []}
+            <div
+              data-date={key}
+              class="w-52 flex-shrink-0 flex flex-col rounded border border-gray-800"
+            >
+              <!-- Column header -->
+              <div
+                class="px-3 py-2 border-b border-gray-800 flex items-center gap-2"
+                class:bg-gray-800={isToday}
+              >
+                <span class="text-xs text-gray-500 uppercase tracking-wide">{DAY_NAMES_SHORT[day.getDay()]}</span>
+                <span
+                  class="text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full"
+                  class:bg-blue-600={isToday}
+                  class:text-white={isToday}
+                  class:text-gray-400={!isToday}
+                >{day.getDate()}</span>
+              </div>
+
+              <!-- Task cards -->
+              <div class="p-2 flex flex-col gap-2 min-h-24 flex-1">
+                {#each dayTasks as task (task.period.id)}
+                  <TaskCard
+                    {task}
+                    onToggle={toggleTask}
+                    onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+                    showLevel={false}
+                  />
+                {/each}
+              </div>
+
+              <!-- Column footer: quick-create or add button -->
+              <div class="p-2 border-t border-gray-800/50">
+                {#if quickCreateDay === key}
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="text"
+                      bind:value={quickTitle}
+                      onkeydown={(e) => handleQuickKeydown(e, key)}
+                      placeholder="Название задачи..."
+                      autofocus
+                      class="flex-1 text-xs bg-gray-800 text-gray-200 placeholder-gray-600 border border-gray-700 rounded px-2 py-1.5 outline-none focus:border-blue-600"
+                    />
+                    <button
+                      type="button"
+                      onclick={() => { cancelQuickCreate(); modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: key } }}
+                      class="p-1 text-gray-500 hover:text-gray-300 rounded hover:bg-gray-700 transition-colors flex-shrink-0"
+                      aria-label="Открыть полную форму"
+                      title="Открыть полную форму"
+                    >
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 2h4v4M14 2l-5 5M6 14H2v-4M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                {:else}
+                  <button
+                    onclick={() => startQuickCreate(key)}
+                    class="w-full text-left text-xs text-gray-600 hover:text-gray-400 py-1 px-1 rounded hover:bg-gray-800/50 transition-colors"
+                  >
+                    + Добавить задачу
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+
       </div>
     </div>
   </section>
@@ -293,7 +317,7 @@
   {/if}
 </div>
 
-<!-- Task modal (create or edit) -->
+<!-- Task modal -->
 {#if modal}
   <TaskModal state={modal} onClose={() => { modal = null }} />
 {/if}
