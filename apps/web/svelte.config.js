@@ -8,6 +8,7 @@ const config = {
     adapter: adapter(),
     files: {
       appTemplate: 'src/app/app.html',
+      routes: 'src/pages',
     },
     alias: {
       '$widgets/*': 'src/widgets/*',

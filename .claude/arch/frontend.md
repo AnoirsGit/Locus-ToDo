@@ -25,14 +25,16 @@ apps/web/src/
 │
 ├── routes/                         # = FSD "pages" layer (SvelteKit routing)
 │   ├── +layout.svelte              # Root layout — imports app.css
-│   ├── +page.svelte                # Redirects → /week
+│   ├── +page.svelte                # Redirects → /today
 │   ├── (app)/                      # Authenticated shell
 │   │   ├── +layout.svelte          # Sidebar + main wrapper
-│   │   ├── week/+page.svelte
+│   │   ├── today/+page.svelte      # Default view: tasks for today (targetDate = today)
+│   │   ├── week/+page.svelte       # Uses WeekView widget
 │   │   ├── month/+page.svelte
 │   │   ├── year/+page.svelte
 │   │   ├── backlog/+page.svelte
-│   │   └── archive/+page.svelte
+│   │   ├── archive/+page.svelte
+│   │   └── settings/+page.svelte
 │   └── (auth)/
 │       ├── login/+page.svelte
 │       └── register/+page.svelte
@@ -42,16 +44,25 @@ apps/web/src/
     │   ├── sidebar/
     │   │   ├── Sidebar.svelte
     │   │   └── index.ts
-    │   └── task-list/
-    │       ├── TaskList.svelte
+    │   ├── task-list/              # Generic list (month/year/backlog/archive)
+    │   │   ├── TaskList.svelte
+    │   │   └── index.ts
+    │   └── week-view/              # Week view: nav + week list + day grid + context
+    │       ├── WeekView.svelte
     │       └── index.ts
     │
     ├── features/                   # User actions / orchestration
-    │   ├── create-task/index.ts    # createTask(input) → calls entity api + store
-    │   ├── toggle-task/index.ts   # toggleTask(id) → done ↔ todo
-    │   └── replan-task/index.ts    # replanTask({ id, level, periodStart })
+    │   ├── create-task/            # createTask() + CreateTaskForm.svelte (optimistic)
+    │   ├── edit-task/              # EditTaskForm.svelte (optimistic upsert)
+    │   ├── toggle-task/index.ts    # toggleTask(id) → done ↔ todo
+    │   ├── replan-task/index.ts    # replanTask({ id, level, periodStart })
+    │   └── update-profile/         # ProfileForm.svelte (patches userStore)
     │
     ├── entities/
+    │   ├── user/
+    │   │   ├── api/user.api.ts     # userApi.register / login / me
+    │   │   ├── model/user.store.svelte.ts  # $state: user, loading; set/patch/clear
+    │   │   └── index.ts
     │   └── task/
     │       ├── api/
     │       │   └── tasks.api.ts    # tasksApi.getAll / create / update / remove
@@ -59,7 +70,8 @@ apps/web/src/
     │       │   ├── task.types.ts   # re-exports from @locus/shared
     │       │   └── task.store.svelte.ts  # $state store: tasks, loading, error
     │       ├── ui/                 # Dumb components (props only, no API calls)
-    │       │   ├── TaskCard.svelte
+    │       │   ├── TaskCard.svelte       # onToggle + onEdit props
+    │       │   ├── TaskFormFields.svelte # Controlled dumb form (all fields, level-adaptive)
     │       │   └── TaskLevelBadge.svelte
     │       └── index.ts            # Public barrel export
     │
@@ -156,12 +168,14 @@ export const taskStore = {
 ## Routing
 
 ```
-/           → redirect → /week
-/week       → Week view
+/           → redirect → /today
+/today      → Today view  (TaskView = 'day')  ← default
+/week       → Week view   (WeekView widget: nav + list + day grid + context)
 /month      → Month view
 /year       → Year view
 /backlog    → Backlog
 /archive    → Archive
+/settings   → Settings (profile + task config)
 /login      → Login (auth group)
 /register   → Register (auth group)
 ```
@@ -171,6 +185,17 @@ export const taskStore = {
 ## Decisions
 
 | Date       | Decision                                  | Reason                                      |
+| 2026-05-03 | Added `overdue` to `TaskStatus` in shared | Spec uses it as DB status, store already filters by it |
+| 2026-05-03 | `task.mocks.ts` in `entities/task/model/` | All 13 mock variants (all statuses × levels) seeded via `(app)/+layout.svelte` `onMount` |
+| 2026-05-03 | Toggle is optimistic (no API dep)         | Lets UI work in mock mode; API update applied on top if available |
+| 2026-05-03 | TaskFormFields — dumb with $bindable props | Parent holds state via $state, all fields level-adaptive, numerics kept as string |
+| 2026-05-03 | Create/Edit inline in TaskList widget      | Widget owns open/close state; forms are feature components |
+| 2026-05-03 | Settings route under (app)/settings        | Sidebar now accepts `AppView = TaskView \| 'settings'` |
+| 2026-05-03 | Mock userStore seeded in layout onMount    | id='u1', name/email/timezone for ProfileForm |
+| 2026-05-03 | routes/ renamed to pages/ (FSD naming)    | `kit.files.routes: 'src/pages'` in svelte.config.js |
+| 2026-05-03 | WeekView widget — dedicated week page      | Separate from generic TaskList; owns weekOffset state, day grid, context sections |
+| 2026-05-03 | /today as default view (TaskView='day')    | Shows tasks where targetDate=today; taskStore.getForDate() |
+| 2026-05-03 | DAY_NAMES_SHORT, MONTH_NAMES_GENITIVE added | task.constants.ts — shared by WeekView and today page |
 |------------|-------------------------------------------|---------------------------------------------|
 | 2026-05-01 | SvelteKit 5 + Runes                       | Reactivity without boilerplate, SSR         |
 | 2026-05-01 | FSD                                       | Scalable structure, clear layer boundaries  |

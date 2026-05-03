@@ -9,6 +9,7 @@ type State = {
 const state = $state<State>({ items: [], loading: false, error: null })
 
 const levelForView = (view: TaskView): TaskWithPeriod['level'] => {
+  if (view === 'day') return 'day'
   if (view === 'month') return 'month'
   if (view === 'year') return 'year'
   return 'week'
@@ -17,7 +18,7 @@ const levelForView = (view: TaskView): TaskWithPeriod['level'] => {
 const getForView = (view: TaskView): GroupedTasks => {
   if (view === 'backlog') {
     return {
-      primary: state.items.filter((t) => t.period.status === 'failed'),
+      primary: state.items.filter((t) => t.period.status === 'backlog'),
       week: [], month: [], year: [],
     }
   }
@@ -30,7 +31,7 @@ const getForView = (view: TaskView): GroupedTasks => {
   }
 
   const active = state.items.filter(
-    (t) => t.period.status === 'todo' || t.period.status === 'overdue',
+    (t) => t.period.status === 'todo' || t.period.status === 'overdue' || t.period.status === 'done',
   )
   const level = levelForView(view)
 
@@ -62,11 +63,19 @@ const remove = (periodId: string) => {
   state.items = state.items.filter((t) => t.period.id !== periodId)
 }
 
+const getForDate = (date: string): TaskWithPeriod[] =>
+  state.items.filter(
+    (t) =>
+      (t.period.status === 'todo' || t.period.status === 'overdue' || t.period.status === 'done') &&
+      (t.period.targetDate === date || (t.level === 'day' && t.period.periodStart === date)),
+  )
+
 export const taskStore = {
   get items() { return state.items },
   get loading() { return state.loading },
   get error() { return state.error },
   getForView,
+  getForDate,
   setItems,
   setLoading,
   setError,
