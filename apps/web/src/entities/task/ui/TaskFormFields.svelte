@@ -33,13 +33,12 @@
 
 <div class="flex min-h-0">
   <!-- Left: title + description -->
-  <div class="flex-1 min-w-0 flex flex-col gap-4 p-5" style="border-right:1px solid var(--color-border);">
+  <div class="flex-1 min-w-0 flex flex-col gap-4 p-5 border-r border-border">
     <input
       type="text"
       bind:value={title}
       placeholder="Название задачи"
-      class="w-full bg-transparent outline-none pb-2 font-medium text-base transition-colors"
-      style="color:var(--color-text-strong); border-bottom:1px solid var(--color-border);"
+      class="w-full bg-transparent outline-none pb-2 font-medium text-base transition-colors text-text-strong border-b border-border"
     />
     <textarea
       bind:value={description}
@@ -71,13 +70,13 @@
       </div>
     </div>
 
-    <!-- Time (day only) -->
-    {#if level === 'day'}
+    <!-- Time (day and week) -->
+    {#if level === 'day' || level === 'week'}
       <div>
         <label for="tf-time" class="label">
-          Время <span style="color:var(--color-muted-2); font-family:inherit; font-weight:normal; text-transform:none; letter-spacing:0;">(необязательно)</span>
+          Время <span class="text-muted-2 font-inherit font-normal normal-case tracking-normal">(необязательно)</span>
         </label>
-        <input id="tf-time" type="time" bind:value={scheduledTime} class="input" />
+        <input id="tf-time" type="time" step="900" bind:value={scheduledTime} class="input" />
       </div>
     {/if}
 
@@ -106,7 +105,7 @@
     <div>
       <span class="label">Повторение</span>
       <div class="flex items-center justify-between gap-3">
-        <span class="text-sm" style="color:var(--color-muted);">{recurring ? 'Включено' : 'Выключено'}</span>
+        <span class="text-sm text-muted">{recurring ? 'Включено' : 'Выключено'}</span>
         <button
           type="button"
           class="switch"
@@ -116,18 +115,24 @@
         ></button>
       </div>
       {#if recurring}
-        <p class="text-xs mt-1.5" style="color:var(--color-muted);">{RECURRING_HINT[level]}</p>
+        <p class="text-xs mt-1.5 text-muted">{RECURRING_HINT[level]}</p>
       {/if}
     </div>
 
     <!-- Week + recurring: day of week -->
     {#if recurring && level === 'week'}
       <div>
-        <label for="tf-dow" class="label">День создания периода</label>
+        <label for="tf-dow" class="label">Выходит каждый</label>
         <select id="tf-dow" bind:value={dayOfWeek} class="input">
-          <option value="">Начало недели (Пн)</option>
+          <option value="">Понедельник (по умолчанию)</option>
           {#each DOW_OPTIONS as d}<option value={d.value}>{d.label}</option>{/each}
         </select>
+        {#if dayOfWeek || scheduledTime}
+          <p class="text-xs mt-1.5 text-muted">
+            Каждый {dayOfWeek ? DOW_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? 'Пн' : 'Понедельник'}
+            {#if scheduledTime} в {scheduledTime}{/if}
+          </p>
+        {/if}
       </div>
     {/if}
 

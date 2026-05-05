@@ -12,6 +12,7 @@
     "typecheck": "svelte-kit sync && tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/cormorant": "^5.2.8",
     "@locus/shared": "workspace:*",
     "@tailwindcss/vite": "^4.2.4",
     "@tiptap/core": "^3.22.5",

@@ -1,0 +1,43 @@
+import type { Config } from 'tailwindcss'
+
+export default {
+  content: ['./src/**/*.{html,js,svelte,ts}'],
+  theme: {
+    extend: {
+      colors: {
+        background: 'var(--color-background)',
+        surface: 'var(--color-surface)',
+        'surface-2': 'var(--color-surface-2)',
+        card: 'var(--color-card)',
+        border: 'var(--color-border)',
+        'border-2': 'var(--color-border-2)',
+        text: 'var(--color-text)',
+        'text-2': 'var(--color-text-2)',
+        muted: 'var(--color-muted)',
+        'muted-2': 'var(--color-muted-2)',
+        'text-strong': 'var(--color-text-strong)',
+        day: 'var(--color-day)',
+        'day-soft': 'var(--color-day-soft)',
+        'day-tint': 'var(--color-day-tint)',
+        week: 'var(--color-week)',
+        'week-soft': 'var(--color-week-soft)',
+        'week-tint': 'var(--color-week-tint)',
+        month: 'var(--color-month)',
+        'month-soft': 'var(--color-month-soft)',
+        'month-tint': 'var(--color-month-tint)',
+        year: 'var(--color-year)',
+        'year-soft': 'var(--color-year-soft)',
+        'year-tint': 'var(--color-year-tint)',
+        warning: 'var(--color-warning)',
+        'warning-soft': 'var(--color-warning-soft)',
+        'warning-tint': 'var(--color-warning-tint)',
+        'warning-ink': 'var(--color-warning-ink)',
+        success: 'var(--color-success)',
+        danger: 'var(--color-danger)',
+        brand: 'var(--color-brand)',
+        'brand-2': 'var(--color-brand-2)',
+      },
+    },
+  },
+  plugins: [],
+} satisfies Config

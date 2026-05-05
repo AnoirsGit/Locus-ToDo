@@ -48,7 +48,7 @@
       Сохранить
     </button>
     {#if saved}
-      <span class="font-mono" style="font-size:11px; color:var(--color-success);">Сохранено</span>
+      <span class="font-mono text-[11px] text-success">Сохранено</span>
     {/if}
   </div>
 </form>

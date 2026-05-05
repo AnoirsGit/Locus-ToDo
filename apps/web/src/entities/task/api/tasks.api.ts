@@ -23,8 +23,8 @@ export const tasksApi = {
   getByPeriod: (params: { periodType: TaskLevel; periodStart: string }) =>
     api.get<TaskWithPeriod[]>(`/tasks?${new URLSearchParams(params).toString()}`),
 
-  /** Get all failed periods (backlog) */
-  getBacklog: () => api.get<TaskWithPeriod[]>('/tasks?status=failed'),
+  /** Get all backlog periods */
+  getBacklog: () => api.get<TaskWithPeriod[]>('/tasks?status=backlog'),
 
   /** Get archived */
   getArchive: () => api.get<TaskWithPeriod[]>('/tasks?status=archived'),

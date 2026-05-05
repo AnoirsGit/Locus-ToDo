@@ -1,5 +1,6 @@
 <script lang="ts">
   import { taskStore, TaskCard } from '$entities/task'
+  import { i18n } from '$shared/lib/i18n'
   import type { TaskView, TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
   import { TaskModal } from '$widgets/task-modal'
@@ -38,18 +39,18 @@
     modal = { mode: 'create', defaultLevel, defaultPeriodStart: periodStart }
   }
 
-  const VIEW_LABELS: Record<TaskView, { title: string; eyebrow: string }> = {
-    day:     { title: 'Сегодня',   eyebrow: 'День' },
-    week:    { title: 'Неделя.',   eyebrow: 'Горизонт · неделя' },
-    month:   { title: 'Месяц.',    eyebrow: 'Горизонт · месяц' },
-    year:    { title: 'Год.',      eyebrow: 'Горизонт · год' },
-    backlog: { title: 'Беклог.',   eyebrow: 'Задачи без решения' },
-    archive: { title: 'Архив.',    eyebrow: 'Завершённые периоды' },
-  }
+  const VIEW_LABELS: Record<TaskView, { title: string; eyebrow: string }> = $derived({
+    day:     { title: i18n.t('view.today'),   eyebrow: i18n.t('nav.today') },
+    week:    { title: i18n.t('view.week'),    eyebrow: i18n.t('nav.week') },
+    month:   { title: i18n.t('view.month'),   eyebrow: i18n.t('nav.month') },
+    year:    { title: i18n.t('view.year'),    eyebrow: i18n.t('nav.year') },
+    backlog: { title: i18n.t('view.backlog'), eyebrow: i18n.t('nav.backlog') },
+    archive: { title: i18n.t('view.archive'), eyebrow: i18n.t('nav.archive') },
+  })
 
-  const CONTEXT_LABELS: Record<string, string> = {
-    week: 'Задачи недели', month: 'Задачи месяца', year: 'Задачи года',
-  }
+  const CONTEXT_LABELS: Record<string, string> = $derived({
+    week: i18n.t('view.week_tasks'), month: i18n.t('view.month_tasks'), year: i18n.t('view.year_tasks'),
+  })
 
   const { title, eyebrow } = $derived(VIEW_LABELS[view])
 </script>
@@ -58,43 +59,40 @@
   <!-- Page header -->
   <div class="page-header">
     <div class="page-header-left">
-      <div class="page-eyebrow">{eyebrow}</div>
+      <div class="page-eyebrow">{eyebrow} </div>
       <h1 class="page-title"><em>{title}</em></h1>
     </div>
     {#if canCreate}
       <div class="page-actions">
-        <button class="btn primary" onclick={openCreate}>+ Добавить задачу</button>
+        <button class="btn primary" onclick={openCreate}>+ Add task</button>
       </div>
     {/if}
   </div>
 
   {#if taskStore.loading}
-    <div class="empty"><p style="color:var(--color-muted);">Загрузка…</p></div>
+    <div class="empty"><p class="text-muted">{i18n.t('action.loading')}</p></div>
   {:else}
 
     <!-- Primary tasks -->
     <section class="section">
-      <div class="task-list">
+      <div class="task-list cards">
         {#if grouped.primary.length > 0}
           {#each grouped.primary as task (task.period.id)}
             <TaskCard
               {task}
               onToggle={toggleTask}
               onEdit={(t) => { modal = { mode: 'edit', task: t } }}
-              showLevel={false}
+              showLevel={view === 'backlog' || view === 'archive'}
             />
           {/each}
         {:else}
           <div class="empty">
-            <p class="empty-title">{view === 'backlog' || view === 'archive' ? 'Чисто' : 'Нет задач'}</p>
-            <p class="empty-body">{view === 'backlog' ? 'Продолжай в том же духе.' : ''}</p>
+            <p class="empty-title">{view === 'backlog' || view === 'archive' ? i18n.t('common.empty') : i18n.t('common.no_tasks')}</p>
+            <p class="empty-body">{view === 'backlog' ? i18n.t('common.keep_going') : ''}</p>
           </div>
         {/if}
         {#if canCreate}
-          <button class="quick-add" onclick={openCreate}>
-            <span class="quick-add-plus">+</span>
-            Добавить задачу
-          </button>
+          <button class="add-task-row" onclick={openCreate}>+ {i18n.t('action.add')}</button>
         {/if}
       </div>
     </section>
@@ -108,7 +106,7 @@
             <h2 class="section-title">{CONTEXT_LABELS[key]}</h2>
             <span class="section-meta">{items.length}</span>
           </div>
-          <div class="task-list">
+          <div class="task-list cards">
             {#each items as task (task.period.id)}
               <TaskCard
                 {task}

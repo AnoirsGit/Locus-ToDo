@@ -4,7 +4,7 @@
 
 ## Stack
 
-SvelteKit 2.x · Svelte 5 (runes) · Tailwind CSS v4 (no config file) · TypeScript
+SvelteKit 2.x · Svelte 5 (runes) · Tailwind CSS v4 (with tailwind.config.ts) · TypeScript
 
 ---
 
@@ -24,7 +24,7 @@ apps/web/src/
     sidebar/                # Nav + theme toggle + user card
     task-list/              # Generic list for month/year/backlog/archive
     task-modal/             # Create/edit modal wrapper
-    week-view/              # Kanban day grid + week/month/year context
+    week-view/              # Kanban day grid (WeekHeader, DayColumn, TaskSection)
   features/
     create-task/            # createTask() + CreateTaskForm
     edit-task/              # EditTaskForm
@@ -92,8 +92,9 @@ Design system classes in `app.css`: `.task`, `.btn`, `.sidebar`, `.modal`, `.aut
 |----------|--------|
 | Svelte 5 runes | Reactivity without boilerplate |
 | FSD | Clear layer boundaries, consistent with mobile |
-| Tailwind v4 @theme | Runtime CSS vars, no build-time config |
+| Tailwind v4 config | Link design tokens from `colors.ts` to Tailwind utilities |
 | Optimistic toggle | Instant UI, API applied on top |
 | Frontend-first with mocks | Ship UI before API is ready |
+| Responsive Grid Layout | Use CSS Grid for task lists on desktop (min 300px per card) to optimize space |
 | `kit.files.routes: 'src/pages'` | FSD naming for routes dir |
 | TaskFormFields — dumb `$bindable` | Parent owns state; form is just UI |

@@ -45,13 +45,11 @@
 </script>
 
 <div
-  class="flex flex-col rounded-[6px] overflow-hidden transition-colors"
-  style="border:1px solid var(--color-border-2); background:var(--color-card);"
+  class="flex flex-col rounded-[6px] overflow-hidden transition-colors border border-border-2 bg-card"
 >
   <!-- Toolbar -->
   <div
-    class="flex items-center gap-0.5 px-1.5 py-1"
-    style="border-bottom:1px solid var(--color-border);"
+    class="flex items-center gap-0.5 px-1.5 py-1 border-b border-border"
   >
     <button
       type="button"
@@ -89,7 +87,7 @@
       </svg>
     </button>
 
-    <div class="w-px h-4 mx-0.5" style="background:var(--color-border);"></div>
+    <div class="w-px h-4 mx-0.5 bg-border"></div>
 
     <button
       type="button"
@@ -120,7 +118,7 @@
       </svg>
     </button>
 
-    <div class="w-px h-4 mx-0.5" style="background:var(--color-border);"></div>
+    <div class="w-px h-4 mx-0.5 bg-border"></div>
 
     <button
       type="button"

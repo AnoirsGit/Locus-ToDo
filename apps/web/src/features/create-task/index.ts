@@ -57,6 +57,7 @@ export const createTask = async (input: CreateTaskInput) => {
       periodStart: input.periodStart,
       deadlineMonth: input.deadlineMonth,
     })
+    taskStore.remove(periodId)
     taskStore.upsert(item)
     return item
   } catch {

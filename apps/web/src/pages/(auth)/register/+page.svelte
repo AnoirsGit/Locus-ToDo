@@ -93,14 +93,13 @@
         </div>
 
         {#if error}
-          <p style="font-size:13px; color:var(--color-danger); margin:0 0 10px;">{error}</p>
+          <p class="text-[13px] text-danger mb-[10px]">{error}</p>
         {/if}
 
         <button
           type="submit"
           disabled={loading}
-          class="btn primary"
-          style="width:100%; margin-top:8px;"
+          class="btn primary w-full mt-2"
         >
           {loading ? 'Создаём аккаунт…' : 'Создать аккаунт'}
         </button>

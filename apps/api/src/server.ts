@@ -5,6 +5,7 @@ import { authRoutes } from './infrastructure/http/routes/auth.routes.js'
 import { taskRoutes } from './infrastructure/http/routes/tasks.routes.js'
 import { taskPeriodRoutes } from './infrastructure/http/routes/task-periods.routes.js'
 import { scheduler } from './infrastructure/scheduler/scheduler.js'
+import { db } from './infrastructure/db/client.js'
 
 const server = Fastify({ logger: true })
 
@@ -31,6 +32,18 @@ const start = async () => {
     server.log.error(err)
     return reply.status(err.statusCode ?? 500).send({ error: err.message ?? 'Internal server error' })
   })
+
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    try {
+      await db`SELECT 1`
+      server.log.info('Database connection established successfully')
+      break
+    } catch (err) {
+      if (attempt === 10) throw err
+      server.log.warn(`DB not ready (attempt ${attempt}/10), retrying in 2s…`)
+      await new Promise(r => setTimeout(r, 2000))
+    }
+  }
 
   await server.listen({
     port: Number(process.env.PORT ?? 3000),

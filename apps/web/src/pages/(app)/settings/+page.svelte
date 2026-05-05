@@ -23,6 +23,6 @@
       <h2 class="section-title">Задачи</h2>
       <span class="section-meta">автоматизация</span>
     </div>
-    <p style="font-size:13px; color:var(--color-muted);">Управление повторяющимися задачами — в разработке.</p>
+    <p class="text-[13px] text-muted">Управление повторяющимися задачами — в разработке.</p>
   </section>
 </div>

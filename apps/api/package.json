@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file=../../.env src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "db:migrate": "node --import tsx/esm src/db/migrate.ts",
-    "db:seed": "node --import tsx/esm src/db/seed.ts"
+    "db:migrate": "node --env-file=../../.env --import tsx/esm src/db/migrate.ts",
+    "db:seed": "node --env-file=../../.env --import tsx/esm src/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",

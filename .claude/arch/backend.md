@@ -80,3 +80,4 @@ DELETE blocked if any `archived` period exists for that task → 409.
 | 2-stage overdue (todo→overdue→backlog) | Penalty period = second chance mechanic |
 | DELETE blocked with archived periods | Protect historical data |
 | Scheduler in API process (setInterval) | MVP; move to separate worker later |
+| Startup DB connection verification | Ensure DB is reachable before accepting traffic |
