@@ -1,74 +1,63 @@
-# PROJECT-REFERENCE — Цикл
+# Project Reference
 
-> Loaded every session. Keep it short — navigation facts only.
+> Loaded every session. Navigation facts only.
 
-## What is this
-
-"Цикл" — a self-disciplined task manager across three time horizons (Week / Month / Year).  
-Tasks auto-archive on completion. Missed deadlines get one penalty period (`overdue`), then move to `backlog`.
+Self-discipline task manager across three time horizons (Week / Month / Year).
+Missed deadlines get one penalty period (`overdue`), then move to `backlog`.
 
 ---
 
 ## Monorepo
 
-| Package         | Path              | Port | Stack                         |
-|-----------------|-------------------|------|-------------------------------|
-| `@locus/web`    | `apps/web`        | 5173 | SvelteKit 5, TypeScript, Vite |
-| `@locus/api`    | `apps/api`        | 3000 | Fastify 5, PostgreSQL, Redis  |
-| `locus_mobile`  | `apps/mobile`     | —    | Flutter 3, Riverpod           |
-| `@locus/shared` | `packages/shared` | —    | TypeScript types only         |
+| Package | Path | Port | Stack |
+|---------|------|------|-------|
+| `@locus/web` | `apps/web` | 5173 | SvelteKit 5, Tailwind v4 |
+| `@locus/api` | `apps/api` | 3000 | Fastify 5, PostgreSQL, Redis |
+| `locus_mobile` | `apps/mobile` | — | Flutter 3, Riverpod |
+| `@locus/shared` | `packages/shared` | — | TypeScript types only |
 
-**Commands:** `pnpm dev` · `pnpm dev:web` · `pnpm dev:api` · `pnpm build` · `pnpm typecheck`
+Commands: `pnpm dev` · `pnpm dev:web` · `pnpm dev:api` · `pnpm build` · `pnpm typecheck`
 
 ---
 
 ## Key Files
 
-| File                               | Status       | Description                        |
-|------------------------------------|--------------|------------------------------------|
-| `CLAUDE.md`                        | current      | Working rules for Claude           |
-| `TECHNICAL-SPEC.md`                | draft        | Full product spec                  |
-| `.claude/arch/database.md`         | draft ⚠️     | DB schema — not confirmed          |
-| `.claude/arch/backend.md`          | draft        | Hexagonal arch, API, auth          |
-| `.claude/arch/frontend.md`         | draft        | FSD, SvelteKit 5, stores           |
-| `.claude/arch/mobile.md`           | draft        | FSD, Flutter, Riverpod             |
-| `apps/api/src/db/schema.sql`       | draft ⚠️     | DB schema — not confirmed          |
-| `apps/api/.env.example`            | current      | Env vars template                  |
+| File | Status | Description |
+|------|--------|-------------|
+| `CLAUDE.md` | current | Working rules |
+| `TECHNICAL-SPEC.md` | draft | Product spec |
+| `.claude/arch/*.md` | draft | Architecture docs |
+| `apps/api/src/db/migrations/001_initial.sql` | draft ⚠️ | DB schema — not confirmed |
+| `apps/api/.env.example` | current | Env vars template |
+| `docker-compose.yml` | current | PostgreSQL + Redis |
 
 ---
 
-## DB — Short Summary (draft ⚠️)
+## DB Summary (draft ⚠️)
 
-> Full detail: `.claude/arch/database.md`
+Tables: `users` · `user_settings` · `tasks` · `recurring_configs` · `task_periods`
 
-| Table                | Key columns                                                        |
-|----------------------|--------------------------------------------------------------------|
-| `users`              | id, email, name, password_hash                                     |
-| `tasks`              | id, user_id, title, description, level                             |
-| `recurring_configs`  | id, task_id (UNIQUE), day_of_week, day_of_month, is_active         |
-| `task_periods`       | id, task_id, user_id, period_type, period_start/end, status, target_date, sort_order |
+Task levels: `day | week | month | year`
+Task statuses: `todo | done | overdue | backlog | archived`
 
-Relations: `tasks.user_id → users.id`, `recurring_configs.task_id → tasks.id`, `task_periods.task_id → tasks.id`
-
-Statuses: `todo | done | overdue | backlog | archived` (`overdue` = DB status, штрафной период; failed = derived: `archived` + `done_at IS NULL`)
-
-**Not confirmed:** indexes, partitioning, soft-delete strategy, refresh token storage.
+Relations: `users →< tasks →< task_periods`, `tasks →< recurring_configs` (1:1)
 
 ---
 
 ## Project Status
 
+- [x] Monorepo setup (pnpm workspaces, shared types)
+- [x] Docker Compose (PostgreSQL + Redis)
+- [x] Web UI (SvelteKit 5, FSD, dual theme, mock data)
+- [x] API scaffold (hexagonal arch, auth + task routes, scheduler, migrations, seed)
 - [ ] Confirm DB schema
-- [ ] Confirm API contracts
-- [ ] Set up Docker Compose
-- [ ] Implement auth
-- [ ] Implement task CRUD (web + api)
-- [ ] Implement scheduler (auto-archive / auto-fail)
+- [ ] Connect web to real API (replace mocks)
+- [ ] Implement scheduler (auto-archive / overdue)
 - [ ] Implement recurring tasks
 - [ ] Mobile: main task screen
 
 ---
 
-## Git Conventions
+## Git
 
-Branches: `feat/`, `fix/`, `chore/` · Commits: `feat: ...`, `fix: ...`, `chore: ...`
+Branches: `feat/`, `fix/`, `chore/` · Commits: `feat:`, `fix:`, `chore:`

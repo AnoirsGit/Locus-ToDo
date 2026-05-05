@@ -1,135 +1,79 @@
-# CLAUDE.md — Working Rules for "Цикл"
+# CLAUDE.md — Working Rules
+
+## Language
+**Everything must be in English — code comments, docs, plans, AI responses, arch files.**
 
 ---
 
 ## 1. Session Init
 
-**Always read on startup:**
-- `.claude/PROJECT-REFERENCE.md`
+Always read: `.claude/PROJECT-REFERENCE.md`
 
-**Then identify the task context and load only what's needed:**
+Then load by task context:
 
-| Signal in the task                                               | Load                          |
-|------------------------------------------------------------------|-------------------------------|
-| DB, tables, migrations, SQL, indexes, schema                     | `arch/database.md`            |
-| API, routes, use cases, auth, scheduler, Fastify, Redis          | `arch/backend.md`             |
-| Components, pages, stores, SvelteKit, Svelte, FSD (web)         | `arch/frontend.md`            |
-| Flutter, screens, providers, Riverpod, go_router                 | `arch/mobile.md`              |
-| Product requirements, business logic, what and why               | `TECHNICAL-SPEC.md`           |
-| Any branch work                                                  | `.claude/ai-ref-files/current/<branch>.md` |
-
-If the task spans multiple layers — load multiple files.  
-If a file doesn't exist — create it.
+| Signal | Load |
+|--------|------|
+| DB, schema, migrations | `.claude/arch/database.md` |
+| API, routes, backend | `.claude/arch/backend.md` |
+| Web, Svelte, FSD | `.claude/arch/frontend.md` |
+| Flutter, mobile | `.claude/arch/mobile.md` |
+| Product requirements | `TECHNICAL-SPEC.md` |
+| Branch work | `.claude/ai-ref-files/current/<branch>.md` |
 
 ---
 
-## 2. Plan Mode (required)
+## 2. Plan Mode
 
 - Enter plan mode for any task with 3+ steps or architectural decisions
-- If something goes wrong — STOP, re-plan, don't push forward blindly
-- Write the plan to `.claude/ai-ref-files/current/<branch>.md` with checkboxes
-- Confirm the plan before implementing
+- Write plan to `.claude/ai-ref-files/current/<branch>.md` with checkboxes
+- Confirm before implementing
+- If something goes wrong — stop, re-plan, don't push forward blindly
 
 ---
 
-## 3. Task Management in Session
+## 3. Arch File Updates
 
-1. **Plan first** — write to `.claude/ai-ref-files/current/<branch>.md`
-2. **Confirm the plan** — verify before implementing
-3. **Track progress** — check off items as you go
-4. **Explain changes** — brief summary at each step
-5. **Document results** — fill in the Resume section of the branch file
-6. **Capture lessons** — add a Lessons section after corrections
+Update the relevant arch file **immediately** when code changes — not at the end.
 
----
-
-## 4. Auto-update Arch Files
-
-**Rule:** if something changed during work — update the relevant `arch/` file **immediately**, not at the end of the task.
-
-| What changed                                              | Update                                              |
-|-----------------------------------------------------------|-----------------------------------------------------|
-| Table added/modified, index or column changed             | `arch/database.md` → tables + open questions        |
-| New route, use case, port/adapter, auth decision          | `arch/backend.md` → structure + decisions           |
-| New component/slice, store, FSD layer (web)               | `arch/frontend.md` → structure + decisions          |
-| New screen, provider, FSD slice (mobile)                  | `arch/mobile.md` → structure + decisions            |
-| Public API or app ports changed                           | `README.md`                                         |
-| Table list or key monorepo facts changed                  | `PROJECT-REFERENCE.md` → DB summary                |
-
-**Decision entry format** (each `arch/` file has a "Decisions" table):
-```
-| Date       | Decision               | Reason               |
-| YYYY-MM-DD | What was done          | Why exactly this way |
-```
-
-Close open questions (`- [ ]` → `- [x]`) when resolved.
+| What changed | Update |
+|---|---|
+| Table / column / index | `.claude/arch/database.md` |
+| Route / use-case / auth decision | `.claude/arch/backend.md` |
+| Component / slice / store (web) | `.claude/arch/frontend.md` |
+| Screen / provider (mobile) | `.claude/arch/mobile.md` |
 
 ---
 
-## 5. Self-improvement Loop
-
-- After any correction from the user — add a lesson to the branch file
-- Write rules to prevent repeating the same mistake
-- Review needed lessons at session start if they exist
-
----
-
-## 6. Verification Before Done
-
-- Never mark a task complete without proving it works
-- Ask yourself: "Would a staff engineer approve this?"
-- Run checks, read logs, prove correctness
-
----
-
-## 7. Monorepo Structure
+## 4. Monorepo
 
 ```
-apps/web        → SvelteKit 5, FSD          (port 5173)
-apps/api        → Fastify 5, Hexagonal      (port 3000)
-apps/mobile     → Flutter, FSD, Riverpod
+apps/web     → SvelteKit 5, FSD, Tailwind v4   (port 5173)
+apps/api     → Fastify 5, Hexagonal, PostgreSQL (port 3000)
+apps/mobile  → Flutter 3, FSD, Riverpod
 packages/shared → TypeScript types only
 ```
 
-**Commands:** `pnpm dev` · `pnpm dev:web` · `pnpm dev:api` · `pnpm build` · `pnpm typecheck`
+Commands: `pnpm dev` · `pnpm dev:web` · `pnpm dev:api` · `pnpm build` · `pnpm typecheck`
 
 ---
 
-## 8. Code Style
+## 5. Code Style
 
-- **Arrow functions** — everywhere there's no need for own `this`
-- **No unnecessary comments** — only complex business logic
-- **`type` over `interface`** — in TypeScript
-- **Svelte 5 runes** — `$state`, `$derived`, `$props()`, `$bindable()` — no Options API
-- **Zod** — validation at boundaries (API requests/responses), not inside
-- **Hexagonal (backend)** — business logic in `domain/`, infra in `infrastructure/`, orchestration in `application/`
-- **FSD (web + mobile)** — import only downward: pages → widgets → features → entities → shared
-
----
-
-## 9. Responsibility Boundaries
-
-- **Don't touch** DB schema without explicit user confirmation
-- **Don't add** features not explicitly requested
-- **Don't refactor** code outside the task scope
-- **Minimal impact** — change only what's needed
+- Arrow functions everywhere (no own `this`)
+- `type` over `interface` in TypeScript
+- Svelte 5 runes: `$state`, `$derived`, `$props()`, `$bindable()` — no Options API
+- Zod at system boundaries only (API requests/responses)
+- Backend hexagonal: `domain/` → `application/` → `infrastructure/`
+- FSD: `pages → widgets → features → entities → shared` (downward only)
+- No unnecessary comments — only complex business logic
 
 ---
 
-## 10. Known Constraints (current status)
+## 6. Constraints
 
-- DB schema **not confirmed** — `arch/database.md` and `schema.sql` are drafts
-- Auth strategy (refresh tokens) — **open question** (see `arch/backend.md`)
-- API contracts **are drafts** — not finalized
-
----
-
-## 11. Principles
-
-- **Simplicity first** — minimal change, maximum effect
-- **No laziness** — find the root cause, not a workaround
-- **No speculation** — don't design for hypothetical requirements
-
----
-
-*Update this file when working rules change. Architecture goes in `arch/*.md`.*
+- **DB schema not confirmed** — no schema changes without explicit user OK
+- **Auth strategy (refresh tokens)** — open question
+- **API contracts are drafts**
+- Don't touch code outside the task scope
+- Don't add unrequested features
+- Never mark a task complete without proving it works
