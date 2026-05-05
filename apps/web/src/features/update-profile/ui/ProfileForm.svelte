@@ -14,31 +14,28 @@
     saved = true
     setTimeout(() => { saved = false }, 2000)
   }
-
-  const inputClass = 'bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder:text-gray-600 w-full'
-  const labelClass = 'text-xs text-gray-400'
 </script>
 
 <form onsubmit={handleSubmit} class="flex flex-col gap-4 max-w-sm">
-  <div class="flex flex-col gap-1">
-    <label for="profile-name" class={labelClass}>Имя</label>
+  <div class="auth-field">
+    <label class="label" for="profile-name">Имя</label>
     <input
       id="profile-name"
       type="text"
       bind:value={name}
       placeholder="Ваше имя"
-      class={inputClass}
+      class="input"
     />
   </div>
 
-  <div class="flex flex-col gap-1">
-    <label for="profile-email" class={labelClass}>Email</label>
+  <div class="auth-field">
+    <label class="label" for="profile-email">Email</label>
     <input
       id="profile-email"
       type="email"
       bind:value={email}
       placeholder="email@example.com"
-      class={inputClass}
+      class="input"
     />
   </div>
 
@@ -46,12 +43,12 @@
     <button
       type="submit"
       disabled={!name.trim() || !email.trim()}
-      class="bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm text-white px-4 py-2 rounded"
+      class="btn primary"
     >
       Сохранить
     </button>
     {#if saved}
-      <span class="text-xs text-green-500">Сохранено</span>
+      <span class="font-mono" style="font-size:11px; color:var(--color-success);">Сохранено</span>
     {/if}
   </div>
 </form>

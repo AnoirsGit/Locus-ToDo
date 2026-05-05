@@ -10,6 +10,8 @@ export type Task = {
   title: string
   description?: string
   level: TaskLevel
+  /** HH:MM — day-tasks only. Used for sorting and notifications. */
+  scheduledTime?: string
   recurringConfig?: RecurringConfig
   createdAt: string
   updatedAt: string

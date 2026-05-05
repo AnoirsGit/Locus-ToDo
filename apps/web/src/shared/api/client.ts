@@ -16,18 +16,30 @@ class ApiError extends Error {
   }
 }
 
+const getToken = (): string | null =>
+  typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null
+
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const { method = 'GET', body, headers = {} } = options
 
+  const token = getToken()
+  const reqHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...headers,
+  }
+  if (token) reqHeaders['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
+    headers: reqHeaders,
     body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include',
   })
+
+  if (res.status === 401) {
+    localStorage.removeItem('access_token')
+    window.location.href = '/login'
+    throw new ApiError(401, 'Unauthorized')
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))

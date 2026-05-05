@@ -1,29 +1,26 @@
 <script lang="ts">
-  import { taskStore, tasksApi } from '$entities/task'
-  import type { TaskWithPeriod } from '$entities/task'
-  import TaskFormFields from '$entities/task/ui/TaskFormFields.svelte'
+  import { TaskFormFields, taskStore, tasksApi } from '$entities/task'
+  import type { TaskWithPeriod, TaskLevel } from '$entities/task'
 
-  type Props = {
-    task: TaskWithPeriod
-    onClose?: () => void
-  }
+  type Props = { task: TaskWithPeriod; onClose?: () => void }
   const { task, onClose }: Props = $props()
 
-  let title = $state(task.title)
-  let description = $state(task.description ?? '')
-  let level = $state(task.level)
-  let targetDate = $state(task.period.targetDate ?? '')
+  let title         = $state(task.title)
+  let description   = $state(task.description ?? '')
+  let level         = $state<TaskLevel>(task.level)
+  let scheduledTime = $state(task.scheduledTime ?? '')
+  let targetDate    = $state(task.period.targetDate ?? '')
   let deadlineMonth = $state(task.period.deadlineMonth?.toString() ?? '')
-  let recurring = $state(!!task.recurringConfig)
-  let dayOfWeek = $state(task.recurringConfig?.dayOfWeek?.toString() ?? '')
-  let dayOfMonth = $state(task.recurringConfig?.dayOfMonth?.toString() ?? '')
+  let recurring     = $state(!!task.recurringConfig)
+  let dayOfWeek     = $state(task.recurringConfig?.dayOfWeek?.toString() ?? '')
+  let dayOfMonth    = $state(task.recurringConfig?.dayOfMonth?.toString() ?? '')
 
   const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
     const now = new Date().toISOString()
-    const dm = deadlineMonth ? parseInt(deadlineMonth) : undefined
+    const dm  = deadlineMonth ? parseInt(deadlineMonth) : undefined
     const dow = dayOfWeek ? parseInt(dayOfWeek) : undefined
     const dom = dayOfMonth ? parseInt(dayOfMonth) : undefined
 
@@ -32,6 +29,7 @@
       title: title.trim(),
       description: description.trim() || undefined,
       level,
+      scheduledTime: scheduledTime || undefined,
       recurringConfig: recurring
         ? {
             id: task.recurringConfig?.id ?? crypto.randomUUID(),
@@ -55,10 +53,11 @@
     onClose?.()
 
     try {
-      await tasksApi.updatePeriod(task.period.id, {
+      const saved = await tasksApi.update(task.id, {
         title: updated.title,
-        description: updated.description,
+        description: updated.description ?? null,
       })
+      taskStore.upsert(saved)
     } catch {
       // keep optimistic update
     }
@@ -67,29 +66,11 @@
 
 <form onsubmit={handleSubmit} class="flex flex-col">
   <TaskFormFields
-    bind:title
-    bind:description
-    bind:level
-    bind:targetDate
-    bind:deadlineMonth
-    bind:recurring
-    bind:dayOfWeek
-    bind:dayOfMonth
+    bind:title bind:description bind:level bind:scheduledTime
+    bind:targetDate bind:deadlineMonth bind:recurring bind:dayOfWeek bind:dayOfMonth
   />
-  <div class="flex gap-2 justify-end p-4 border-t border-gray-800">
-    <button
-      type="button"
-      onclick={onClose}
-      class="text-sm text-gray-500 hover:text-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-    >
-      Отмена
-    </button>
-    <button
-      type="submit"
-      disabled={!title.trim()}
-      class="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm text-white px-4 py-1.5 rounded-lg transition-colors"
-    >
-      Сохранить
-    </button>
+  <div class="modal-footer">
+    <button type="button" onclick={onClose} class="btn ghost">Отмена</button>
+    <button type="submit" disabled={!title.trim()} class="btn primary">Сохранить</button>
   </div>
 </form>

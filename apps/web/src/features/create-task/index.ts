@@ -1,4 +1,5 @@
 import { tasksApi, taskStore } from '$entities/task'
+import { userStore } from '$entities/user'
 import type { TaskLevel, RecurringConfig } from '$entities/task'
 
 type CreateTaskInput = {
@@ -17,9 +18,11 @@ export const createTask = async (input: CreateTaskInput) => {
   const taskId = crypto.randomUUID()
   const periodId = crypto.randomUUID()
 
+  const uid = userStore.user?.id ?? ''
+
   const optimistic = {
     id: taskId,
-    userId: 'u1',
+    userId: uid,
     title: input.title,
     description: input.description,
     level: input.level,
@@ -31,7 +34,7 @@ export const createTask = async (input: CreateTaskInput) => {
     period: {
       id: periodId,
       taskId,
-      userId: 'u1',
+      userId: uid,
       periodType: input.level,
       periodStart: input.periodStart,
       periodEnd: input.periodStart, // placeholder, API returns real value

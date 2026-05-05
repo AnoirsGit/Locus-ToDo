@@ -27,38 +27,50 @@
   let modal = $state<ModalState | null>(null)
 </script>
 
-<div class="p-6 max-w-2xl">
-  <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Сегодня</p>
-  <h1 class="text-xl font-semibold text-gray-100 mb-6">{dateLabel}</h1>
+<div class="main-inner">
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-eyebrow">Сегодня · {dateLabel}</div>
+      <h1 class="page-title"><em>Сегодня</em></h1>
+    </div>
+  </div>
 
   {#if taskStore.loading}
-    <p class="text-sm text-gray-500">Загрузка...</p>
+    <div class="empty">
+      <p style="color:var(--color-muted);">Загрузка…</p>
+    </div>
   {:else}
 
     <!-- Day tasks -->
-    <div class="flex flex-col gap-2 mb-3">
-      {#each todayTasks as task (task.period.id)}
-        <TaskCard
-          {task}
-          onToggle={toggleTask}
-          onEdit={(t) => { modal = { mode: 'edit', task: t } }}
-          showLevel={false}
-        />
-      {/each}
-    </div>
-
-    <button
-      onclick={() => { modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: today } }}
-      class="text-sm text-gray-600 hover:text-gray-400 border border-dashed border-gray-800 hover:border-gray-700 rounded px-3 py-2 w-full text-left mb-6 transition-colors"
-    >
-      + Добавить задачу на сегодня
-    </button>
+    <section class="section">
+      <div class="task-list">
+        {#each todayTasks as task (task.period.id)}
+          <TaskCard
+            {task}
+            onToggle={toggleTask}
+            onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+            showLevel={false}
+          />
+        {/each}
+        <button
+          class="quick-add"
+          onclick={() => { modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: today } }}
+        >
+          <span class="quick-add-plus">+</span>
+          Добавить задачу на сегодня
+        </button>
+      </div>
+    </section>
 
     <!-- Week tasks -->
     {#if weekTasks.length > 0}
-      <section class="mb-5">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Задачи недели</p>
-        <div class="flex flex-col gap-2">
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Задачи недели</h2>
+          <span class="section-meta">{weekTasks.length}</span>
+        </div>
+        <div class="task-list">
           {#each weekTasks as task (task.period.id)}
             <TaskCard
               {task}
@@ -72,9 +84,12 @@
 
     <!-- Month tasks -->
     {#if monthTasks.length > 0}
-      <section class="mb-5">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Задачи месяца</p>
-        <div class="flex flex-col gap-2">
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Задачи месяца</h2>
+          <span class="section-meta">{monthTasks.length}</span>
+        </div>
+        <div class="task-list">
           {#each monthTasks as task (task.period.id)}
             <TaskCard
               {task}
@@ -88,9 +103,12 @@
 
     <!-- Year tasks -->
     {#if yearTasks.length > 0}
-      <section class="mb-5">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Задачи года</p>
-        <div class="flex flex-col gap-2">
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Задачи года</h2>
+          <span class="section-meta">{yearTasks.length}</span>
+        </div>
+        <div class="task-list">
           {#each yearTasks as task (task.period.id)}
             <TaskCard
               {task}

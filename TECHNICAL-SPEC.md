@@ -1,170 +1,177 @@
-# Техническое Задание: Todo-система "Цикл"
+# Technical Specification: Locus (self-discipline task manager)
 
-> Версия: Draft v1.2 | Дата: 2026-05-02
-
----
-
-## 1. Основная концепция
-
-Таск-менеджер, который сам следит за дисциплиной.
-Если задача не сделана в срок -- она помечается как `backlog` и ждёт перепланирования.
-Если сделана -- уходит в архив.
+> Version: Draft v1.3 | Date: 2026-05-04
 
 ---
 
-## 2. Три уровня задач
+## 1. Core Concept
 
-Система разделена на три временных масштаба. Основной метод отображения -- список с чекбоксами.
-
-| Уровень | Период     | Назначение              |
-|---------|------------|-------------------------|
-| Week    | Неделя     | Оперативные задачи      |
-| Month   | Месяц      | Среднесрочные цели      |
-| Year    | Год        | Глобальные ориентиры    |
+A task manager that enforces self-discipline.
+If a task is not completed on time — it moves to `backlog` and waits for rescheduling.
+If completed — it goes to `archived`.
 
 ---
 
-## 3. Жизненный цикл задачи
+## 2. Task Levels
 
-### Путь А -- Выполнение
+The system is divided into three time scales. Primary display method — checkbox list.
 
-1. Пользователь ставит галочку -> статус `done` (задача остаётся в списке с чекбоксом)
-2. Можно снять галочку в любой момент в рамках периода -> `todo` (`done_at` обнуляется)
-3. В конце периода шедулер переводит `done` -> `archived` (успех, `done_at` зафиксирован)
+| Level | Period | Purpose               |
+|-------|--------|-----------------------|
+| Day   | Day    | Scheduled daily tasks |
+| Week  | Week   | Operational tasks     |
+| Month | Month  | Mid-term goals        |
+| Year  | Year   | Strategic objectives  |
 
-### Путь Б -- Просрочка (двухэтапная)
+---
 
-1. Наступает дедлайн (конец недели / месяца / года)
-2. Задача не помечена как `done`
-3. Система переводит задачу в `overdue` (штрафной период)
-4. Задача остаётся в текущем виде (Дня/Недели/Месяца) с маркером **"Долг с прошлого периода"**
-5. Пользователь может выполнить задачу в штрафном периоде → `overdue → done → archived` (выполнено с просрочкой)
-6. По окончании штрафного периода невыполненные задачи → `backlog`
-7. Из бэклога можно: перепланировать → новый `todo`, или отправить в `archived` (провал)
-8. При перепланировании старый backlog-период архивируется как провал
+## 3. Task Lifecycle
 
-### Recurring-задачи при просрочке
+### Path A — Completion
 
-Recurring-задачи **не попадают в backlog**. Пропущенный период сразу архивируется как провал, новый `todo` создаётся автоматически на следующий цикл.
+1. User checks the box → status `done` (task stays in list with checkbox)
+2. Checkbox can be unchecked at any point within the period → `todo` (`done_at` is cleared)
+3. At period end the scheduler moves `done` → `archived` (success, `done_at` preserved)
 
-### Статусы задачи
+### Path B — Overdue (two-stage)
+
+1. Deadline arrives (end of week / month / year)
+2. Task is not marked `done`
+3. System moves task to `overdue` (penalty period begins)
+4. Task remains visible in the current view (Day / Week / Month) with a **"Carried over from previous period"** marker
+5. User can complete the task during the penalty period → `overdue → done → archived` (completed late)
+6. At the end of the penalty period uncompleted tasks → `backlog`
+7. From backlog: replan → new `todo`, or discard → `archived` (failure)
+8. When replanning, the old backlog period is archived as a failure
+
+### Recurring Tasks and Overdue
+
+Recurring tasks **never enter backlog**. A missed period is immediately archived as a failure; a new `todo` is auto-created for the next cycle.
+
+### Task Statuses
 
 ```
-todo <-> done                         (галочка, свободный toggle)
-done -> archived (done_at set)        (успех, конец периода)
-todo -> overdue                       (первый период просрочен — шедулер)
-overdue -> done                       (выполнено в штрафном периоде)
-overdue -> backlog                    (штрафной период просрочен — шедулер)
-backlog -> archived (no done_at)      (провал, отказ)
-backlog -> todo                       (перепланирование, старый период -> archived)
+todo <-> done                         (checkbox, free toggle)
+done -> archived (done_at set)        (success, end of period)
+todo -> overdue                       (first period missed — scheduler)
+overdue -> done                       (completed during penalty period)
+overdue -> backlog                    (penalty period missed — scheduler)
+backlog -> archived (no done_at)      (failure, discarded)
+backlog -> todo                       (replanned, old period -> archived)
 ```
 
-> **Статуса `failed` в БД не существует.** "Провал" — производный исход: `archived` + `done_at IS NULL`.
+> **There is no `failed` status in the DB.** "Failure" is a derived outcome: `archived` + `done_at IS NULL`.
 
-### Исход в архиве (derived)
+### Archive Outcome (derived)
 
-`archived` — терминальный статус. Исход определяется по `done_at`:
-- `done_at IS NOT NULL` + `done_at <= period_end` = выполнено вовремя (успех)
-- `done_at IS NOT NULL` + `done_at > period_end` = выполнено с просрочкой (успех, но поздно)
-- `done_at IS NULL` = задача провалена или отклонена (провал)
+`archived` is the terminal status. Outcome is determined by `done_at`:
+- `done_at IS NOT NULL` + `done_at <= period_end` = completed on time (success)
+- `done_at IS NOT NULL` + `done_at > period_end` = completed late (success, but overdue)
+- `done_at IS NULL` = task failed or discarded (failure)
 
-### Overdue (статус в БД, штрафной период)
+### Overdue (DB status, penalty period)
 
-`overdue` — полноценный статус. Задача получает его от шедулера по окончании первого периода.
-- Остаётся видимой в текущем виде с маркером **"Долг с прошлого периода"**
-- Пользователь может выполнить: `overdue → done` (засчитывается как "с просрочкой")
-- По окончании штрафного периода без выполнения: `overdue → backlog`
-
----
-
-## 4. Умное отображение (Сверху Вниз)
-
-Задачи "старших" уровней всегда отображаются в "младших" видах.
-
-### Вид "День"
-Фильтр внутри недельного вида. Week-задачи с `target_date` на конкретный день.
-- Первичные: week-задачи с target_date = сегодня
-- Контекст: остальные активные week-задачи
-- Контекст: активные задачи Месяца
-- Контекст: активные задачи Года
-
-Дедлайн привязан к неделе, не к дню. Если не сделал в среду -- можно в четверг.
-
-### Вид "Неделя"
-- Первичные: week-задачи текущей недели
-- Контекст: month-задачи + year-задачи
-
-### Вид "Месяц"
-- Первичные: month-задачи текущего месяца
-- Контекст: year-задачи
-
-### Вид "Год"
-- Только year-задачи
-
-### Маркировка уровня
-У каждой задачи есть значок уровня (Week / Month / Year), чтобы всегда был виден масштаб цели.
+`overdue` is a first-class status. Assigned by the scheduler when the original period ends without completion.
+- Remains visible in the current view with a **"Carried over from previous period"** marker
+- User can complete it: `overdue → done` (counted as "completed late")
+- At the end of the penalty period without completion: `overdue → backlog`
 
 ---
 
-## 5. Повторяющиеся задачи
+## 4. Smart Display (Top-Down)
 
-Recurring-задачи автоматически создаются в начале каждого периода со статусом `todo`.
+Higher-level tasks are always shown in lower-level views.
 
-### Конфигурация
-- **Week-задача**: каждую неделю, можно указать день недели (пн-вс)
-- **Month-задача**: каждый месяц, можно указать день месяца (1-31)
-- **Year-задача**: каждый год
+### Day View
+A filtered view within the week. Week tasks with `target_date` matching today.
+- Primary: week tasks where `target_date` = today
+- Context: remaining active week tasks
+- Context: active month tasks
+- Context: active year tasks
 
----
+The deadline is tied to the week, not the day. If not done Wednesday — still completable Thursday.
 
-## 6. Годовые задачи с месячным дедлайном
+### Week View
+- Primary: week tasks for the current week
+- Context: month tasks + year tasks
 
-Year-задача может иметь дедлайн в конкретный месяц (`deadline_month`).
-Период задачи -- всегда полный год (Jan 1 - Dec 31).
-По окончании указанного месяца система проверяет статус:
-- `done` -> архивируется как успех
-- `todo` -> переходит в `backlog`
+### Month View
+- Primary: month tasks for the current month
+- Context: year tasks
 
----
+### Year View
+- Only year tasks
 
-## 7. API (черновик)
-
-| Метод  | Путь                 | Описание                        |
-|--------|----------------------|---------------------------------|
-| POST   | /api/auth/register   | Регистрация                     |
-| POST   | /api/auth/login      | Вход                            |
-| POST   | /api/auth/refresh    | Обновление токенов              |
-| GET    | /api/auth/me         | Текущий пользователь            |
-| GET    | /api/tasks           | Список задач (фильтры)          |
-| POST   | /api/tasks           | Создать задачу                  |
-| PATCH  | /api/tasks/:id       | Обновить задачу / статус        |
-| DELETE | /api/tasks/:id       | Удалить задачу                  |
-
-> API контракты ещё не финализированы. Детали (request/response shape, query params) будут уточнены при работе над бэкендом.
-
-**Правило валидации DELETE /api/tasks/:id:**
-Бэкенд блокирует удаление (400/409), если у задачи есть хотя бы один `task_period` со статусом `archived`.
-Фронтенд обязан показывать диалог подтверждения перед удалением любой задачи — пользователь предупреждён, что действие необратимо уничтожает всю историю периодов.
+### Level Badge
+Every task displays a level badge (Day / Week / Month / Year) so the scope of the goal is always visible.
 
 ---
 
-## 8. Открытые вопросы (нужно утвердить)
+## 5. Recurring Tasks
 
-- [ ] Финальная структура таблиц БД (драфт в `arch/database.md`)
-- [ ] Стратегия refresh-токенов (Redis vs DB)
-- [ ] Push-уведомления в мобильном приложении
-- [ ] Совместный доступ / коллаборация
-- [ ] Оффлайн-режим: коллизия `done_at` — с мобильного клиента vs `now()` на сервере при отсутствии интернета. **Отложено до следующих версий.**
-- [ ] Логика просрочки регулярных задач: полное исключение статуса `overdue` (текущий MVP) или вынос в настройки (`allow_overdue` per recurring task). По умолчанию recurring-задачи игнорируют штрафной период и сразу архивируются.
+Recurring tasks are automatically created at the start of each period with status `todo`.
 
-## 9. Утверждённые решения (MVP)
-
-- [x] Штрафной период (`overdue`) — жёсткая двухэтапная модель просрочки (todo → overdue → backlog). Поддержание дисциплины как основная фича MVP.
-- [x] Статуса `failed` в БД нет — провал определяется как `archived` с `done_at IS NULL`.
-- [x] `recurring_configs` — отдельная реляционная таблица (не JSONB).
-- [x] Hard delete задачи заблокирован при наличии archived-периодов; фронтенд всегда показывает диалог подтверждения.
-- [x] **Изоляция статистики:** recurring-задачи → метрика *Consistency* (% регулярности привычек); остальные → метрика *Completion* (% выполнения целей). Считаются отдельными запросами, не смешиваются.
+### Configuration
+- **Day task**: every day, optionally specify time of day (HH:MM)
+- **Week task**: every week, optionally specify day of week (Mon–Sun)
+- **Month task**: every month, optionally specify day of month (1–31)
+- **Year task**: every year
 
 ---
 
-*Документ обновляется вместе с проектом.*
+## 6. Year Tasks with Monthly Deadline
+
+A year task can have a deadline in a specific month (`deadline_month`).
+The task period is always the full year (Jan 1 – Dec 31).
+At the end of the specified month the scheduler checks status:
+- `done` → archived as success
+- `todo` → moves to `backlog`
+
+---
+
+## 7. API (draft)
+
+| Method | Path                    | Description                   |
+|--------|-------------------------|-------------------------------|
+| POST   | /api/auth/register      | Register                      |
+| POST   | /api/auth/login         | Login                         |
+| POST   | /api/auth/refresh       | Refresh tokens                |
+| GET    | /api/auth/me            | Current user                  |
+| GET    | /api/tasks              | List tasks (filters)          |
+| POST   | /api/tasks              | Create task                   |
+| PATCH  | /api/tasks/:id          | Update task metadata          |
+| DELETE | /api/tasks/:id          | Delete task                   |
+| POST   | /api/tasks/:id/replan   | Replan from backlog           |
+| GET    | /api/task-periods       | List periods                  |
+| PATCH  | /api/task-periods/:id   | Update period status (toggle) |
+
+> API contracts are not yet finalized. Request/response shapes and query params will be confirmed during backend development.
+
+**DELETE /api/tasks/:id validation rule:**
+The backend blocks deletion (400/409) if the task has at least one `task_period` with status `archived`.
+The frontend must always show a confirmation dialog before deleting any task — the user is warned that the action permanently destroys all period history.
+
+---
+
+## 8. Open Questions (to confirm)
+
+- [ ] Final DB table structure (draft in `arch/database.md`)
+- [ ] Refresh token strategy (Redis vs DB)
+- [ ] Push notifications in the mobile app
+- [ ] Shared access / collaboration
+- [ ] Offline mode: `done_at` collision — from mobile client vs `now()` on server when offline. **Deferred to future versions.**
+- [ ] Overdue logic for recurring tasks: fully exclude `overdue` status (current MVP) or expose as setting (`allow_overdue` per recurring task). Default: recurring tasks skip the penalty period and are archived immediately.
+
+---
+
+## 9. Confirmed Decisions (MVP)
+
+- [x] Penalty period (`overdue`) — strict two-stage overdue model (todo → overdue → backlog). Discipline enforcement is the core MVP feature.
+- [x] No `failed` status in DB — failure is defined as `archived` with `done_at IS NULL`.
+- [x] `recurring_configs` — separate relational table (not JSONB).
+- [x] Hard delete blocked when archived periods exist; frontend always shows a confirmation dialog.
+- [x] **Stats isolation:** recurring tasks → *Consistency* metric (habit regularity %); all others → *Completion* metric (goal completion %). Computed in separate queries, never mixed.
+
+---
+
+*This document is updated alongside the project.*

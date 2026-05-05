@@ -1,10 +1,10 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
-import { taskRoutes } from './routes/tasks.js'
-import { authRoutes } from './routes/auth.js'
-import { db } from './db/client.js'
-import { scheduler } from './services/scheduler.js'
+import { authRoutes } from './infrastructure/http/routes/auth.routes.js'
+import { taskRoutes } from './infrastructure/http/routes/tasks.routes.js'
+import { taskPeriodRoutes } from './infrastructure/http/routes/task-periods.routes.js'
+import { scheduler } from './infrastructure/scheduler/scheduler.js'
 
 const server = Fastify({ logger: true })
 
@@ -15,13 +15,22 @@ const start = async () => {
   })
 
   await server.register(jwt, {
-    secret: process.env.JWT_SECRET ?? 'dev-secret',
+    secret: process.env.JWT_SECRET ?? 'dev-secret-change-in-production',
   })
 
-  await server.register(authRoutes, { prefix: '/api/auth' })
-  await server.register(taskRoutes, { prefix: '/api/tasks' })
+  await server.register(authRoutes,       { prefix: '/api/auth' })
+  await server.register(taskRoutes,       { prefix: '/api/tasks' })
+  await server.register(taskPeriodRoutes, { prefix: '/api/task-periods' })
 
-  server.get('/health', async () => ({ status: 'ok' }))
+  server.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+
+  server.setErrorHandler((err: any, _req, reply) => {
+    if (err.validation) {
+      return reply.status(400).send({ error: 'Validation error', details: err.validation })
+    }
+    server.log.error(err)
+    return reply.status(err.statusCode ?? 500).send({ error: err.message ?? 'Internal server error' })
+  })
 
   await server.listen({
     port: Number(process.env.PORT ?? 3000),

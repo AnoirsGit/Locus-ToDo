@@ -23,7 +23,6 @@
   const openCreate = () => {
     const now = new Date()
     const fmt = (d: Date) => d.toISOString().split('T')[0]
-    // compute periodStart for the current level
     let periodStart: string
     if (defaultLevel === 'week') {
       const dow = now.getDay()
@@ -39,66 +38,77 @@
     modal = { mode: 'create', defaultLevel, defaultPeriodStart: periodStart }
   }
 
-  const VIEW_LABELS: Record<TaskView, string> = {
-    day:     'Сегодня',
-    week:    'Неделя',
-    month:   'Месяц',
-    year:    'Год',
-    backlog: 'Беклог',
-    archive: 'Архив',
+  const VIEW_LABELS: Record<TaskView, { title: string; eyebrow: string }> = {
+    day:     { title: 'Сегодня',   eyebrow: 'День' },
+    week:    { title: 'Неделя.',   eyebrow: 'Горизонт · неделя' },
+    month:   { title: 'Месяц.',    eyebrow: 'Горизонт · месяц' },
+    year:    { title: 'Год.',      eyebrow: 'Горизонт · год' },
+    backlog: { title: 'Беклог.',   eyebrow: 'Задачи без решения' },
+    archive: { title: 'Архив.',    eyebrow: 'Завершённые периоды' },
   }
 
   const CONTEXT_LABELS: Record<string, string> = {
-    week:  'Задачи недели',
-    month: 'Задачи месяца',
-    year:  'Задачи года',
+    week: 'Задачи недели', month: 'Задачи месяца', year: 'Задачи года',
   }
+
+  const { title, eyebrow } = $derived(VIEW_LABELS[view])
 </script>
 
-<div class="p-6 max-w-2xl">
-  <h1 class="text-lg font-semibold mb-6">{VIEW_LABELS[view]}</h1>
+<div class="main-inner">
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-eyebrow">{eyebrow}</div>
+      <h1 class="page-title"><em>{title}</em></h1>
+    </div>
+    {#if canCreate}
+      <div class="page-actions">
+        <button class="btn primary" onclick={openCreate}>+ Добавить задачу</button>
+      </div>
+    {/if}
+  </div>
 
   {#if taskStore.loading}
-    <p class="text-sm text-gray-500">Загрузка...</p>
+    <div class="empty"><p style="color:var(--color-muted);">Загрузка…</p></div>
   {:else}
 
     <!-- Primary tasks -->
-    {#if grouped.primary.length > 0}
-      <div class="flex flex-col gap-2 mb-4">
-        {#each grouped.primary as task (task.period.id)}
-          <TaskCard
-            {task}
-            onToggle={toggleTask}
-            onEdit={(t) => { modal = { mode: 'edit', task: t } }}
-            showLevel={false}
-          />
-        {/each}
+    <section class="section">
+      <div class="task-list">
+        {#if grouped.primary.length > 0}
+          {#each grouped.primary as task (task.period.id)}
+            <TaskCard
+              {task}
+              onToggle={toggleTask}
+              onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+              showLevel={false}
+            />
+          {/each}
+        {:else}
+          <div class="empty">
+            <p class="empty-title">{view === 'backlog' || view === 'archive' ? 'Чисто' : 'Нет задач'}</p>
+            <p class="empty-body">{view === 'backlog' ? 'Продолжай в том же духе.' : ''}</p>
+          </div>
+        {/if}
+        {#if canCreate}
+          <button class="quick-add" onclick={openCreate}>
+            <span class="quick-add-plus">+</span>
+            Добавить задачу
+          </button>
+        {/if}
       </div>
-    {:else if view !== 'backlog' && view !== 'archive'}
-      <p class="text-sm text-gray-500 mb-4">Нет задач</p>
-    {:else}
-      <p class="text-sm text-gray-500 mb-4">Пусто</p>
-    {/if}
-
-    <!-- Add task button -->
-    {#if canCreate}
-      <button
-        class="text-sm text-gray-500 hover:text-gray-300 border border-dashed border-gray-700 hover:border-gray-600 rounded px-3 py-2 w-full text-left mb-4 transition-colors"
-        onclick={openCreate}
-      >
-        + Добавить задачу
-      </button>
-    {/if}
+    </section>
 
     <!-- Context sections -->
     {#each (['week', 'month', 'year'] as const) as key}
       {@const items = grouped[key]}
       {#if items && items.length > 0}
-        <div class="mb-4">
-          <p class="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
-            {CONTEXT_LABELS[key]}
-          </p>
-          <div class="flex flex-col gap-2">
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">{CONTEXT_LABELS[key]}</h2>
+            <span class="section-meta">{items.length}</span>
+          </div>
+          <div class="task-list">
             {#each items as task (task.period.id)}
               <TaskCard
                 {task}
@@ -107,7 +117,7 @@
               />
             {/each}
           </div>
-        </div>
+        </section>
       {/if}
     {/each}
 

@@ -2,16 +2,27 @@
   import { ProfileForm } from '$features/update-profile'
 </script>
 
-<div class="p-6 max-w-2xl">
-  <h1 class="text-lg font-semibold mb-8">Настройки</h1>
+<div class="main-inner">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-eyebrow">Профиль + настройки</div>
+      <h1 class="page-title"><em>Настройки.</em></h1>
+    </div>
+  </div>
 
-  <section class="mb-8">
-    <h2 class="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wide">Профиль</h2>
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Профиль</h2>
+      <span class="section-meta">кто ты есть</span>
+    </div>
     <ProfileForm />
   </section>
 
-  <section>
-    <h2 class="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wide">Задачи</h2>
-    <p class="text-sm text-gray-500">Управление повторяющимися задачами — в разработке.</p>
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Задачи</h2>
+      <span class="section-meta">автоматизация</span>
+    </div>
+    <p style="font-size:13px; color:var(--color-muted);">Управление повторяющимися задачами — в разработке.</p>
   </section>
 </div>

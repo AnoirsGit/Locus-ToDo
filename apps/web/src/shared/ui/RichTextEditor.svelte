@@ -24,7 +24,7 @@
       content: value || '',
       editorProps: {
         attributes: {
-          class: 'prose-editor focus:outline-none min-h-[72px] text-sm text-white',
+          class: 'prose-editor focus:outline-none min-h-[72px]',
         },
       },
       onUpdate: ({ editor: e }) => {
@@ -44,9 +44,15 @@
   const active = (check: () => boolean) => editor && check()
 </script>
 
-<div class="flex flex-col border border-gray-700 rounded overflow-hidden bg-gray-800 focus-within:border-gray-500 transition-colors">
+<div
+  class="flex flex-col rounded-[6px] overflow-hidden transition-colors"
+  style="border:1px solid var(--color-border-2); background:var(--color-card);"
+>
   <!-- Toolbar -->
-  <div class="flex items-center gap-0.5 px-1.5 py-1 border-b border-gray-700">
+  <div
+    class="flex items-center gap-0.5 px-1.5 py-1"
+    style="border-bottom:1px solid var(--color-border);"
+  >
     <button
       type="button"
       title="Жирный (Ctrl+B)"
@@ -83,7 +89,7 @@
       </svg>
     </button>
 
-    <div class="w-px h-4 bg-gray-700 mx-0.5"></div>
+    <div class="w-px h-4 mx-0.5" style="background:var(--color-border);"></div>
 
     <button
       type="button"
@@ -114,7 +120,7 @@
       </svg>
     </button>
 
-    <div class="w-px h-4 bg-gray-700 mx-0.5"></div>
+    <div class="w-px h-4 mx-0.5" style="background:var(--color-border);"></div>
 
     <button
       type="button"
@@ -144,31 +150,32 @@
     width: 1.75rem;
     height: 1.75rem;
     border-radius: 0.25rem;
-    color: var(--color-gray-400, #9ca3af);
+    color: var(--color-muted);
     transition: background-color 0.1s, color 0.1s;
   }
 
   .toolbar-btn:hover {
-    background-color: var(--color-gray-700, #374151);
-    color: var(--color-white, #fff);
+    background-color: var(--color-surface-2);
+    color: var(--color-text);
   }
 
   .toolbar-btn.active {
-    background-color: var(--color-gray-700, #374151);
-    color: var(--color-white, #fff);
+    background-color: var(--color-surface-2);
+    color: var(--color-text);
   }
 
+  :global(.prose-editor) { color: var(--color-text); font-size: 0.875rem; }
   :global(.prose-editor p) { margin: 0 0 0.25rem; }
   :global(.prose-editor p:last-child) { margin-bottom: 0; }
   :global(.prose-editor ul) { padding-left: 1.25rem; list-style: disc; margin: 0.25rem 0; }
   :global(.prose-editor ol) { padding-left: 1.25rem; list-style: decimal; margin: 0.25rem 0; }
-  :global(.prose-editor code) { background: #1f2937; border-radius: 0.2rem; padding: 0.1rem 0.3rem; font-family: monospace; font-size: 0.8em; }
+  :global(.prose-editor code) { background: var(--color-surface-2); border-radius: 0.2rem; padding: 0.1rem 0.3rem; font-family: monospace; font-size: 0.8em; }
   :global(.prose-editor strong) { font-weight: 600; }
   :global(.prose-editor em) { font-style: italic; }
   :global(.prose-editor s) { text-decoration: line-through; }
   :global(.prose-editor .is-editor-empty:first-child::before) {
     content: attr(data-placeholder);
-    color: #4b5563;
+    color: var(--color-muted-2);
     pointer-events: none;
     float: left;
     height: 0;

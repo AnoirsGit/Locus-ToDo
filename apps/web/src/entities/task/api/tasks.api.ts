@@ -1,5 +1,5 @@
 import { api } from '$shared/api/client'
-import type { Task, TaskPeriod, TaskWithPeriod, TaskLevel, TaskStatus } from '../model/task.types'
+import type { TaskPeriod, TaskWithPeriod, TaskLevel, TaskStatus } from '../model/task.types'
 
 type CreateTaskDto = {
   title: string
@@ -9,10 +9,13 @@ type CreateTaskDto = {
   deadlineMonth?: number // year-tasks only
 }
 
+type UpdateTaskDto = Partial<{
+  title: string
+  description: string | null
+}>
+
 type UpdatePeriodDto = Partial<{
   status: TaskStatus
-  title: string
-  description: string
 }>
 
 export const tasksApi = {
@@ -28,7 +31,11 @@ export const tasksApi = {
 
   create: (dto: CreateTaskDto) => api.post<TaskWithPeriod>('/tasks', dto),
 
-  /** Update the period status (done, overdue, failed) */
+  /** Update task metadata (title, description) */
+  update: (taskId: string, dto: UpdateTaskDto) =>
+    api.patch<TaskWithPeriod>(`/tasks/${taskId}`, dto),
+
+  /** Toggle period status (done ↔ todo) */
   updatePeriod: (periodId: string, dto: UpdatePeriodDto) =>
     api.patch<TaskPeriod>(`/task-periods/${periodId}`, dto),
 

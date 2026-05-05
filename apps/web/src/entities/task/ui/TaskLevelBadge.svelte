@@ -1,17 +1,12 @@
 <script lang="ts">
-  import type { TaskLevel } from '$entities/task'
+  import type { TaskLevel } from '../model/task.types'
 
   type Props = { level: TaskLevel }
   const { level }: Props = $props()
 
-  const config: Record<TaskLevel, { label: string; cls: string }> = {
-    day:   { label: 'День', cls: 'border-gray-500  text-gray-400'   },
-    week:  { label: 'Нед',  cls: 'border-blue-500  text-blue-400'   },
-    month: { label: 'Мес',  cls: 'border-purple-500 text-purple-400' },
-    year:  { label: 'Год',  cls: 'border-yellow-500 text-yellow-400' },
+  const labels: Record<TaskLevel, string> = {
+    day: 'День', week: 'Нед', month: 'Мес', year: 'Год',
   }
 </script>
 
-<span class="inline-flex items-center px-1.5 py-0.5 rounded border text-xs font-medium {config[level].cls}">
-  {config[level].label}
-</span>
+<span class="level-badge level-{level}">{labels[level]}</span>
