@@ -48,6 +48,9 @@
 
     <div class="task-meta">
       {#if showLevel}<TaskLevelBadge level={task.level} />{/if}
+      {#if task.scheduledTime}
+        <span class="font-mono text-[10.5px]" style="color:var(--color-muted);">{task.scheduledTime}</span>
+      {/if}
       {#if task.recurringConfig}
         <span class="font-mono text-[10.5px]" style="color:var(--color-muted);">↻</span>
       {/if}
