@@ -57,15 +57,25 @@
     {/each}
 
     {#if quickCreateActive}
-      <div class="day-col-card-input">
+      <div class="day-col-card-input flex items-center gap-1">
         <input
           type="text"
           bind:value={quickTitle}
           onkeydown={handleKeydown}
           placeholder="Task name…"
           autofocus
-          class="day-col-input"
+          class="day-col-input flex-1"
         />
+        <button
+          type="button"
+          class="btn-icon shrink-0"
+          aria-label="Open full form"
+          onclick={() => { quickCreateActive = false; quickTitle = ''; onOpenModal(dateKey); }}
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+            <path d="M10 2h4v4M14 2l-5 5M6 14H2v-4M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     {:else}
       <button

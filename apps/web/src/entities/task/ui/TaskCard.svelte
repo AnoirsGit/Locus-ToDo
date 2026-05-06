@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TaskWithPeriod } from '../model/task.types'
   import TaskLevelBadge from './TaskLevelBadge.svelte'
+  import { DAY_NAMES_SHORT, MONTH_NAMES_SHORT } from '../model/task.constants'
 
   type Props = {
     task: TaskWithPeriod
@@ -57,6 +58,32 @@
     'failed':  'text-muted',
   }
 
+  // ── Meta chips ───────────────────────────────────────────────────────────
+
+  const recurringLabel = $derived((() => {
+    const r = task.recurringConfig
+    if (!r) return null
+    const parts: string[] = []
+    if (task.level === 'week' && r.dayOfWeek != null)
+      parts.push(DAY_NAMES_SHORT[r.dayOfWeek])
+    else if (task.level === 'month' && r.dayOfMonth != null)
+      parts.push(`${r.dayOfMonth}-го`)
+    if (task.scheduledTime)
+      parts.push(task.scheduledTime)
+    return parts.length ? `↻ ${parts.join(' · ')}` : '↻'
+  })())
+
+  const targetDayLabel = $derived((() => {
+    if (task.level !== 'week' || !p.targetDate) return null
+    const d = new Date(p.targetDate + 'T00:00:00Z')
+    return DAY_NAMES_SHORT[d.getUTCDay()]
+  })())
+
+  const deadlineLabel = $derived((() => {
+    if (task.level !== 'year' || !p.deadlineMonth) return null
+    return `до ${MONTH_NAMES_SHORT[p.deadlineMonth]}`
+  })())
+
   // ── Backlog age ───────────────────────────────────────────────────────────
 
   const backlogAge = $derived((() => {
@@ -103,12 +130,19 @@
     <div class="task-meta">
       {#if showLevel}<TaskLevelBadge level={task.level} />{/if}
 
-      {#if task.scheduledTime}
-        <span class="font-mono text-[10.5px] text-muted">{task.scheduledTime}</span>
+      {#if recurringLabel}
+        <span class="font-mono text-[10.5px] text-muted">{recurringLabel}</span>
+      {:else}
+        {#if task.scheduledTime}
+          <span class="font-mono text-[10.5px] text-muted">⏱ {task.scheduledTime}</span>
+        {/if}
+        {#if targetDayLabel}
+          <span class="font-mono text-[10.5px] text-muted">→ {targetDayLabel}</span>
+        {/if}
       {/if}
 
-      {#if task.recurringConfig}
-        <span class="font-mono text-[10.5px] text-muted">↻</span>
+      {#if deadlineLabel}
+        <span class="font-mono text-[10.5px] text-muted">{deadlineLabel}</span>
       {/if}
 
       <!-- Backlog / Archive context -->

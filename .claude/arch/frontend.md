@@ -77,7 +77,7 @@ Design system classes in `app.css`: `.task`, `.btn`, `.sidebar`, `.modal`, `.aut
 
 ```
 /           → redirect → /today
-/today      → day tasks (target_date filter)
+/today      → day tasks (target_date filter) + week/month/year context (goals)
 /week       → WeekView (nav + week list + day grid + context)
 /month /year /backlog /archive → TaskList widget
 /settings   → ProfileForm + task config

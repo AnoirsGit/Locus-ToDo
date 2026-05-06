@@ -1,8 +1,7 @@
 <script lang="ts">
   import { taskStore, TaskCard } from '$entities/task'
-  import type { TaskWithPeriod } from '$entities/task'
+  import type { TaskWithPeriod, TaskLevel } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
-  import { createTask } from '$features/create-task'
   import { TaskModal } from '$widgets/task-modal'
   import { i18n } from '$shared/lib/i18n'
 
@@ -36,29 +35,29 @@
   const inPenalty  = $derived(todayTasks.filter(t => t.period.status === 'overdue').length)
   const pct        = $derived(totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0)
 
-  // ── Modal / quick add ────────────────────────────────────────────────────
+  // ── Modal ─────────────────────────────────────────────────────────────────
   type ModalState =
-    | { mode: 'create'; defaultLevel: 'day'; defaultPeriodStart: string }
+    | { mode: 'create'; defaultLevel: TaskLevel; defaultPeriodStart: string }
     | { mode: 'edit'; task: TaskWithPeriod }
 
-  let modal       = $state<ModalState | null>(null)
-  let quickActive = $state(false)
-  let quickTitle  = $state('')
+  let modal = $state<ModalState | null>(null)
 
-  const openQuickAdd = () => { quickActive = true; quickTitle = '' }
+  const fmt = (d: Date) => d.toISOString().split('T')[0]
 
-  const submitQuick = async () => {
-    const t = quickTitle.trim()
-    if (!t) { quickActive = false; return }
-    quickActive = false
-    const title = quickTitle
-    quickTitle  = ''
-    await createTask({ title, level: 'day', periodStart: today })
+  const periodStartFor = (level: TaskLevel): string => {
+    if (level === 'day') return today
+    if (level === 'week') {
+      const dow = now.getDay()
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+      return fmt(monday)
+    }
+    if (level === 'month') return fmt(new Date(now.getFullYear(), now.getMonth(), 1))
+    return `${now.getFullYear()}-01-01`
   }
 
-  const handleKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter')  { e.preventDefault(); submitQuick() }
-    if (e.key === 'Escape') { quickActive = false; quickTitle = '' }
+  const openCreate = (level: TaskLevel) => {
+    modal = { mode: 'create', defaultLevel: level, defaultPeriodStart: periodStartFor(level) }
   }
 </script>
 
@@ -70,9 +69,6 @@
       <div class="today-eyebrow">{dayName.toUpperCase()} · {dateStr.toUpperCase()} · {i18n.locale === 'ru' ? 'НЕДЕЛЯ' : 'WEEK'} {weekNum}</div>
       <h1 class="today-title">{i18n.t('view.today_title')} <em>{quietWord}.</em></h1>
     </div>
-    <button class="quick-add-btn" onclick={openQuickAdd}>
-      + {i18n.t('action.quick_add')}
-    </button>
   </div>
 
   <div class="today-divider"></div>
@@ -104,95 +100,69 @@
     {/if}
 
     <!-- ── Day tasks ──────────────────────────────────────────────────────── -->
-    {#if todayTasks.length > 0}
-      <section class="section">
-        <div class="task-list cards">
-          {#each todayTasks as task (task.period.id)}
-            <TaskCard
-              {task}
-              onToggle={toggleTask}
-              onEdit={(t) => { modal = { mode: 'edit', task: t } }}
-              showLevel={false}
-            />
-          {/each}
-        </div>
-      </section>
-    {/if}
-
-    <!-- ── Quick add row ─────────────────────────────────────────────────── -->
-    <div class="section">
-      {#if quickActive}
-        <div class="flex items-center gap-2">
-          <input
-            type="text"
-            bind:value={quickTitle}
-            onkeydown={handleKeydown}
-            placeholder={i18n.t('action.add') + '...'}
-            autofocus
-            class="input flex-1 py-1.5 px-3 text-sm"
+    <section class="section">
+      <div class="task-list cards">
+        {#each todayTasks as task (task.period.id)}
+          <TaskCard
+            {task}
+            onToggle={toggleTask}
+            onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+            showLevel={false}
           />
-          <button
-            type="button"
-            onclick={() => { quickActive = false; modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: today } }}
-            class="btn-icon"
-            aria-label={i18n.t('action.open_full')}
-          >
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none">
-              <path d="M10 2h4v4M14 2l-5 5M6 14H2v-4M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      {:else}
-        <button class="add-task-row" onclick={openQuickAdd}>
+        {/each}
+        <button class="add-task-row" onclick={() => openCreate('day')}>
           + {i18n.t('action.add_today')}
         </button>
-      {/if}
-    </div>
+      </div>
+    </section>
 
     <!-- ── Week context ───────────────────────────────────────────────────── -->
-    {#if weekTasks.length > 0}
-      <section class="section">
-        <div class="section-header">
-          <h2 class="section-title">{i18n.t('view.carried_over')} <span class="section-sub">· {i18n.t('view.week_tasks').toLowerCase()}</span></h2>
-          <span class="section-meta">{weekTasks.length}</span>
-        </div>
-        <div class="task-list cards">
-          {#each weekTasks as task (task.period.id)}
-            <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
-          {/each}
-        </div>
-      </section>
-    {/if}
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">{i18n.t('view.week_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
+        <span class="section-meta">{weekTasks.length}</span>
+      </div>
+      <div class="task-list cards">
+        {#each weekTasks as task (task.period.id)}
+          <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
+        {/each}
+        <button class="add-task-row" onclick={() => openCreate('week')}>
+          + {i18n.t('action.add')}
+        </button>
+      </div>
+    </section>
 
     <!-- ── Month context ──────────────────────────────────────────────────── -->
-    {#if monthTasks.length > 0}
-      <section class="section">
-        <div class="section-header">
-          <h2 class="section-title">{i18n.t('view.month_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
-          <span class="section-meta">{monthTasks.length}</span>
-        </div>
-        <div class="task-list cards">
-          {#each monthTasks as task (task.period.id)}
-            <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
-          {/each}
-        </div>
-      </section>
-    {/if}
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">{i18n.t('view.month_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
+        <span class="section-meta">{monthTasks.length}</span>
+      </div>
+      <div class="task-list cards">
+        {#each monthTasks as task (task.period.id)}
+          <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
+        {/each}
+        <button class="add-task-row" onclick={() => openCreate('month')}>
+          + {i18n.t('action.add')}
+        </button>
+      </div>
+    </section>
 
     <!-- ── Year context ───────────────────────────────────────────────────── -->
-    {#if yearTasks.length > 0}
-      <section class="section">
-        <div class="section-header">
-          <h2 class="section-title">{i18n.t('view.year_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
-          <span class="section-meta">{yearTasks.length}</span>
-        </div>
-        <div class="task-list cards">
-          {#each yearTasks as task (task.period.id)}
-            <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
-          {/each}
-        </div>
-      </section>
-    {/if}
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">{i18n.t('view.year_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
+        <span class="section-meta">{yearTasks.length}</span>
+      </div>
+      <div class="task-list cards">
+        {#each yearTasks as task (task.period.id)}
+          <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
+        {/each}
+        <button class="add-task-row" onclick={() => openCreate('year')}>
+          + {i18n.t('action.add')}
+        </button>
+      </div>
+    </section>
 
   {/if}
 </div>
