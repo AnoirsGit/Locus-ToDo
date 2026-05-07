@@ -13,7 +13,9 @@ export const toggleTask = async (periodId: string) => {
 
   try {
     const period = await tasksApi.updatePeriod(periodId, { status: newStatus })
-    taskStore.updatePeriod(periodId, period)
+    // Only patch status + doneAt — the full period object from RETURNING * may have
+    // Date objects for date columns which would break string comparisons in getForDate.
+    taskStore.updatePeriod(periodId, { status: period.status, doneAt: period.doneAt ?? undefined })
   } catch {
     // API not running — keep optimistic update
   }

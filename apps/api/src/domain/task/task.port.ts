@@ -13,14 +13,26 @@ export type CreateTaskInput = {
   recurringConfig?: {
     dayOfWeek?: number
     dayOfMonth?: number
+    monthOfYear?: number
     isActive: boolean
   }
 }
 
 export type UpdateTaskInput = {
+  // Task fields
   title?: string
   description?: string | null
   scheduledTime?: string | null
+  // Period fields (applied to the current active period)
+  targetDate?: string | null
+  deadlineMonth?: number | null
+  // Recurring config: null = delete, object = upsert
+  recurringConfig?: {
+    dayOfWeek?: number
+    dayOfMonth?: number
+    monthOfYear?: number
+    isActive: boolean
+  } | null
 }
 
 export type ListPeriodsInput = {
@@ -53,6 +65,16 @@ export type ITaskRepository = {
     deadlineMonth?: number
   }): Promise<TaskWithPeriod>
   findBacklogPeriodByTaskId(taskId: string, userId: string): Promise<TaskWithPeriod | null>
+  replanTask(input: {
+    taskId: string
+    userId: string
+    level: TaskLevel
+    oldPeriodId: string
+    newPeriodStart: string
+    newPeriodEnd: string
+    targetDate?: string
+    deadlineMonth?: number
+  }): Promise<TaskWithPeriod>
   hasArchivedPeriods(taskId: string): Promise<boolean>
   deleteTask(taskId: string, userId: string): Promise<boolean>
 }

@@ -172,24 +172,75 @@ export const taskRepository: ITaskRepository = {
   },
 
   async updateTask(taskId, userId, patch) {
-    const entries = Object.entries(patch).filter(([, v]) => v !== undefined)
-    if (entries.length === 0) return null
+    // Split patch into task-table fields, period fields, and recurringConfig
+    const { targetDate, deadlineMonth, recurringConfig, ...taskPatch } = patch
 
-    const setCols = entries.map(([k], i) => `${toSnake(k)} = $${i + 3}`).join(', ')
-    const values = [taskId, userId, ...entries.map(([, v]) => v)]
+    const taskEntries = Object.entries(taskPatch).filter(([, v]) => v !== undefined)
+    const periodEntries = [
+      ...(targetDate   !== undefined ? [['target_date',    targetDate]   ] : []),
+      ...(deadlineMonth !== undefined ? [['deadline_month', deadlineMonth]] : []),
+    ]
 
-    const [row] = await db.unsafe(
-      `UPDATE tasks SET ${setCols} WHERE id = $1 AND user_id = $2 RETURNING id`,
-      values as string[],
-    )
-    if (!row) return null
+    return db.begin(async (sql) => {
+      // 1. Update tasks table if needed
+      if (taskEntries.length > 0) {
+        const setCols = taskEntries.map(([k], i) => `${toSnake(k)} = $${i + 3}`).join(', ')
+        const values  = [taskId, userId, ...taskEntries.map(([, v]) => v)]
+        const [row]   = await sql.unsafe(
+          `UPDATE tasks SET ${setCols} WHERE id = $1 AND user_id = $2 RETURNING id`,
+          values as string[],
+        )
+        if (!row) return null
+      } else {
+        // Verify ownership even if no task fields changed
+        const [row] = await sql`SELECT id FROM tasks WHERE id = ${taskId} AND user_id = ${userId}`
+        if (!row) return null
+      }
 
-    const [period] = await db<{ id: string }[]>`
-      SELECT id FROM task_periods WHERE task_id = ${taskId} AND status != 'archived'
-      ORDER BY created_at DESC LIMIT 1
-    `
-    if (!period) return null
-    return this.findPeriodById(period.id, userId)
+      // 2. Update active period fields if needed
+      if (periodEntries.length > 0) {
+        const setCols = periodEntries.map(([k], i) => `${k} = $${i + 2}`).join(', ')
+        const values  = [taskId, ...periodEntries.map(([, v]) => v)]
+        await sql.unsafe(
+          `UPDATE task_periods SET ${setCols}
+           WHERE task_id = $1 AND status NOT IN ('archived')
+           ORDER BY created_at DESC LIMIT 1`,
+          values as string[],
+        )
+      }
+
+      // 3. Handle recurringConfig
+      if (recurringConfig !== undefined) {
+        if (recurringConfig === null) {
+          await sql`DELETE FROM recurring_configs WHERE task_id = ${taskId}`
+        } else {
+          await sql`
+            INSERT INTO recurring_configs (task_id, day_of_week, day_of_month, month_of_year, is_active)
+            VALUES (
+              ${taskId},
+              ${recurringConfig.dayOfWeek   ?? null},
+              ${recurringConfig.dayOfMonth  ?? null},
+              ${recurringConfig.monthOfYear ?? null},
+              ${recurringConfig.isActive}
+            )
+            ON CONFLICT (task_id) DO UPDATE SET
+              day_of_week   = EXCLUDED.day_of_week,
+              day_of_month  = EXCLUDED.day_of_month,
+              month_of_year = EXCLUDED.month_of_year,
+              is_active     = EXCLUDED.is_active
+          `
+        }
+      }
+
+      // Return updated task with its active period
+      const [period] = await sql<{ id: string }[]>`
+        SELECT id FROM task_periods
+        WHERE task_id = ${taskId} AND status != 'archived'
+        ORDER BY created_at DESC LIMIT 1
+      `
+      if (!period) return null
+      return this.findPeriodById(period.id, userId)
+    })
   },
 
   async updatePeriodStatus(periodId, userId, status, timestamps = {}) {
@@ -225,6 +276,31 @@ export const taskRepository: ITaskRepository = {
       )
       RETURNING id
     `
+    const item = await this.findPeriodById(period.id, userId)
+    return item!
+  },
+
+  async replanTask({ taskId, userId, level, oldPeriodId, newPeriodStart, newPeriodEnd, targetDate, deadlineMonth }) {
+    const period = await db.begin(async (sql) => {
+      // Archive old backlog period atomically with creating the new one
+      await sql`
+        UPDATE task_periods
+        SET    status = 'archived', archived_at = now()
+        WHERE  id = ${oldPeriodId} AND user_id = ${userId} AND status = 'backlog'
+      `
+      const [p] = await sql`
+        INSERT INTO task_periods (
+          task_id, user_id, period_type, period_start, period_end,
+          target_date, deadline_month
+        ) VALUES (
+          ${taskId}, ${userId}, ${level},
+          ${newPeriodStart}::date, ${newPeriodEnd}::date,
+          ${targetDate ?? null}, ${deadlineMonth ?? null}
+        )
+        RETURNING id
+      `
+      return p
+    })
     const item = await this.findPeriodById(period.id, userId)
     return item!
   },

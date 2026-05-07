@@ -10,6 +10,7 @@
   import WeekHeader from './ui/WeekHeader.svelte'
   import TaskSection from './ui/TaskSection.svelte'
   import DayColumn from './ui/DayColumn.svelte'
+  import { dragScroll } from '$shared/lib/dragScroll'
 
   type ModalState =
     | { mode: 'create'; defaultLevel: TaskLevel; defaultPeriodStart: string }
@@ -98,7 +99,7 @@
     <div class="section-header">
       <h2 class="section-title">{i18n.t('view.by_days')}</h2>
     </div>
-    <div class="overflow-x-auto pb-1" bind:this={kanbanRef}>
+    <div class="overflow-x-auto pb-1" bind:this={kanbanRef} use:dragScroll>
       <div class="flex gap-3 min-w-max">
         {#each weekDays as day (toISO(day))}
           {@const key = toISO(day)}

@@ -4,9 +4,8 @@ enum TaskLevel {
   month,
   year;
 
-  static TaskLevel fromString(String value) {
-    return TaskLevel.values.firstWhere((e) => e.name == value);
-  }
+  static TaskLevel fromString(String value) =>
+      TaskLevel.values.firstWhere((e) => e.name == value);
 }
 
 enum TaskStatus {
@@ -16,9 +15,8 @@ enum TaskStatus {
   backlog,
   archived;
 
-  static TaskStatus fromString(String value) {
-    return TaskStatus.values.firstWhere((e) => e.name == value);
-  }
+  static TaskStatus fromString(String value) =>
+      TaskStatus.values.firstWhere((e) => e.name == value);
 }
 
 class RecurringConfig {
@@ -29,7 +27,7 @@ class RecurringConfig {
   final bool isActive;
   final DateTime createdAt;
 
-  RecurringConfig({
+  const RecurringConfig({
     required this.id,
     required this.taskId,
     this.dayOfWeek,
@@ -38,16 +36,14 @@ class RecurringConfig {
     required this.createdAt,
   });
 
-  factory RecurringConfig.fromJson(Map<String, dynamic> json) {
-    return RecurringConfig(
-      id: json['id'],
-      taskId: json['taskId'],
-      dayOfWeek: json['dayOfWeek'],
-      dayOfMonth: json['dayOfMonth'],
-      isActive: json['isActive'],
-      createdAt: DateTime.parse(json['createdAt']),
-    );
-  }
+  factory RecurringConfig.fromJson(Map<String, dynamic> json) => RecurringConfig(
+        id: json['id'],
+        taskId: json['taskId'],
+        dayOfWeek: json['dayOfWeek'],
+        dayOfMonth: json['dayOfMonth'],
+        isActive: json['isActive'],
+        createdAt: DateTime.parse(json['createdAt']),
+      );
 }
 
 class Task {
@@ -61,7 +57,7 @@ class Task {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  Task({
+  const Task({
     required this.id,
     required this.userId,
     required this.title,
@@ -73,21 +69,19 @@ class Task {
     required this.updatedAt,
   });
 
-  factory Task.fromJson(Map<String, dynamic> json) {
-    return Task(
-      id: json['id'],
-      userId: json['userId'],
-      title: json['title'],
-      description: json['description'],
-      level: TaskLevel.fromString(json['level']),
-      scheduledTime: json['scheduledTime'],
-      recurringConfig: json['recurringConfig'] != null
-          ? RecurringConfig.fromJson(json['recurringConfig'])
-          : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-    );
-  }
+  factory Task.fromJson(Map<String, dynamic> json) => Task(
+        id: json['id'],
+        userId: json['userId'],
+        title: json['title'],
+        description: json['description'],
+        level: TaskLevel.fromString(json['level']),
+        scheduledTime: json['scheduledTime'],
+        recurringConfig: json['recurringConfig'] != null
+            ? RecurringConfig.fromJson(json['recurringConfig'])
+            : null,
+        createdAt: DateTime.parse(json['createdAt']),
+        updatedAt: DateTime.parse(json['updatedAt']),
+      );
 }
 
 class TaskPeriod {
@@ -107,7 +101,7 @@ class TaskPeriod {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  TaskPeriod({
+  const TaskPeriod({
     required this.id,
     required this.taskId,
     required this.userId,
@@ -125,33 +119,47 @@ class TaskPeriod {
     required this.updatedAt,
   });
 
-  factory TaskPeriod.fromJson(Map<String, dynamic> json) {
-    return TaskPeriod(
-      id: json['id'],
-      taskId: json['taskId'],
-      userId: json['userId'],
-      periodType: TaskLevel.fromString(json['periodType']),
-      periodStart: DateTime.parse(json['periodStart']),
-      periodEnd: DateTime.parse(json['periodEnd']),
-      status: TaskStatus.fromString(json['status']),
-      targetDate: json['targetDate'],
-      deadlineMonth: json['deadlineMonth'],
-      sortOrder: json['sortOrder'] ?? 0,
-      doneAt: json['doneAt'] != null ? DateTime.parse(json['doneAt']) : null,
-      backlogAt:
-          json['backlogAt'] != null ? DateTime.parse(json['backlogAt']) : null,
-      archivedAt:
-          json['archivedAt'] != null ? DateTime.parse(json['archivedAt']) : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-    );
-  }
+  factory TaskPeriod.fromJson(Map<String, dynamic> json) => TaskPeriod(
+        id: json['id'],
+        taskId: json['taskId'],
+        userId: json['userId'],
+        periodType: TaskLevel.fromString(json['periodType']),
+        periodStart: DateTime.parse(json['periodStart']),
+        periodEnd: DateTime.parse(json['periodEnd']),
+        status: TaskStatus.fromString(json['status']),
+        targetDate: json['targetDate'],
+        deadlineMonth: json['deadlineMonth'],
+        sortOrder: json['sortOrder'] ?? 0,
+        doneAt: json['doneAt'] != null ? DateTime.parse(json['doneAt']) : null,
+        backlogAt: json['backlogAt'] != null ? DateTime.parse(json['backlogAt']) : null,
+        archivedAt: json['archivedAt'] != null ? DateTime.parse(json['archivedAt']) : null,
+        createdAt: DateTime.parse(json['createdAt']),
+        updatedAt: DateTime.parse(json['updatedAt']),
+      );
+
+  TaskPeriod copyWith({TaskStatus? status, DateTime? doneAt}) => TaskPeriod(
+        id: id,
+        taskId: taskId,
+        userId: userId,
+        periodType: periodType,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        status: status ?? this.status,
+        targetDate: targetDate,
+        deadlineMonth: deadlineMonth,
+        sortOrder: sortOrder,
+        doneAt: doneAt ?? this.doneAt,
+        backlogAt: backlogAt,
+        archivedAt: archivedAt,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
 }
 
 class TaskWithPeriod extends Task {
   final TaskPeriod period;
 
-  TaskWithPeriod({
+  const TaskWithPeriod({
     required super.id,
     required super.userId,
     required super.title,
@@ -164,20 +172,31 @@ class TaskWithPeriod extends Task {
     required this.period,
   });
 
-  factory TaskWithPeriod.fromJson(Map<String, dynamic> json) {
-    return TaskWithPeriod(
-      id: json['id'],
-      userId: json['userId'],
-      title: json['title'],
-      description: json['description'],
-      level: TaskLevel.fromString(json['level']),
-      scheduledTime: json['scheduledTime'],
-      recurringConfig: json['recurringConfig'] != null
-          ? RecurringConfig.fromJson(json['recurringConfig'])
-          : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      period: TaskPeriod.fromJson(json['period']),
-    );
-  }
+  factory TaskWithPeriod.fromJson(Map<String, dynamic> json) => TaskWithPeriod(
+        id: json['id'],
+        userId: json['userId'],
+        title: json['title'],
+        description: json['description'],
+        level: TaskLevel.fromString(json['level']),
+        scheduledTime: json['scheduledTime'],
+        recurringConfig: json['recurringConfig'] != null
+            ? RecurringConfig.fromJson(json['recurringConfig'])
+            : null,
+        createdAt: DateTime.parse(json['createdAt']),
+        updatedAt: DateTime.parse(json['updatedAt']),
+        period: TaskPeriod.fromJson(json['period']),
+      );
+
+  TaskWithPeriod copyWithPeriod(TaskPeriod newPeriod) => TaskWithPeriod(
+        id: id,
+        userId: userId,
+        title: title,
+        description: description,
+        level: level,
+        scheduledTime: scheduledTime,
+        recurringConfig: recurringConfig,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        period: newPeriod,
+      );
 }

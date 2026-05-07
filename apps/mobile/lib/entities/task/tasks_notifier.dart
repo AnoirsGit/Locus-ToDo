@@ -1,39 +1,66 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/api/tasks_api.dart';
 import 'task.dart';
 
-part 'tasks_notifier.g.dart';
+class TasksNotifier extends AsyncNotifier<List<TaskWithPeriod>> {
+  final String? view;
 
-@riverpod
-class TasksNotifier extends _$TasksNotifier {
+  TasksNotifier({this.view});
+
   @override
-  Future<List<TaskWithPeriod>> build({String? view}) async {
+  Future<List<TaskWithPeriod>> build() async {
     return ref.read(tasksApiProvider).fetchTasks(view: view);
   }
 
   Future<void> toggle(TaskWithPeriod task) async {
-    final newStatus = task.period.status == TaskStatus.done ? TaskStatus.todo : TaskStatus.done;
-    
+    final newStatus =
+        task.period.status == TaskStatus.done ? TaskStatus.todo : TaskStatus.done;
+
     // Optimistic update
-    final previousState = state;
+    final prev = state;
     if (state.hasValue) {
-      final updatedTasks = state.value!.map((t) {
-        if (t.period.id == task.period.id) {
-          // We can't easily mutate because it's final, but for demonstration:
-          // In a real app we'd use copyWith
-          return task; // This is a placeholder for optimistic UI
-        }
-        return t;
-      }).toList();
-      // state = AsyncValue.data(updatedTasks);
+      state = AsyncData(state.value!.map((t) {
+        if (t.period.id != task.period.id) return t;
+        return t.copyWithPeriod(t.period.copyWith(
+          status: newStatus,
+          doneAt: newStatus == TaskStatus.done ? DateTime.now() : null,
+        ));
+      }).toList());
     }
 
     try {
       await ref.read(tasksApiProvider).toggleTask(task.period.id, newStatus);
-      ref.invalidateSelf();
-    } catch (e) {
-      state = previousState;
+    } catch (_) {
+      state = prev;
       rethrow;
     }
   }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(tasksApiProvider).fetchTasks(view: view),
+    );
+  }
+
+  Future<void> createTask(Map<String, dynamic> data) async {
+    await ref.read(tasksApiProvider).createTask(data);
+    await refresh();
+  }
+
+  Future<void> updateTask(String id, Map<String, dynamic> data) async {
+    await ref.read(tasksApiProvider).updateTask(id, data);
+    await refresh();
+  }
+
+  Future<void> deleteTask(String id) async {
+    await ref.read(tasksApiProvider).deleteTask(id);
+    if (state.hasValue) {
+      state = AsyncData(state.value!.where((t) => t.id != id).toList());
+    }
+  }
 }
+
+// Family provider — один на каждый view (day/week/month/year/backlog/archive)
+final tasksNotifierProvider = AsyncNotifierProviderFamily<TasksNotifier,
+    List<TaskWithPeriod>, String?>(() => TasksNotifier());

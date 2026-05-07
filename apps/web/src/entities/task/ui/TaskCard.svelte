@@ -161,7 +161,7 @@
   </div>
 
   {#if onEdit}
-    <div class="task-aside opacity-0 group-hover:opacity-100 transition-opacity">
+    <div class="task-aside opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
       <button
         class="btn-icon"
         onclick={() => onEdit(task)}
