@@ -6,7 +6,7 @@ import { db } from './client.js'
 
 type TaskRow = {
   id: string; userId: string; title: string; description?: string
-  level: TaskLevel; scheduledTime?: string
+  level: TaskLevel; scheduledTime?: string; parentTaskId?: string
   createdAt: string; updatedAt: string
 }
 
@@ -21,7 +21,7 @@ type PeriodRow = {
 
 type RcRow = {
   rcId: string; rcTaskId: string
-  rcDayOfWeek?: number; rcDayOfMonth?: number; rcMonthOfYear?: number
+  rcDaysOfWeek?: number[]; rcDayOfMonth?: number; rcMonthOfYear?: number
   rcIsActive: boolean; rcCreatedAt: string
 }
 
@@ -34,8 +34,9 @@ const toTaskWithPeriod = (r: JoinedRow): TaskWithPeriod => ({
   description: r.description,
   level: r.level,
   scheduledTime: r.scheduledTime,
+  parentTaskId: r.parentTaskId,
   recurringConfig: r.rcId
-    ? { id: r.rcId, taskId: r.rcTaskId, dayOfWeek: r.rcDayOfWeek, dayOfMonth: r.rcDayOfMonth, isActive: r.rcIsActive, createdAt: r.rcCreatedAt }
+    ? { id: r.rcId, taskId: r.rcTaskId, daysOfWeek: r.rcDaysOfWeek, dayOfMonth: r.rcDayOfMonth, isActive: r.rcIsActive, createdAt: r.rcCreatedAt }
     : undefined,
   createdAt: r.createdAt,
   updatedAt: r.updatedAt,
@@ -77,9 +78,9 @@ const JOIN_SELECT = `
     tp.archived_at AS p_archived_at,
     tp.created_at  AS p_created_at,
     tp.updated_at  AS p_updated_at,
-    rc.id          AS rc_id,
-    rc.task_id     AS rc_task_id,
-    rc.day_of_week AS rc_day_of_week,
+    rc.id           AS rc_id,
+    rc.task_id      AS rc_task_id,
+    rc.days_of_week AS rc_days_of_week,
     rc.day_of_month AS rc_day_of_month,
     rc.month_of_year AS rc_month_of_year,
     rc.is_active   AS rc_is_active,
@@ -136,10 +137,11 @@ export const taskRepository: ITaskRepository = {
   async createTask(input) {
     const task = await db.begin(async (sql) => {
       const [t] = await sql`
-        INSERT INTO tasks (user_id, title, description, level, scheduled_time)
+        INSERT INTO tasks (user_id, title, description, level, scheduled_time, parent_task_id)
         VALUES (
           ${input.userId}, ${input.title}, ${input.description ?? null},
-          ${input.level}, ${input.scheduledTime ?? null}
+          ${input.level}, ${input.scheduledTime ?? null},
+          ${input.parentTaskId ?? null}
         )
         RETURNING id
       `
@@ -147,8 +149,8 @@ export const taskRepository: ITaskRepository = {
       if (input.recurringConfig) {
         const rc = input.recurringConfig
         await sql`
-          INSERT INTO recurring_configs (task_id, day_of_week, day_of_month, is_active)
-          VALUES (${t.id}, ${rc.dayOfWeek ?? null}, ${rc.dayOfMonth ?? null}, ${rc.isActive})
+          INSERT INTO recurring_configs (task_id, days_of_week, day_of_month, is_active)
+          VALUES (${t.id}, ${rc.daysOfWeek ?? null}, ${rc.dayOfMonth ?? null}, ${rc.isActive})
         `
       }
 
@@ -215,16 +217,16 @@ export const taskRepository: ITaskRepository = {
           await sql`DELETE FROM recurring_configs WHERE task_id = ${taskId}`
         } else {
           await sql`
-            INSERT INTO recurring_configs (task_id, day_of_week, day_of_month, month_of_year, is_active)
+            INSERT INTO recurring_configs (task_id, days_of_week, day_of_month, month_of_year, is_active)
             VALUES (
               ${taskId},
-              ${recurringConfig.dayOfWeek   ?? null},
+              ${recurringConfig.daysOfWeek  ?? null},
               ${recurringConfig.dayOfMonth  ?? null},
               ${recurringConfig.monthOfYear ?? null},
               ${recurringConfig.isActive}
             )
             ON CONFLICT (task_id) DO UPDATE SET
-              day_of_week   = EXCLUDED.day_of_week,
+              days_of_week  = EXCLUDED.days_of_week,
               day_of_month  = EXCLUDED.day_of_month,
               month_of_year = EXCLUDED.month_of_year,
               is_active     = EXCLUDED.is_active
@@ -318,6 +320,29 @@ export const taskRepository: ITaskRepository = {
       SELECT 1 FROM task_periods WHERE task_id = ${taskId} AND status = 'archived' LIMIT 1
     `
     return !!row
+  },
+
+  async subtasksHaveArchivedPeriods(taskId) {
+    const [row] = await db`
+      SELECT 1
+      FROM task_periods tp
+      JOIN tasks t ON t.id = tp.task_id
+      WHERE t.parent_task_id = ${taskId}
+        AND tp.status = 'archived'
+      LIMIT 1
+    `
+    return !!row
+  },
+
+  async listSubtasks(taskId, userId) {
+    const rows = await db.unsafe<JoinedRow[]>(
+      `${JOIN_SELECT}
+       WHERE t.parent_task_id = $1 AND t.user_id = $2
+         AND tp.status NOT IN ('archived')
+       ORDER BY t.created_at ASC`,
+      [taskId, userId],
+    )
+    return rows.map(toTaskWithPeriod)
   },
 
   async deleteTask(taskId, userId) {

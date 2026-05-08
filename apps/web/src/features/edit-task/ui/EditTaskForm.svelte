@@ -1,6 +1,7 @@
 <script lang="ts">
   import { TaskFormFields, taskStore, tasksApi } from '$entities/task'
   import type { TaskWithPeriod, TaskLevel } from '$entities/task'
+  import { onMount } from 'svelte'
 
   type Props = { task: TaskWithPeriod; onClose?: () => void }
   const { task, onClose }: Props = $props()
@@ -12,8 +13,51 @@
   let targetDate    = $state(task.period.targetDate ?? '')
   let deadlineMonth = $state(task.period.deadlineMonth?.toString() ?? '')
   let recurring     = $state(!!task.recurringConfig)
-  let dayOfWeek     = $state(task.recurringConfig?.dayOfWeek?.toString() ?? '')
+  let daysOfWeek    = $state<number[]>(task.recurringConfig?.daysOfWeek ?? [])
   let dayOfMonth    = $state(task.recurringConfig?.dayOfMonth?.toString() ?? '')
+
+  let subtasks = $state<TaskWithPeriod[]>([])
+
+  onMount(async () => {
+    try {
+      subtasks = await tasksApi.getSubtasks(task.id)
+    } catch { /* no subtasks or offline */ }
+  })
+
+  const handleAddSubtask = async (subTitle: string) => {
+    const now = new Date().toISOString()
+    const item = await tasksApi.create({
+      title: subTitle,
+      level: task.level,
+      periodStart: task.period.periodStart,
+      parentTaskId: task.id,
+    })
+    subtasks = [...subtasks, item]
+  }
+
+  const handleToggleSubtask = (periodId: string) => {
+    const sub = subtasks.find(s => s.period.id === periodId)
+    if (!sub) return
+    const newStatus = sub.period.status === 'done' ? 'todo' : 'done'
+    // Optimistic update
+    subtasks = subtasks.map(s =>
+      s.period.id === periodId
+        ? { ...s, period: { ...s.period, status: newStatus } }
+        : s
+    )
+    tasksApi.updatePeriod(periodId, { status: newStatus }).catch(() => {
+      // revert on error
+      subtasks = subtasks.map(s => s.period.id === periodId ? sub : s)
+    })
+  }
+
+  const handleDeleteSubtask = async (taskId: string) => {
+    subtasks = subtasks.filter(s => s.id !== taskId)
+    try { await tasksApi.remove(taskId) } catch {
+      // restore on error
+      subtasks = await tasksApi.getSubtasks(task.id)
+    }
+  }
 
   const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault()
@@ -21,7 +65,6 @@
 
     const now = new Date().toISOString()
     const dm  = deadlineMonth ? parseInt(deadlineMonth) : undefined
-    const dow = dayOfWeek ? parseInt(dayOfWeek) : undefined
     const dom = dayOfMonth ? parseInt(dayOfMonth) : undefined
 
     const updated: TaskWithPeriod = {
@@ -35,7 +78,7 @@
             id: task.recurringConfig?.id ?? crypto.randomUUID(),
             taskId: task.id,
             isActive: true,
-            dayOfWeek: level === 'week' ? dow : undefined,
+            daysOfWeek: level === 'week' && daysOfWeek.length > 0 ? daysOfWeek : undefined,
             dayOfMonth: level === 'month' ? dom : undefined,
             createdAt: task.recurringConfig?.createdAt ?? now,
           }
@@ -56,6 +99,9 @@
       const saved = await tasksApi.update(task.id, {
         title: updated.title,
         description: updated.description ?? null,
+        recurringConfig: updated.recurringConfig
+          ? { isActive: true, daysOfWeek: updated.recurringConfig.daysOfWeek, dayOfMonth: updated.recurringConfig.dayOfMonth }
+          : null,
       })
       taskStore.upsert(saved)
     } catch {
@@ -67,7 +113,11 @@
 <form onsubmit={handleSubmit} class="flex flex-col">
   <TaskFormFields
     bind:title bind:description bind:level bind:scheduledTime
-    bind:targetDate bind:deadlineMonth bind:recurring bind:dayOfWeek bind:dayOfMonth
+    bind:targetDate bind:deadlineMonth bind:recurring bind:daysOfWeek bind:dayOfMonth
+    {subtasks}
+    onAddSubtask={handleAddSubtask}
+    onToggleSubtask={handleToggleSubtask}
+    onDeleteSubtask={handleDeleteSubtask}
   />
   <div class="modal-footer">
     <button type="button" onclick={onClose} class="btn ghost">Отмена</button>

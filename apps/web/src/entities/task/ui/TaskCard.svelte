@@ -64,12 +64,14 @@
     const r = task.recurringConfig
     if (!r) return null
     const parts: string[] = []
-    if (task.level === 'week' && r.dayOfWeek != null)
-      parts.push(DAY_NAMES_SHORT[r.dayOfWeek])
-    else if (task.level === 'month' && r.dayOfMonth != null)
+    if (task.level === 'week' && r.daysOfWeek?.length) {
+      // Show day abbreviations sorted Mon-first
+      const sorted = [...r.daysOfWeek].sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+      parts.push(sorted.map((d) => DAY_NAMES_SHORT[d]).join(' '))
+    } else if (task.level === 'month' && r.dayOfMonth != null) {
       parts.push(`${r.dayOfMonth}-го`)
-    if (task.scheduledTime)
-      parts.push(task.scheduledTime)
+    }
+    if (task.scheduledTime) parts.push(task.scheduledTime)
     return parts.length ? `↻ ${parts.join(' · ')}` : '↻'
   })())
 

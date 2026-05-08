@@ -10,8 +10,9 @@ export type CreateTaskInput = {
   periodEnd: string
   targetDate?: string
   deadlineMonth?: number
+  parentTaskId?: string
   recurringConfig?: {
-    dayOfWeek?: number
+    daysOfWeek?: number[]
     dayOfMonth?: number
     monthOfYear?: number
     isActive: boolean
@@ -28,7 +29,7 @@ export type UpdateTaskInput = {
   deadlineMonth?: number | null
   // Recurring config: null = delete, object = upsert
   recurringConfig?: {
-    dayOfWeek?: number
+    daysOfWeek?: number[]
     dayOfMonth?: number
     monthOfYear?: number
     isActive: boolean
@@ -76,5 +77,8 @@ export type ITaskRepository = {
     deadlineMonth?: number
   }): Promise<TaskWithPeriod>
   hasArchivedPeriods(taskId: string): Promise<boolean>
+  /** Returns true if the task has subtasks with archived periods (used for 409 check on parent DELETE) */
+  subtasksHaveArchivedPeriods(taskId: string): Promise<boolean>
+  listSubtasks(taskId: string, userId: string): Promise<TaskWithPeriod[]>
   deleteTask(taskId: string, userId: string): Promise<boolean>
 }

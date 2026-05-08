@@ -19,11 +19,13 @@ const isoDate = z
   }, 'Invalid date')
 
 const recurringConfigSchema = z.object({
-  dayOfWeek:   z.number().int().min(0).max(6).optional(),
+  daysOfWeek:  z.array(z.number().int().min(0).max(6)).min(1).max(6).optional(),
   dayOfMonth:  z.number().int().min(1).max(31).optional(),
   monthOfYear: z.number().int().min(1).max(12).optional(),
   isActive:    z.boolean(),
 })
+
+const LEVEL_ORDER: Record<string, number> = { day: 0, week: 1, month: 2, year: 3 }
 
 const createSchema = z.object({
   title:           z.string().min(1).max(500),
@@ -33,6 +35,7 @@ const createSchema = z.object({
   scheduledTime:   z.string().regex(/^\d{2}:\d{2}$/).optional(),
   targetDate:      isoDate.optional(),
   deadlineMonth:   z.number().int().min(1).max(12).optional(),
+  parentTaskId:    z.string().uuid().optional(),
   recurringConfig: recurringConfigSchema.optional(),
 })
 
@@ -105,14 +108,33 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /api/tasks
   fastify.post('/', async (req, reply) => {
     const raw   = createSchema.parse(req.body)
-    // Snap week start to Monday
     const input = {
       ...raw,
       periodStart: raw.level === 'week' ? toMonday(raw.periodStart) : raw.periodStart,
     }
+
+    // Validate subtask level ≤ parent level
+    if (input.parentTaskId) {
+      const parent = await taskRepository.findPeriodById(input.parentTaskId, userId(req))
+      if (!parent) return reply.status(404).send({ error: 'Parent task not found' })
+      if (LEVEL_ORDER[input.level] > LEVEL_ORDER[parent.level]) {
+        return reply.status(400).send({ error: `Subtask level must be ≤ parent level (${parent.level})` })
+      }
+    }
+
     try {
       const item = await createTaskUseCase(taskRepository, { ...input, userId: userId(req) })
       return reply.status(201).send(item)
+    } catch (err: any) {
+      return reply.status(err.statusCode ?? 500).send({ error: err.message })
+    }
+  })
+
+  // GET /api/tasks/:taskId/subtasks
+  fastify.get('/:taskId/subtasks', async (req, reply) => {
+    const { taskId } = req.params as { taskId: string }
+    try {
+      return await taskRepository.listSubtasks(taskId, userId(req))
     } catch (err: any) {
       return reply.status(err.statusCode ?? 500).send({ error: err.message })
     }

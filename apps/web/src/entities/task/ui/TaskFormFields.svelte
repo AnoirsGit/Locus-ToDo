@@ -1,28 +1,52 @@
 <script lang="ts">
-  import type { TaskLevel } from '../model/task.types'
+  import type { TaskLevel, TaskWithPeriod } from '../model/task.types'
+  import RichTextEditor from '$shared/ui/RichTextEditor.svelte'
 
   const MONTH_NAMES = [
     'January','February','March','April','May','June',
     'July','August','September','October','November','December',
   ]
+
+  // Mon-first order: value = JS DOW (0=Sun,1=Mon…), label = short name
   const DOW_OPTIONS = [
-    { value: '1', label: 'Monday' },    { value: '2', label: 'Tuesday' },
-    { value: '3', label: 'Wednesday' }, { value: '4', label: 'Thursday' },
-    { value: '5', label: 'Friday' },    { value: '6', label: 'Saturday' },
-    { value: '0', label: 'Sunday' },
+    { value: 1, label: 'Mon' }, { value: 2, label: 'Tue' },
+    { value: 3, label: 'Wed' }, { value: 4, label: 'Thu' },
+    { value: 5, label: 'Fri' }, { value: 6, label: 'Sat' },
+    { value: 0, label: 'Sun' },
   ]
 
   type Props = {
-    title: string; description: string; level: TaskLevel
-    scheduledTime: string; targetDate: string; deadlineMonth: string
-    recurring: boolean; dayOfWeek: string; dayOfMonth: string
+    title: string
+    description: string
+    level: TaskLevel
+    scheduledTime: string
+    targetDate: string
+    deadlineMonth: string
+    recurring: boolean
+    daysOfWeek: number[]
+    dayOfMonth: string
+    // Subtasks — only used in edit mode
+    subtasks?: TaskWithPeriod[]
+    onAddSubtask?: (title: string) => Promise<void>
+    onToggleSubtask?: (periodId: string) => void
+    onDeleteSubtask?: (taskId: string) => Promise<void>
     autoFocus?: boolean
   }
 
   let {
-    title = $bindable(), description = $bindable(), level = $bindable(),
-    scheduledTime = $bindable(), targetDate = $bindable(), deadlineMonth = $bindable(),
-    recurring = $bindable(), dayOfWeek = $bindable(), dayOfMonth = $bindable(),
+    title = $bindable(),
+    description = $bindable(),
+    level = $bindable(),
+    scheduledTime = $bindable(),
+    targetDate = $bindable(),
+    deadlineMonth = $bindable(),
+    recurring = $bindable(),
+    daysOfWeek = $bindable(),
+    dayOfMonth = $bindable(),
+    subtasks,
+    onAddSubtask,
+    onToggleSubtask,
+    onDeleteSubtask,
     autoFocus = true,
   }: Props = $props()
 
@@ -39,6 +63,25 @@
     month: 'Every month',
     year:  'Every year',
   }
+
+  function toggleDay(dow: number) {
+    if (daysOfWeek.includes(dow)) {
+      daysOfWeek = daysOfWeek.filter((d) => d !== dow)
+    } else if (daysOfWeek.length < 6) {
+      daysOfWeek = [...daysOfWeek, dow]
+    }
+  }
+
+  let newSubtaskTitle = $state('')
+  let addingSubtask = $state(false)
+
+  async function submitSubtask() {
+    const t = newSubtaskTitle.trim()
+    if (!t || !onAddSubtask) return
+    await onAddSubtask(t)
+    newSubtaskTitle = ''
+    addingSubtask = false
+  }
 </script>
 
 <div class="tform">
@@ -53,12 +96,82 @@
       autofocus={autoFocus}
       autocomplete="off"
     />
-    <textarea
-      bind:value={description}
-      placeholder="Add a description…"
-      rows="5"
-      class="tform-desc"
-    ></textarea>
+    <RichTextEditor bind:value={description} minHeight="120px" />
+
+    <!-- Subtasks (edit mode only) -->
+    {#if subtasks !== undefined}
+      <div class="tform-subtasks">
+        <div class="tform-subtasks-header">
+          <span class="tform-sub-heading">Subtasks</span>
+          {#if subtasks.length > 0}
+            <span class="tform-sub-count">{subtasks.filter(s => s.period.status === 'done').length}/{subtasks.length}</span>
+          {/if}
+        </div>
+
+        {#each subtasks as sub (sub.period.id)}
+          <div class="tform-subtask-row">
+            <button
+              type="button"
+              class="checkbox checkbox-sm"
+              class:checked={sub.period.status === 'done'}
+              onclick={() => onToggleSubtask?.(sub.period.id)}
+              aria-label={sub.period.status === 'done' ? 'Unmark' : 'Mark done'}
+            >
+              {#if sub.period.status === 'done'}
+                <svg class="checkbox-tick" viewBox="0 0 10 10" fill="none">
+                  <path d="M1.5 5l2.5 2.5L8.5 2" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              {/if}
+            </button>
+            <span class="tform-subtask-title" class:done={sub.period.status === 'done'}>{sub.title}</span>
+            {#if onDeleteSubtask}
+              <button
+                type="button"
+                class="tform-subtask-del"
+                onclick={() => onDeleteSubtask!(sub.id)}
+                aria-label="Delete subtask"
+              >
+                <svg viewBox="0 0 12 12" fill="none" width="10" height="10">
+                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+              </button>
+            {/if}
+          </div>
+        {/each}
+
+        {#if addingSubtask}
+          <div class="tform-subtask-add-row">
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              type="text"
+              bind:value={newSubtaskTitle}
+              placeholder="Subtask title…"
+              class="tform-subtask-input"
+              autofocus
+              onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitSubtask() } if (e.key === 'Escape') addingSubtask = false }}
+            />
+            <button type="button" class="btn-icon" onclick={submitSubtask}>
+              <svg viewBox="0 0 12 12" fill="none" width="12" height="12">
+                <path d="M1 6h10M7 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" class="btn-icon" onclick={() => addingSubtask = false}>
+              <svg viewBox="0 0 12 12" fill="none" width="10" height="10">
+                <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        {:else if onAddSubtask}
+          <button type="button" class="tform-add-subtask" onclick={() => addingSubtask = true}>
+            <svg viewBox="0 0 12 12" fill="none" width="11" height="11">
+              <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Add subtask
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- Right: details panel -->
@@ -155,20 +268,28 @@
           onclick={() => { recurring = !recurring }}
           aria-label="Toggle recurring"
         ></button>
-        {#if recurring}
+        {#if recurring && level !== 'week'}
           <span class="tform-recurring-hint">{RECURRING_HINT[level]}</span>
         {/if}
       </div>
     </div>
 
-    <!-- Week + recurring: day of week -->
+    <!-- Week + recurring: multi-day chip selector -->
     {#if recurring && level === 'week'}
       <div class="tform-row tform-row-sub">
-        <div class="tform-field-label tform-sub-label">Every</div>
-        <select bind:value={dayOfWeek} class="tform-control tform-select">
-          <option value="">Monday (default)</option>
-          {#each DOW_OPTIONS as d}<option value={d.value}>{d.label}</option>{/each}
-        </select>
+        <div class="tform-field-label tform-sub-label">Days</div>
+        <div class="tform-dow-chips">
+          {#each DOW_OPTIONS as d}
+            <button
+              type="button"
+              class="tform-dow-chip"
+              class:selected={daysOfWeek.includes(d.value)}
+              class:maxed={!daysOfWeek.includes(d.value) && daysOfWeek.length >= 6}
+              onclick={() => toggleDay(d.value)}
+              title={daysOfWeek.length >= 6 && !daysOfWeek.includes(d.value) ? 'Max 6 days' : ''}
+            >{d.label}</button>
+          {/each}
+        </div>
       </div>
     {/if}
 

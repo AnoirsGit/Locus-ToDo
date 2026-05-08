@@ -1,7 +1,7 @@
 # arch/database.md
 
 > Load when: DB schema, migrations, queries, indexes, relations.
-> **Status: DRAFT — not confirmed by user ⚠️**
+> **Status: PARTIALLY CONFIRMED — recurring_multiday + subtasks confirmed (2026-05-08)**
 
 ---
 
@@ -14,12 +14,16 @@
 `user_id` FK → users (1:1)
 
 ### tasks
-`id` uuid PK · `user_id` FK (CASCADE) · `title` · `description` · `level` (day|week|month|year) · `scheduled_time` · `created_at` · `updated_at`
+`id` uuid PK · `user_id` FK (CASCADE) · `title` · `description` · `level` (day|week|month|year) · `scheduled_time` · `parent_task_id` FK → tasks ON DELETE RESTRICT (nullable) · `created_at` · `updated_at`
+
+**003_subtasks.sql** — added `parent_task_id`. Subtask rules (app layer): level ≤ parent level, no recurring allowed, DELETE on parent blocked if subtasks have archived periods.
 
 ### recurring_configs
-`id` uuid PK · `task_id` FK UNIQUE (CASCADE) · `is_active` · `day_of_week` (0-6, week only) · `day_of_month` (1-31, month only) · `created_at`
+`id` uuid PK · `task_id` FK UNIQUE (CASCADE) · `is_active` · `days_of_week` SMALLINT[] (0-6 each, week only, max 6, null = any day) · `day_of_month` (1-31, month only) · `created_at`
 
 Presence of a row = task is recurring. Level inherited from `tasks.level`.
+
+**002_recurring_multiday.sql** — renamed `day_of_week SMALLINT` → `days_of_week SMALLINT[]`. Existing single-day values migrated to one-element arrays. Max 6 days enforced by DB constraint.
 
 ### task_periods
 `id` uuid PK · `task_id` FK (CASCADE) · `user_id` FK (denorm) · `period_type` · `period_start` DATE · `period_end` DATE · `status` · `target_date` (week only) · `deadline_month` (year only) · `sort_order` · `done_at` · `backlog_at` · `archived_at` · `created_at` · `updated_at`
@@ -91,3 +95,4 @@ WHERE tp.user_id = :userId AND tp.status = 'archived' ORDER BY tp.archived_at DE
 - [ ] Soft-delete on tasks (`deleted_at` vs hard delete)?
 - [ ] Refresh token storage (Redis TTL vs `sessions` table)?
 - [ ] Partition `task_periods` by `user_id` at scale?
+- [ ] Recurring week tasks with `days_of_week` — currently creates one week-period (uses `days_of_week` for display only). Full multi-period-per-day scheduling is a follow-up.

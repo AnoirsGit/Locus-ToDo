@@ -22,7 +22,8 @@ enum TaskStatus {
 class RecurringConfig {
   final String id;
   final String taskId;
-  final int? dayOfWeek;
+  /// week-level: list of DOW values 0–6 (Sun=0). Null = every week.
+  final List<int>? daysOfWeek;
   final int? dayOfMonth;
   final bool isActive;
   final DateTime createdAt;
@@ -30,7 +31,7 @@ class RecurringConfig {
   const RecurringConfig({
     required this.id,
     required this.taskId,
-    this.dayOfWeek,
+    this.daysOfWeek,
     this.dayOfMonth,
     required this.isActive,
     required this.createdAt,
@@ -39,7 +40,7 @@ class RecurringConfig {
   factory RecurringConfig.fromJson(Map<String, dynamic> json) => RecurringConfig(
         id: json['id'],
         taskId: json['taskId'],
-        dayOfWeek: json['dayOfWeek'],
+        daysOfWeek: (json['daysOfWeek'] as List<dynamic>?)?.cast<int>(),
         dayOfMonth: json['dayOfMonth'],
         isActive: json['isActive'],
         createdAt: DateTime.parse(json['createdAt']),
@@ -54,6 +55,7 @@ class Task {
   final TaskLevel level;
   final String? scheduledTime;
   final RecurringConfig? recurringConfig;
+  final String? parentTaskId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -65,6 +67,7 @@ class Task {
     required this.level,
     this.scheduledTime,
     this.recurringConfig,
+    this.parentTaskId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -79,6 +82,7 @@ class Task {
         recurringConfig: json['recurringConfig'] != null
             ? RecurringConfig.fromJson(json['recurringConfig'])
             : null,
+        parentTaskId: json['parentTaskId'],
         createdAt: DateTime.parse(json['createdAt']),
         updatedAt: DateTime.parse(json['updatedAt']),
       );

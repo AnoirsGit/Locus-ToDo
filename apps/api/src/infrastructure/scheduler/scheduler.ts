@@ -18,9 +18,9 @@ import { computePeriodEnd, currentPeriodStart } from '../../application/period-u
 
 type UserTimezone = { id: string; timezone: string }
 
-const processUser = async (user: UserTimezone) => {
-  const now     = DateTime.now().setZone(user.timezone)
-  const todayStr = now.toISODate()!
+const processUser = async (user: UserTimezone, overrideDate?: string) => {
+  const now      = DateTime.now().setZone(user.timezone)
+  const todayStr = overrideDate ?? now.toISODate()!
 
   await rolloverRecurringPeriods(user.id, todayStr)
   await archiveDayTasks(user.id, todayStr)
@@ -134,7 +134,10 @@ const progressPeriodStatuses = async (userId: string, today: string) => {
   `
 }
 
-/** Create new day-periods for recurring day-tasks that have no active period today */
+/**
+ * Create new day-periods for recurring day-tasks that have no active period today.
+ * If days_of_week is set, only create when today's DOW is in that array.
+ */
 const rolloverRecurringDayTasks = async (userId: string, today: string) => {
   await db`
     INSERT INTO task_periods (task_id, user_id, period_type, period_start, period_end)
@@ -144,6 +147,10 @@ const rolloverRecurringDayTasks = async (userId: string, today: string) => {
     WHERE  t.user_id    = ${userId}
       AND  t.level      = 'day'
       AND  rc.is_active = true
+      AND  (
+        rc.days_of_week IS NULL
+        OR EXTRACT(DOW FROM ${today}::date)::SMALLINT = ANY(rc.days_of_week)
+      )
       AND  NOT EXISTS (
         SELECT 1 FROM task_periods tp
         WHERE  tp.task_id      = t.id
@@ -165,17 +172,19 @@ export const scheduler = {
     this._task?.stop()
   },
 
-  async _tick() {
-    try {
-      const users = await db<UserTimezone[]>`SELECT id, timezone FROM users`
-      const results = await Promise.allSettled(users.map(processUser))
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') {
-          console.error(`[scheduler] error for user ${users[i]?.id}:`, r.reason)
-        }
-      })
-    } catch (err) {
-      console.error('[scheduler] tick error', err)
-    }
+  async _tick(overrideDate?: string) {
+    const users = await db<UserTimezone[]>`SELECT id, timezone FROM users`
+    const results = await Promise.allSettled(users.map((u) => processUser(u, overrideDate)))
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`[scheduler] error for user ${users[i]?.id}:`, r.reason)
+      }
+    })
+    return { users: users.length, date: overrideDate ?? DateTime.now().toISODate() }
+  },
+
+  /** Trigger a tick with an optional date override — used by the dev API. */
+  async triggerTick(overrideDate?: string) {
+    return this._tick(overrideDate)
   },
 }

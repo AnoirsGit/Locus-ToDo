@@ -15,5 +15,8 @@
   },
   "devDependencies": {
     "typescript": "^5.5.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["argon2", "esbuild"]
   }
 }

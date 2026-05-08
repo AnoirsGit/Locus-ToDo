@@ -123,6 +123,53 @@
 }
 
 /* ══════════════════════════════════════════════
+   RICH TEXT EDITOR — scoped to .tiptap (auto-added by Tiptap to ProseMirror)
+   Must live outside @layer to beat Tailwind preflight
+══════════════════════════════════════════════ */
+.tiptap { outline: none; font-size: 13.5px; line-height: 1.65; color: var(--color-text); }
+.tiptap p              { margin: 0 0 4px; }
+.tiptap p:last-child   { margin-bottom: 0; }
+.tiptap strong         { font-weight: 600; color: var(--color-text-strong); }
+.tiptap em             { font-style: italic; }
+
+.tiptap ul:not([data-type="taskList"]) { list-style: disc !important;    padding-left: 22px; margin: 2px 0 6px; }
+.tiptap ol                             { list-style: decimal !important; padding-left: 22px; margin: 2px 0 6px; }
+.tiptap li             { margin-bottom: 3px; line-height: 1.6; }
+.tiptap li > p         { margin: 0; }
+
+.tiptap ul[data-type="taskList"]           { list-style: none; padding-left: 0; margin: 2px 0 6px; }
+.tiptap li[data-type="taskItem"]           { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; list-style: none; }
+.tiptap li[data-type="taskItem"]::marker   { content: none; }
+.tiptap li[data-type="taskItem"] > label   { display: flex; align-items: center; flex-shrink: 0; }
+.tiptap li[data-type="taskItem"] label input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 15px; height: 15px;
+  border: 1.5px solid var(--color-border-2); border-radius: 3px;
+  background: transparent; cursor: pointer; position: relative; flex-shrink: 0;
+  transition: background 80ms, border-color 80ms;
+}
+.tiptap li[data-type="taskItem"] label input[type="checkbox"]:checked {
+  background: var(--color-text-strong); border-color: var(--color-text-strong);
+}
+.tiptap li[data-type="taskItem"] label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 5.5l2 2 4-4' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: center; background-size: 10px 10px;
+}
+.tiptap li[data-type="taskItem"][data-checked="true"] > div { text-decoration: line-through; color: var(--color-muted); }
+.tiptap li[data-type="taskItem"] > div     { flex: 1; min-width: 0; }
+.tiptap li[data-type="taskItem"] > div > p { margin: 0; }
+
+.tiptap a { color: var(--color-brand); text-decoration: underline; text-underline-offset: 2px; }
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-muted-2);
+  pointer-events: none; float: left; height: 0;
+}
+
+/* ══════════════════════════════════════════════
    BASE STYLES
 ══════════════════════════════════════════════ */
 @layer base {
@@ -738,6 +785,36 @@
 
 .tform-row-sub { padding-left: 0; border-bottom: none !important; padding-top: 0; }
 .tform-sub-label { color: var(--color-muted-2); font-size: 10.5px; }
+
+/* Day-of-week chip selector */
+.tform-dow-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tform-dow-chip {
+  padding: 3px 7px; border-radius: 12px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--color-border); background: transparent;
+  color: var(--color-muted); cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.tform-dow-chip:hover:not(.maxed) { border-color: var(--color-week); color: var(--color-week); }
+.tform-dow-chip.selected { background: var(--color-week-soft); border-color: var(--color-week); color: var(--color-week); }
+.tform-dow-chip.maxed { opacity: 0.35; cursor: not-allowed; }
+
+/* Subtasks section */
+.tform-subtasks { margin-top: 20px; border-top: 1px solid var(--color-border); padding-top: 14px; }
+.tform-subtasks-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tform-sub-heading { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--color-muted); }
+.tform-sub-count { font-size: 11px; color: var(--color-muted-2); background: var(--color-surface-2); border-radius: 8px; padding: 1px 6px; }
+.tform-subtask-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--color-border); }
+.tform-subtask-row:last-of-type { border-bottom: none; }
+.tform-subtask-title { flex: 1; font-size: 13px; color: var(--color-text); }
+.tform-subtask-title.done { text-decoration: line-through; color: var(--color-muted); }
+.tform-subtask-del { opacity: 0; color: var(--color-muted-2); background: none; border: none; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: opacity .15s, color .15s; flex-shrink: 0; }
+.tform-subtask-row:hover .tform-subtask-del { opacity: 1; }
+.tform-subtask-del:hover { color: var(--color-danger); }
+.tform-subtask-add-row { display: flex; align-items: center; gap: 6px; padding: 6px 0; }
+.tform-subtask-input { flex: 1; background: var(--color-surface-2); border: 1px solid var(--color-week); border-radius: 6px; padding: 5px 8px; font-size: 13px; color: var(--color-text-strong); outline: none; }
+.tform-add-subtask { display: flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 12px; color: var(--color-muted); background: none; border: none; cursor: pointer; transition: color .15s; }
+.tform-add-subtask:hover { color: var(--color-week); }
+.checkbox.checkbox-sm { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
 
 /* ══════════════════════════════════════════════
    AUTH

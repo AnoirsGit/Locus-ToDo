@@ -4,6 +4,7 @@ import jwt from '@fastify/jwt'
 import { authRoutes } from './infrastructure/http/routes/auth.routes.js'
 import { taskRoutes } from './infrastructure/http/routes/tasks.routes.js'
 import { taskPeriodRoutes } from './infrastructure/http/routes/task-periods.routes.js'
+import { devRoutes } from './infrastructure/http/routes/dev.routes.js'
 import { scheduler } from './infrastructure/scheduler/scheduler.js'
 import { db } from './infrastructure/db/client.js'
 
@@ -22,6 +23,11 @@ const start = async () => {
   await server.register(authRoutes,       { prefix: '/api/auth' })
   await server.register(taskRoutes,       { prefix: '/api/tasks' })
   await server.register(taskPeriodRoutes, { prefix: '/api/task-periods' })
+
+  if (process.env.NODE_ENV !== 'production') {
+    await server.register(devRoutes, { prefix: '/api/dev' })
+    server.log.info('[dev] /api/dev/* routes enabled')
+  }
 
   server.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 

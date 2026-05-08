@@ -19,8 +19,14 @@ class TasksApi {
     await _client.patch('/task-periods/$periodId', data: {'status': status.name});
   }
 
-  Future<void> createTask(Map<String, dynamic> data) async {
-    await _client.post('/tasks', data: data);
+  Future<TaskWithPeriod> createTask(Map<String, dynamic> data) async {
+    final res = await _client.post('/tasks', data: data);
+    return TaskWithPeriod.fromJson(res.data);
+  }
+
+  Future<List<TaskWithPeriod>> getSubtasks(String taskId) async {
+    final res = await _client.get('/tasks/$taskId/subtasks');
+    return (res.data as List).map((j) => TaskWithPeriod.fromJson(j)).toList();
   }
 
   Future<void> updateTask(String id, Map<String, dynamic> data) async {

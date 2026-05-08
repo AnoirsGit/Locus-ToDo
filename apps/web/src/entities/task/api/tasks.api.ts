@@ -1,12 +1,16 @@
 import { api } from '$shared/api/client'
-import type { TaskPeriod, TaskWithPeriod, TaskLevel, TaskStatus } from '../model/task.types'
+import type { TaskPeriod, TaskWithPeriod, TaskLevel, TaskStatus, RecurringConfig } from '../model/task.types'
 
 type CreateTaskDto = {
   title: string
   description?: string
   level: TaskLevel
-  periodStart: string    // ISO date — start of the period
-  deadlineMonth?: number // year-tasks only
+  periodStart: string
+  deadlineMonth?: number
+  targetDate?: string
+  scheduledTime?: string
+  parentTaskId?: string
+  recurringConfig?: Omit<RecurringConfig, 'id' | 'taskId' | 'createdAt'>
 }
 
 type UpdateTaskDto = Partial<{
@@ -44,4 +48,7 @@ export const tasksApi = {
     api.post<TaskWithPeriod>(`/tasks/${taskId}/replan`, dto),
 
   remove: (taskId: string) => api.delete<void>(`/tasks/${taskId}`),
+
+  /** Get subtasks for a task */
+  getSubtasks: (taskId: string) => api.get<TaskWithPeriod[]>(`/tasks/${taskId}/subtasks`),
 }

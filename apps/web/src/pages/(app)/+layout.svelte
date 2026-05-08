@@ -10,6 +10,8 @@
   import { page } from '$app/stores'
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
+  import { devTime } from '$shared/lib/devTime.svelte'
+  import DevTimePicker from '$shared/ui/DevTimePicker.svelte'
 
   type AppView = TaskView | 'settings'
 
@@ -61,7 +63,7 @@
       const user = await authApi.me()
       userStore.set(user)
 
-      const now = new Date()
+      const now = devTime.now()
       const weekStart  = getMondayOfWeek(now)
       const monthStart = getMonthStart(now)
       const yearStart  = getYearStart(now)
@@ -114,6 +116,12 @@
   <main class="main overflow-y-auto">
     {@render children()}
   </main>
+
+  {#if import.meta.env.DEV}
+    <div class="dev-time-wrap">
+      <DevTimePicker />
+    </div>
+  {/if}
 
   <nav class="bottom-nav">
     <a href="/today" class="bottom-nav-item" class:active={currentView === 'day'}>
