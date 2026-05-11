@@ -1,66 +1,125 @@
 /**
- * Dev seed — rich task data covering all levels, statuses, and recurring configs.
- * Idempotent: clears and rebuilds on every run.
+ * TEST SEED — each task name describes its full lifecycle with exact dates.
+ * Run on: auto-computed from NOW at seed time.
+ *
+ * Scheduler transitions (what this seed tests):
+ *   DAY  todo/done  → archived   when period_end < today
+ *   WEEK todo       → overdue    when period_end < today
+ *   WEEK overdue    → backlog    when period_end + 7d < today
+ *   WEEK done       → archived   when period_end < today
+ *   MONTH todo      → overdue    when period_end < today
+ *   MONTH overdue   → backlog    when period_end + 1mo < today
+ *   YEAR todo       → overdue    when period_end < today
+ *   YEAR overdue    → backlog    when period_end + 1yr < today
+ *   RECURRING       → archived   at period_end (no overdue), new period auto-created
  *
  * Usage: pnpm --filter @locus/api db:seed
- * Credentials: dev@locus.dev / dev123456
+ * Login: dev@locus.dev / dev123456
  */
 import { hash } from 'argon2'
 import { db } from '../infrastructure/db/client.js'
 
-// ─── Date helpers (UTC — matches browser toISOString().split('T')[0]) ────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const toISO = (d: Date) => d.toISOString().split('T')[0]
-const addDays = (d: Date, n: number) => { const r = new Date(d); r.setUTCDate(r.getUTCDate() + n); return r }
+const pad    = (n: number) => String(n).padStart(2, '0')
+const toISO  = (d: Date)   => d.toISOString().split('T')[0]
 
-const monday = (d: Date) => {
-  const r = new Date(d)
-  const day = r.getUTCDay()
-  r.setUTCDate(r.getUTCDate() + (day === 0 ? -6 : 1 - day))
-  return r
+const addDays = (iso: string, n: number) => {
+  const d = new Date(iso + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  return toISO(d)
+}
+const addMonths = (iso: string, n: number) => {
+  const d = new Date(iso + 'T00:00:00Z')
+  d.setUTCMonth(d.getUTCMonth() + n)
+  return toISO(d)
+}
+const addYears = (iso: string, n: number) => {
+  const d = new Date(iso + 'T00:00:00Z')
+  d.setUTCFullYear(d.getUTCFullYear() + n)
+  return toISO(d)
 }
 
-const weekOf = (d: Date) => {
-  const mon = monday(d)
-  return { start: toISO(mon), end: toISO(addDays(mon, 6)) }
+const monday = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00Z')
+  const dow = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
+  return toISO(d)
+}
+const monthStart = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00Z')
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-01`
+}
+const monthEnd = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00Z')
+  return toISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)))
+}
+const yearStart = (iso: string) => `${iso.slice(0, 4)}-01-01`
+const yearEnd   = (iso: string) => `${iso.slice(0, 4)}-12-31`
+
+// Short display date: "10.05.26"
+const dd = (iso: string) => {
+  const [y, m, d] = iso.split('-')
+  return `${d}.${m}.${y.slice(2)}`
 }
 
-const lastDayOfMonth = (y: number, m: number) => new Date(y, m, 0).getDate()
-
-// ─── Current anchors ──────────────────────────────────────────────────────────
+// ─── Anchors from NOW ─────────────────────────────────────────────────────────
 
 const NOW = new Date()
-const Y   = NOW.getUTCFullYear()
-const M   = NOW.getUTCMonth() + 1
+const TODAY = toISO(NOW)
 
-const TODAY      = toISO(NOW)
-const THIS_WEEK  = weekOf(NOW)
-const PREV_WEEK  = weekOf(addDays(NOW, -7))
-const NEXT_WEEK  = weekOf(addDays(NOW, 7))
+// Week anchors
+const W0_MON = monday(TODAY)                    // this week Mon
+const W0_SUN = addDays(W0_MON, 6)              // this week Sun
+const W_1_MON = addDays(W0_MON, -7)            // prev week Mon
+const W_1_SUN = addDays(W_1_MON, 6)            // prev week Sun
+const W_2_MON = addDays(W0_MON, -14)           // 2 weeks ago Mon
+const W_2_SUN = addDays(W_2_MON, 6)            // 2 weeks ago Sun
+const W_3_MON = addDays(W0_MON, -21)           // 3 weeks ago
+const W_3_SUN = addDays(W_3_MON, 6)
+const W1_MON  = addDays(W0_MON, 7)             // next week Mon
+const W1_SUN  = addDays(W1_MON, 6)             // next week Sun
 
-const MONTH_START = `${Y}-${pad(M)}-01`
-const MONTH_END   = `${Y}-${pad(M)}-${lastDayOfMonth(Y, M)}`
+// Month anchors
+const M0_S = monthStart(TODAY)                  // this month start
+const M0_E = monthEnd(TODAY)                    // this month end
+const M_1_S = monthStart(addMonths(TODAY, -1))  // prev month start
+const M_1_E = monthEnd(addMonths(TODAY, -1))    // prev month end
+const M_2_S = monthStart(addMonths(TODAY, -2))
+const M_2_E = monthEnd(addMonths(TODAY, -2))
+const M_3_S = monthStart(addMonths(TODAY, -3))
+const M_3_E = monthEnd(addMonths(TODAY, -3))
 
-const prevM = M === 1 ? 12 : M - 1
-const prevY = M === 1 ? Y - 1 : Y
-const PREV_MONTH_START = `${prevY}-${pad(prevM)}-01`
-const PREV_MONTH_END   = `${prevY}-${pad(prevM)}-${lastDayOfMonth(prevY, prevM)}`
+// Year anchors
+const Y0_S = yearStart(TODAY)                   // this year start
+const Y0_E = yearEnd(TODAY)                     // this year end
+const Y_1_S = yearStart(addYears(TODAY, -1))    // last year
+const Y_1_E = yearEnd(addYears(TODAY, -1))
+const Y_2_S = yearStart(addYears(TODAY, -2))
+const Y_2_E = yearEnd(addYears(TODAY, -2))
 
-const YEAR_START = `${Y}-01-01`
-const YEAR_END   = `${Y}-12-31`
+// Transition dates (when scheduler will move each status)
+// WEEK: todo→overdue when period_end < today  → day after W0_SUN
+// WEEK: overdue→backlog when period_end + 7d < today → W0_SUN + 8 days
+const W0_OVERDUE_AT  = addDays(W0_SUN, 1)       // day after this week ends
+const W0_BACKLOG_AT  = addDays(W0_SUN, 8)       // week overdue expires
+const W_1_BACKLOG_AT = addDays(W_1_SUN, 8)      // prev week overdue expires
 
-// ─── Insert helpers ───────────────────────────────────────────────────────────
+// MONTH
+const M0_OVERDUE_AT = addDays(M0_E, 1)
+const M0_BACKLOG_AT = addDays(monthEnd(addMonths(M0_E, 1)), 1) // M0_E + 1 month + 1 day
+const M_1_BACKLOG_AT = addDays(monthEnd(addMonths(M_1_E, 1)), 1)
+
+// YEAR
+const Y0_OVERDUE_AT = addDays(Y0_E, 1)          // 01.01 next year
+const Y0_BACKLOG_AT = addYears(Y0_OVERDUE_AT, 1) // 01.01 year after next
+
+// ─── DB helpers ───────────────────────────────────────────────────────────────
 
 type Level  = 'day' | 'week' | 'month' | 'year'
 type Status = 'todo' | 'done' | 'overdue' | 'backlog' | 'archived'
 
-const insertTask = async (
-  userId: string,
-  title: string,
-  level: Level,
-  scheduledTime: string | null = null,
-) => {
+const insertTask = async (userId: string, title: string, level: Level, scheduledTime: string | null = null) => {
   const [row] = await db`
     INSERT INTO tasks (user_id, title, level, scheduled_time)
     VALUES (${userId}, ${title}, ${level}, ${scheduledTime})
@@ -69,51 +128,28 @@ const insertTask = async (
   return row.id as string
 }
 
-const insertRecurring = async (
-  taskId: string,
-  opts: { dayOfWeek?: number; dayOfMonth?: number; monthOfYear?: number } = {},
-) => {
+const insertRecurring = async (taskId: string, opts: { daysOfWeek?: number[]; dayOfMonth?: number } = {}) => {
   await db`
-    INSERT INTO recurring_configs (task_id, day_of_week, day_of_month, month_of_year, is_active)
-    VALUES (
-      ${taskId},
-      ${opts.dayOfWeek   ?? null},
-      ${opts.dayOfMonth  ?? null},
-      ${opts.monthOfYear ?? null},
-      true
-    )
+    INSERT INTO recurring_configs (task_id, days_of_week, day_of_month, is_active)
+    VALUES (${taskId}, ${opts.daysOfWeek ?? null}, ${opts.dayOfMonth ?? null}, true)
   `
 }
 
 const insertPeriod = async (
-  taskId: string,
-  userId: string,
-  level: Level,
-  start: string,
-  end: string,
-  status: Status,
-  opts: {
-    targetDate?:    string
-    deadlineMonth?: number
-    doneAt?:        string
-    backlogAt?:     string
-    archivedAt?:    string
-  } = {},
+  taskId: string, userId: string, level: Level,
+  start: string, end: string, status: Status,
+  opts: { targetDate?: string; doneAt?: string; backlogAt?: string; archivedAt?: string } = {},
 ) => {
   await db`
     INSERT INTO task_periods (
-      task_id, user_id, period_type,
-      period_start, period_end, status,
-      target_date, deadline_month,
-      done_at, backlog_at, archived_at
+      task_id, user_id, period_type, period_start, period_end, status,
+      target_date, done_at, backlog_at, archived_at
     ) VALUES (
-      ${taskId}, ${userId}, ${level},
-      ${start}::date, ${end}::date, ${status},
-      ${opts.targetDate    ?? null},
-      ${opts.deadlineMonth ?? null},
-      ${opts.doneAt        ?? null},
-      ${opts.backlogAt     ?? null},
-      ${opts.archivedAt    ?? null}
+      ${taskId}, ${userId}, ${level}, ${start}::date, ${end}::date, ${status},
+      ${opts.targetDate ?? null},
+      ${opts.doneAt    ?? null},
+      ${opts.backlogAt ?? null},
+      ${opts.archivedAt ?? null}
     )
   `
 }
@@ -121,316 +157,197 @@ const insertPeriod = async (
 // ─── Seed ─────────────────────────────────────────────────────────────────────
 
 const seed = async () => {
-  console.log('[seed] clearing data...')
+  console.log('[seed] clearing...')
   await db`DELETE FROM user_settings`
   await db`DELETE FROM recurring_configs`
   await db`DELETE FROM task_periods`
   await db`DELETE FROM tasks`
   await db`DELETE FROM users WHERE email = 'dev@locus.dev'`
 
-  const passwordHash = await hash('dev123456')
   const [user] = await db`
     INSERT INTO users (email, name, password_hash, timezone)
-    VALUES ('dev@locus.dev', 'Alex Dev', ${passwordHash}, 'Europe/Moscow')
+    VALUES ('dev@locus.dev', 'Test Dev', ${await hash('dev123456')}, 'UTC')
     RETURNING id
   `
   await db`INSERT INTO user_settings (user_id) VALUES (${user.id})`
   const uid = user.id as string
-  console.log('[seed] user:', uid)
 
-  const now = new Date().toISOString()
+  const now = NOW.toISOString()
 
-  // ─── 1. Recurring daily habits ────────────────────────────────────────────
-  // These appear every day — seeded for today and a few past/future days
+  console.log(`[seed] TODAY=${TODAY}  W0=${W0_MON}–${W0_SUN}  M0=${M0_S}–${M0_E}  Y0=${Y0_S}–${Y0_E}`)
 
-  const habits: Array<{ title: string; time: string }> = [
-    { title: 'Morning workout',   time: '07:00' },
-    { title: 'Meditation',        time: '07:30' },
-    { title: 'Plan the day',      time: '09:00' },
-    { title: 'Evening review',    time: '21:00' },
-    { title: 'Write in journal',  time: '22:00' },
-  ]
+  // ────────────────────────────────────────────────────────────────────────────
+  // DAY TASKS
+  // Transition: todo/done → archived when period_end < today (next day)
+  // ────────────────────────────────────────────────────────────────────────────
 
-  for (const habit of habits) {
-    const tid = await insertTask(uid, habit.title, 'day', habit.time)
-    await insertRecurring(tid)
+  // Today — will archive tomorrow
+  let id = await insertTask(uid, `DAY ✓ done ${dd(TODAY)} → archived ${dd(addDays(TODAY, 1))}`, 'day')
+  await insertPeriod(id, uid, 'day', TODAY, TODAY, 'done', { doneAt: now })
 
-    // Past 5 days — mostly done (archived), one missed (failure)
-    for (let i = -5; i <= -1; i++) {
-      const date = toISO(addDays(NOW, i))
-      const failed = i === -3 && habit.title === 'Morning workout'
-      await insertPeriod(tid, uid, 'day', date, date,
-        'archived',
-        { doneAt: failed ? undefined : now, archivedAt: now },
-      )
-    }
+  id = await insertTask(uid, `DAY ○ todo ${dd(TODAY)} → archived(fail) ${dd(addDays(TODAY, 1))}`, 'day')
+  await insertPeriod(id, uid, 'day', TODAY, TODAY, 'todo')
 
-    // Today — 3 done, 2 todo
-    const todayDone = ['Morning workout', 'Meditation', 'Plan the day'].includes(habit.title)
-    await insertPeriod(tid, uid, 'day', TODAY, TODAY,
-      todayDone ? 'done' : 'todo',
-      { doneAt: todayDone ? now : undefined },
-    )
+  // Tomorrow — still safe
+  const TMR = addDays(TODAY, 1)
+  id = await insertTask(uid, `DAY ○ todo ${dd(TMR)} → archived(?) ${dd(addDays(TMR, 1))}`, 'day')
+  await insertPeriod(id, uid, 'day', TMR, TMR, 'todo')
 
-    // Next 3 days — todo
-    for (let i = 1; i <= 3; i++) {
-      const date = toISO(addDays(NOW, i))
-      await insertPeriod(tid, uid, 'day', date, date, 'todo')
-    }
-  }
+  // Yesterday — already archived by scheduler
+  const YST = addDays(TODAY, -1)
+  id = await insertTask(uid, `DAY archived ✓ done ${dd(YST)}`, 'day')
+  await insertPeriod(id, uid, 'day', YST, YST, 'archived', { doneAt: YST + 'T18:00:00Z', archivedAt: now })
 
-  // ─── 2. Day tasks without time (per-day todos) ────────────────────────────
+  id = await insertTask(uid, `DAY archived ✗ missed ${dd(YST)}`, 'day')
+  await insertPeriod(id, uid, 'day', YST, YST, 'archived', { archivedAt: now })
 
-  const dayTodos: Array<{ title: string; offset: number; status: Status }> = [
-    { title: 'Buy groceries',            offset:  0, status: 'todo'     },
-    { title: 'Reply to emails',          offset:  0, status: 'done'     },
-    { title: 'Read 30 pages',            offset:  0, status: 'todo'     },
-    { title: 'Call parents',             offset:  1, status: 'todo'     },
-    { title: 'Take medicine',            offset:  1, status: 'todo'     },
-    { title: 'Dentist appointment prep', offset:  2, status: 'todo'     },
-    { title: 'Pay utility bills',        offset: -1, status: 'archived' },
-    { title: 'Pick up package',          offset: -1, status: 'archived' },
-    { title: 'Submit timesheet',         offset: -2, status: 'archived' },
-  ]
+  const D2 = addDays(TODAY, -2)
+  id = await insertTask(uid, `DAY archived ✓ late — done ${dd(TODAY)} (period ${dd(D2)})`, 'day')
+  await insertPeriod(id, uid, 'day', D2, D2, 'archived', { doneAt: TODAY + 'T10:00:00Z', archivedAt: now })
 
-  for (const t of dayTodos) {
-    const date = toISO(addDays(NOW, t.offset))
-    const tid = await insertTask(uid, t.title, 'day', null)
-    await insertPeriod(tid, uid, 'day', date, date, t.status, {
-      doneAt: t.status === 'archived' ? now : undefined,
-      archivedAt: t.status === 'archived' ? now : undefined,
-    })
-  }
+  // Recurring day habit (runs every day, auto-creates period)
+  id = await insertTask(uid, `DAY recurring ↻ daily habit — period ${dd(TODAY)}, next auto-created daily`, 'day', '07:00')
+  await insertRecurring(id)
+  await insertPeriod(id, uid, 'day', TODAY, TODAY, 'todo')
+  // Yesterday archived
+  await insertPeriod(id, uid, 'day', YST, YST, 'archived', { doneAt: YST + 'T07:30:00Z', archivedAt: now })
 
-  // ─── 3. Week tasks ────────────────────────────────────────────────────────
+  // Recurring Mon+Wed+Fri
+  id = await insertTask(uid, `DAY recurring ↻ Mon+Wed+Fri — only runs on those days`, 'day', '09:00')
+  await insertRecurring(id, { daysOfWeek: [1, 3, 5] })
+  await insertPeriod(id, uid, 'day', TODAY, TODAY, 'todo')
 
-  // Two weeks ago — archived (success on time, success late, failure)
-  const twoWeeksAgo = weekOf(addDays(NOW, -14))
-  const twoWeekAgoTasks: Array<{ title: string; outcome: 'on-time' | 'late' | 'failed' }> = [
-    { title: 'Finalize DB migrations',         outcome: 'on-time' },
-    { title: 'Add API rate limiting',           outcome: 'late'    }, // done during overdue period
-    { title: 'Remove deprecated endpoints',     outcome: 'failed'  },
-  ]
-  for (const t of twoWeekAgoTasks) {
-    const tid = await insertTask(uid, t.title, 'week', null)
-    const doneAt = t.outcome === 'failed' ? undefined
-      : t.outcome === 'late'    ? toISO(addDays(new Date(twoWeeksAgo.end), 3)) + 'T12:00:00Z'
-      : toISO(addDays(new Date(twoWeeksAgo.start), 2)) + 'T12:00:00Z'
-    await insertPeriod(tid, uid, 'week', twoWeeksAgo.start, twoWeeksAgo.end, 'archived', {
-      doneAt, archivedAt: now,
-    })
-  }
+  // ────────────────────────────────────────────────────────────────────────────
+  // WEEK TASKS
+  // todo  → overdue at ${W0_OVERDUE_AT} (day after period ends)
+  // overdue → backlog at ${W0_BACKLOG_AT} (period_end + 7d + 1)
+  // done  → archived at ${W0_OVERDUE_AT}
+  // ────────────────────────────────────────────────────────────────────────────
 
-  // Previous week — archived (mixed outcomes) + one that went to backlog
-  const prevWeekTasks: Array<{ title: string; outcome: 'on-time' | 'late' | 'failed' }> = [
-    { title: 'Set up CI/CD pipeline',       outcome: 'on-time' },
-    { title: 'Write unit tests for auth',   outcome: 'on-time' },
-    { title: 'Performance audit',           outcome: 'failed'  },
-    { title: 'Update onboarding docs',      outcome: 'late'    },
-  ]
-  for (const t of prevWeekTasks) {
-    const tid = await insertTask(uid, t.title, 'week', null)
-    const doneAt = t.outcome === 'failed' ? undefined
-      : t.outcome === 'late' ? toISO(addDays(new Date(PREV_WEEK.end), 2)) + 'T18:00:00Z'
-      : toISO(addDays(new Date(PREV_WEEK.start), 1)) + 'T15:00:00Z'
-    await insertPeriod(tid, uid, 'week', PREV_WEEK.start, PREV_WEEK.end, 'archived', {
-      targetDate: toISO(addDays(new Date(PREV_WEEK.start), 3)),
-      doneAt, archivedAt: now,
-    })
-  }
+  // Current week — will transition when scheduler runs after ${W0_SUN}
+  id = await insertTask(uid, `WEEK ✓ done ${dd(W0_MON)}–${dd(W0_SUN)} → archived ${dd(W0_OVERDUE_AT)}`, 'week')
+  await insertPeriod(id, uid, 'week', W0_MON, W0_SUN, 'done', { doneAt: now })
 
-  // Current week tasks
-  const curWeekTasks: Array<{ title: string; status: Status; targetDay: number }> = [
-    { title: 'Implement task API endpoints', status: 'done',    targetDay: 0 },
-    { title: 'Design database schema',       status: 'done',    targetDay: 1 },
-    { title: 'Frontend integration',         status: 'todo',    targetDay: 2 },
-    { title: 'Write API documentation',      status: 'todo',    targetDay: 3 },
-    { title: 'Code review session',          status: 'todo',    targetDay: 4 },
-    { title: 'Deploy to staging',            status: 'overdue', targetDay: 0 },
-  ]
-  for (const t of curWeekTasks) {
-    const tid = await insertTask(uid, t.title, 'week', null)
-    await insertPeriod(tid, uid, 'week', THIS_WEEK.start, THIS_WEEK.end, t.status, {
-      targetDate: toISO(addDays(new Date(THIS_WEEK.start), t.targetDay)),
-      doneAt: t.status === 'done' ? now : undefined,
-    })
-  }
+  id = await insertTask(uid, `WEEK ○ todo ${dd(W0_MON)}–${dd(W0_SUN)} → overdue ${dd(W0_OVERDUE_AT)} → backlog ${dd(W0_BACKLOG_AT)}`, 'week')
+  await insertPeriod(id, uid, 'week', W0_MON, W0_SUN, 'todo')
 
-  // Next week tasks
-  for (const title of ['Refactor task store', 'Add push notifications', 'Mobile MVP screen']) {
-    const tid = await insertTask(uid, title, 'week', null)
-    await insertPeriod(tid, uid, 'week', NEXT_WEEK.start, NEXT_WEEK.end, 'todo', {
-      targetDate: toISO(addDays(new Date(NEXT_WEEK.start), 2)),
-    })
-  }
+  // Next week — far future
+  id = await insertTask(uid, `WEEK ○ todo ${dd(W1_MON)}–${dd(W1_SUN)} → overdue ${dd(addDays(W1_SUN, 1))} → backlog ${dd(addDays(W1_SUN, 8))}`, 'week')
+  await insertPeriod(id, uid, 'week', W1_MON, W1_SUN, 'todo')
 
-  // Recurring: weekly team sync (every Monday)
-  const syncId = await insertTask(uid, 'Weekly team sync', 'week', '10:00')
-  await insertRecurring(syncId, { dayOfWeek: 1 })
-  await insertPeriod(syncId, uid, 'week', THIS_WEEK.start, THIS_WEEK.end, 'todo', {
-    targetDate: THIS_WEEK.start,
+  // Prev week — currently overdue, goes to backlog at ${W_1_BACKLOG_AT}
+  id = await insertTask(uid, `WEEK ⚠ overdue (missed ${dd(W_1_MON)}–${dd(W_1_SUN)}) → backlog ${dd(W_1_BACKLOG_AT)}`, 'week')
+  await insertPeriod(id, uid, 'week', W_1_MON, W_1_SUN, 'overdue')
+
+  // 2 weeks ago — in backlog (overdue expired)
+  id = await insertTask(uid, `WEEK backlog (missed ${dd(W_2_MON)}–${dd(W_2_SUN)}, overdue expired ${dd(addDays(W_2_SUN, 8))})`, 'week')
+  await insertPeriod(id, uid, 'week', W_2_MON, W_2_SUN, 'backlog', { backlogAt: addDays(W_2_SUN, 8) + 'T00:00:00Z' })
+
+  // 3 weeks ago — archived outcomes
+  id = await insertTask(uid, `WEEK archived ✓ ontime (period ${dd(W_3_MON)}–${dd(W_3_SUN)}, done ${dd(addDays(W_3_MON, 2))})`, 'week')
+  await insertPeriod(id, uid, 'week', W_3_MON, W_3_SUN, 'archived', {
+    doneAt: addDays(W_3_MON, 2) + 'T14:00:00Z', archivedAt: now,
   })
 
-  // Recurring: weekly review (every Friday)
-  const reviewId = await insertTask(uid, 'Weekly review & planning', 'week', '17:00')
-  await insertRecurring(reviewId, { dayOfWeek: 5 })
-  await insertPeriod(reviewId, uid, 'week', THIS_WEEK.start, THIS_WEEK.end, 'todo', {
-    targetDate: toISO(addDays(new Date(THIS_WEEK.start), 4)),
+  id = await insertTask(uid, `WEEK archived ✓ late (period ${dd(W_3_MON)}–${dd(W_3_SUN)}, done ${dd(addDays(W_3_SUN, 4))})`, 'week')
+  await insertPeriod(id, uid, 'week', W_3_MON, W_3_SUN, 'archived', {
+    doneAt: addDays(W_3_SUN, 4) + 'T10:00:00Z', archivedAt: now,
   })
 
-  // ─── Week backlog (tasks that missed overdue window) ──────────────────────
+  id = await insertTask(uid, `WEEK archived ✗ failed (period ${dd(W_3_MON)}–${dd(W_3_SUN)}, never done)`, 'week')
+  await insertPeriod(id, uid, 'week', W_3_MON, W_3_SUN, 'archived', { archivedAt: now })
 
-  const weekBacklog: Array<{ title: string; weeksAgo: number }> = [
-    { title: 'Migrate old data to new schema',    weeksAgo: 2 },
-    { title: 'Security headers audit',            weeksAgo: 3 },
-    { title: 'Remove unused feature flags',       weeksAgo: 1 },
-  ]
-  for (const t of weekBacklog) {
-    const w = weekOf(addDays(NOW, -t.weeksAgo * 7))
-    const tid = await insertTask(uid, t.title, 'week', null)
-    await insertPeriod(tid, uid, 'week', w.start, w.end, 'backlog', { backlogAt: now })
-  }
+  // Recurring week — Mon+Thu standup (no overdue, auto-archives + creates new)
+  id = await insertTask(uid, `WEEK recurring ↻ Mon+Thu standup — archived ${dd(W0_OVERDUE_AT)}, new ${dd(W1_MON)}–${dd(W1_SUN)} auto`, 'week', '10:00')
+  await insertRecurring(id, { daysOfWeek: [1, 4] })
+  await insertPeriod(id, uid, 'week', W0_MON, W0_SUN, 'todo', { targetDate: W0_MON })
 
-  // ─── 4. Month tasks ───────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────────
+  // MONTH TASKS
+  // todo  → overdue at ${M0_OVERDUE_AT}
+  // overdue → backlog at ${M0_BACKLOG_AT}
+  // done  → archived at ${M0_OVERDUE_AT}
+  // ────────────────────────────────────────────────────────────────────────────
 
-  // 3 months ago — archived
-  const threeMonthsAgoStart = (() => {
-    const d = new Date(NOW); d.setUTCMonth(d.getUTCMonth() - 3); d.setUTCDate(1); return toISO(d)
-  })()
-  const threeMonthsAgoEnd = (() => {
-    const d = new Date(NOW); d.setUTCMonth(d.getUTCMonth() - 2); d.setUTCDate(0); return toISO(d)
-  })()
-  for (const [title, done] of [
-    ['Q1 OKR review', true], ['Renew domain subscriptions', true],
-    ['Archive old project repos', false],
-  ] as [string, boolean][]) {
-    const tid = await insertTask(uid, title, 'month', null)
-    await insertPeriod(tid, uid, 'month', threeMonthsAgoStart, threeMonthsAgoEnd, 'archived', {
-      doneAt: done ? threeMonthsAgoEnd + 'T18:00:00Z' : undefined,
-      archivedAt: now,
-    })
-  }
+  id = await insertTask(uid, `MONTH ✓ done ${dd(M0_S)}–${dd(M0_E)} → archived ${dd(M0_OVERDUE_AT)}`, 'month')
+  await insertPeriod(id, uid, 'month', M0_S, M0_E, 'done', { doneAt: now })
 
-  // Previous month — archived (on-time, late, failed)
-  const prevMonthArchive: Array<{ title: string; outcome: 'on-time' | 'late' | 'failed' }> = [
-    { title: 'Read "Clean Architecture"',   outcome: 'on-time' },
-    { title: 'Complete online SQL course',  outcome: 'late'    },
-    { title: 'Audit project dependencies',  outcome: 'failed'  },
-    { title: 'Update team wiki',            outcome: 'on-time' },
-  ]
-  for (const t of prevMonthArchive) {
-    const tid = await insertTask(uid, t.title, 'month', null)
-    const doneAt = t.outcome === 'failed' ? undefined
-      : t.outcome === 'late' ? MONTH_START + 'T10:00:00Z'  // done in next month = late
-      : PREV_MONTH_END + 'T20:00:00Z'
-    await insertPeriod(tid, uid, 'month', PREV_MONTH_START, PREV_MONTH_END, 'archived', {
-      doneAt, archivedAt: now,
-    })
-  }
+  id = await insertTask(uid, `MONTH ○ todo ${dd(M0_S)}–${dd(M0_E)} → overdue ${dd(M0_OVERDUE_AT)} → backlog ${dd(M0_BACKLOG_AT)}`, 'month')
+  await insertPeriod(id, uid, 'month', M0_S, M0_E, 'todo')
 
-  // Current month tasks
-  for (const title of [
-    'Read 2 professional books',
-    'Learn 50 new English words',
-    'Close all backlog tasks',
-    'Prepare quarterly report',
-  ]) {
-    const tid = await insertTask(uid, title, 'month', null)
-    await insertPeriod(tid, uid, 'month', MONTH_START, MONTH_END, 'todo')
-  }
+  id = await insertTask(uid, `MONTH ⚠ overdue (missed ${dd(M_1_S)}–${dd(M_1_E)}) → backlog ${dd(M_1_BACKLOG_AT)}`, 'month')
+  await insertPeriod(id, uid, 'month', M_1_S, M_1_E, 'overdue')
 
-  // Recurring: monthly finances review (1st of month)
-  const finId = await insertTask(uid, 'Monthly finances review', 'month', null)
-  await insertRecurring(finId, { dayOfMonth: 1 })
-  await insertPeriod(finId, uid, 'month', MONTH_START, MONTH_END, 'todo')
+  id = await insertTask(uid, `MONTH backlog (missed ${dd(M_2_S)}–${dd(M_2_E)}, overdue expired)`, 'month')
+  await insertPeriod(id, uid, 'month', M_2_S, M_2_E, 'backlog', { backlogAt: now })
 
-  // Recurring: gym subscription renewal (15th of month)
-  const gymId = await insertTask(uid, 'Gym subscription renewal', 'month', null)
-  await insertRecurring(gymId, { dayOfMonth: 15 })
-  await insertPeriod(gymId, uid, 'month', MONTH_START, MONTH_END, 'todo')
+  id = await insertTask(uid, `MONTH archived ✓ ontime (${dd(M_3_S)}–${dd(M_3_E)}, done ${dd(addDays(M_3_E, -5))})`, 'month')
+  await insertPeriod(id, uid, 'month', M_3_S, M_3_E, 'archived', {
+    doneAt: addDays(M_3_E, -5) + 'T12:00:00Z', archivedAt: now,
+  })
 
-  // Quarterly: car service (Q2 = June, Q4 = December)
-  const carServiceId = await insertTask(uid, 'Car technical service (Q2)', 'month', null)
-  await insertRecurring(carServiceId, { monthOfYear: 6 })
-  await insertPeriod(carServiceId, uid, 'month', MONTH_START, MONTH_END, 'todo')
+  id = await insertTask(uid, `MONTH archived ✓ late (${dd(M_3_S)}–${dd(M_3_E)}, done ${dd(addDays(M_3_E, 10))})`, 'month')
+  await insertPeriod(id, uid, 'month', M_3_S, M_3_E, 'archived', {
+    doneAt: addDays(M_3_E, 10) + 'T09:00:00Z', archivedAt: now,
+  })
 
-  const carServiceQ4Id = await insertTask(uid, 'Car technical service (Q4)', 'month', null)
-  await insertRecurring(carServiceQ4Id, { monthOfYear: 12 })
-  await insertPeriod(carServiceQ4Id, uid, 'month', MONTH_START, MONTH_END, 'todo')
+  id = await insertTask(uid, `MONTH archived ✗ failed (${dd(M_3_S)}–${dd(M_3_E)}, never done)`, 'month')
+  await insertPeriod(id, uid, 'month', M_3_S, M_3_E, 'archived', { archivedAt: now })
 
-  // ─── Month backlog ────────────────────────────────────────────────────────
+  // Recurring month — 1st of month
+  id = await insertTask(uid, `MONTH recurring ↻ 1st of month — archived ${dd(M0_OVERDUE_AT)}, new ${dd(addMonths(M0_S, 1))} auto`, 'month')
+  await insertRecurring(id, { dayOfMonth: 1 })
+  await insertPeriod(id, uid, 'month', M0_S, M0_E, 'todo')
 
-  const monthBacklog: Array<{ title: string; monthsAgo: number }> = [
-    { title: 'Set up monitoring & alerts',    monthsAgo: 1 },
-    { title: 'Negotiate new hosting plan',    monthsAgo: 2 },
-    { title: 'Document API versioning policy', monthsAgo: 3 },
-  ]
-  for (const t of monthBacklog) {
-    const start = (() => {
-      const d = new Date(NOW); d.setUTCMonth(d.getUTCMonth() - t.monthsAgo); d.setUTCDate(1); return toISO(d)
-    })()
-    const end = (() => {
-      const d = new Date(NOW); d.setUTCMonth(d.getUTCMonth() - t.monthsAgo + 1); d.setUTCDate(0); return toISO(d)
-    })()
-    const tid = await insertTask(uid, t.title, 'month', null)
-    await insertPeriod(tid, uid, 'month', start, end, 'backlog', { backlogAt: now })
-  }
+  // ────────────────────────────────────────────────────────────────────────────
+  // YEAR TASKS
+  // todo  → overdue at ${Y0_OVERDUE_AT}
+  // overdue → backlog at ${Y0_BACKLOG_AT}
+  // done  → archived at ${Y0_OVERDUE_AT}
+  // ────────────────────────────────────────────────────────────────────────────
 
-  // ─── 5. Year tasks ────────────────────────────────────────────────────────
+  id = await insertTask(uid, `YEAR ✓ done ${dd(Y0_S)}–${dd(Y0_E)} → archived ${dd(Y0_OVERDUE_AT)}`, 'year')
+  await insertPeriod(id, uid, 'year', Y0_S, Y0_E, 'done', { doneAt: now })
 
-  // Previous year — archived
-  const prevYearStart = `${Y - 1}-01-01`
-  const prevYearEnd   = `${Y - 1}-12-31`
-  const prevYearTasks: Array<{ title: string; outcome: 'on-time' | 'late' | 'failed' }> = [
-    { title: 'Ship mobile app MVP',              outcome: 'on-time' },
-    { title: 'Learn Rust basics',                outcome: 'failed'  },
-    { title: 'Complete leadership course',       outcome: 'late'    },
-    { title: 'Build emergency savings fund',     outcome: 'on-time' },
-  ]
-  for (const t of prevYearTasks) {
-    const tid = await insertTask(uid, t.title, 'year', null)
-    const doneAt = t.outcome === 'failed' ? undefined
-      : t.outcome === 'late' ? `${Y}-02-15T12:00:00Z`
-      : `${Y - 1}-11-20T12:00:00Z`
-    await insertPeriod(tid, uid, 'year', prevYearStart, prevYearEnd, 'archived', {
-      doneAt, archivedAt: now,
-    })
-  }
+  id = await insertTask(uid, `YEAR ○ todo ${dd(Y0_S)}–${dd(Y0_E)} → overdue ${dd(Y0_OVERDUE_AT)} → backlog ${dd(Y0_BACKLOG_AT)}`, 'year')
+  await insertPeriod(id, uid, 'year', Y0_S, Y0_E, 'todo')
 
-  // Current year goals
-  const yearTasks: Array<{ title: string; deadlineMonth: number }> = [
-    { title: 'Pass AWS Solutions Architect cert',  deadlineMonth: 6  },
-    { title: 'Run a half-marathon',                deadlineMonth: 9  },
-    { title: 'Launch side project MVP',            deadlineMonth: 12 },
-    { title: 'Read 24 books this year',            deadlineMonth: 12 },
-    { title: 'Save 3-month emergency fund',        deadlineMonth: 10 },
-  ]
-  for (const t of yearTasks) {
-    const tid = await insertTask(uid, t.title, 'year', null)
-    await insertPeriod(tid, uid, 'year', YEAR_START, YEAR_END, 'todo', {
-      deadlineMonth: t.deadlineMonth,
-    })
-  }
+  id = await insertTask(uid, `YEAR ⚠ overdue (missed ${dd(Y_1_S)}–${dd(Y_1_E)}) → backlog ${dd(addDays(Y_1_E, 1))} +1yr`, 'year')
+  await insertPeriod(id, uid, 'year', Y_1_S, Y_1_E, 'overdue')
 
-  // Recurring: annual performance review (every December)
-  const annualId = await insertTask(uid, 'Annual performance self-review', 'year', null)
-  await insertRecurring(annualId)
-  await insertPeriod(annualId, uid, 'year', YEAR_START, YEAR_END, 'todo', { deadlineMonth: 12 })
+  id = await insertTask(uid, `YEAR backlog (missed ${dd(Y_2_S)}–${dd(Y_2_E)}, overdue expired)`, 'year')
+  await insertPeriod(id, uid, 'year', Y_2_S, Y_2_E, 'backlog', { backlogAt: now })
 
-  // ─── Year backlog ─────────────────────────────────────────────────────────
+  id = await insertTask(uid, `YEAR archived ✓ ontime (${Y_1_S.slice(0, 4)}, done ${dd(addDays(Y_1_E, -30))})`, 'year')
+  await insertPeriod(id, uid, 'year', Y_1_S, Y_1_E, 'archived', {
+    doneAt: addDays(Y_1_E, -30) + 'T12:00:00Z', archivedAt: now,
+  })
 
-  const yearBacklogId1 = await insertTask(uid, 'Publish technical blog', 'year', null)
-  await insertPeriod(yearBacklogId1, uid, 'year', prevYearStart, prevYearEnd, 'backlog', { backlogAt: now })
+  id = await insertTask(uid, `YEAR archived ✓ late (${Y_1_S.slice(0, 4)}, done ${dd(addDays(Y0_S, 45))})`, 'year')
+  await insertPeriod(id, uid, 'year', Y_1_S, Y_1_E, 'archived', {
+    doneAt: addDays(Y0_S, 45) + 'T12:00:00Z', archivedAt: now,
+  })
 
-  const yearBacklogId2 = await insertTask(uid, 'Get driving license', 'year', null)
-  await insertPeriod(yearBacklogId2, uid, 'year', `${Y - 2}-01-01`, `${Y - 2}-12-31`, 'backlog', { backlogAt: now })
+  id = await insertTask(uid, `YEAR archived ✗ failed (${Y_2_S.slice(0, 4)}, never done)`, 'year')
+  await insertPeriod(id, uid, 'year', Y_2_S, Y_2_E, 'archived', { archivedAt: now })
 
-  console.log('[seed] done ✓')
-  console.log('  login: dev@locus.dev / dev123456')
+  // ────────────────────────────────────────────────────────────────────────────
+  // SUMMARY
+  // ────────────────────────────────────────────────────────────────────────────
+
+  console.log('\n[seed] done ✓')
+  console.log('  login: dev@locus.dev / dev123456\n')
+  console.log('  KEY DATES TO TEST WITH DEV TIME WIDGET:')
+  console.log(`  ${addDays(TODAY, 1).replace(/-/g, '.')}  → day tasks archived`)
+  console.log(`  ${W0_OVERDUE_AT.replace(/-/g, '.')}  → week done→archived, week todo→overdue`)
+  console.log(`  ${W0_BACKLOG_AT.replace(/-/g, '.')}  → week overdue→backlog`)
+  console.log(`  ${W_1_BACKLOG_AT.replace(/-/g, '.')}  → prev week overdue→backlog`)
+  console.log(`  ${M0_OVERDUE_AT.replace(/-/g, '.')}  → month done→archived, month todo→overdue`)
+  console.log(`  ${M0_BACKLOG_AT.replace(/-/g, '.')}  → month overdue→backlog`)
+  console.log(`  ${Y0_OVERDUE_AT.replace(/-/g, '.')}  → year done→archived, year todo→overdue`)
+  console.log(`  ${Y0_BACKLOG_AT.replace(/-/g, '.')}  → year overdue→backlog`)
+
   await db.end()
 }
 
-seed().catch((e) => {
-  console.error('[seed] error', e)
-  process.exit(1)
-})
+seed().catch((e) => { console.error('[seed] error', e); process.exit(1) })

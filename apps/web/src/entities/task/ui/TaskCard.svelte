@@ -41,22 +41,27 @@
   // ── Archive outcome ───────────────────────────────────────────────────────
 
   type Outcome = 'on-time' | 'late' | 'failed'
-  const outcome = $derived<Outcome | null>(() => {
+  const outcome = $derived<Outcome | null>((() => {
     if (!isArchived) return null
     if (!p.doneAt) return 'failed'
     return new Date(p.doneAt) <= new Date(p.periodEnd + 'T23:59:59Z') ? 'on-time' : 'late'
-  })
+  })())
 
   const outcomeLabel: Record<Outcome, string> = {
-    'on-time': 'Done on time',
-    'late':    'Done late',
-    'failed':  'Failed',
+    'on-time': '✓ Done on time',
+    'late':    '✓ Done late',
+    'failed':  '✗ Not completed',
   }
   const outcomeClass: Record<Outcome, string> = {
     'on-time': 'text-success',
     'late':    'text-warning',
     'failed':  'text-muted',
   }
+
+  const doneAtLabel = $derived((() => {
+    if (!isArchived || !p.doneAt) return null
+    return new Date(p.doneAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  })())
 
   // ── Meta chips ───────────────────────────────────────────────────────────
 
@@ -147,17 +152,23 @@
         <span class="font-mono text-[10.5px] text-muted">{deadlineLabel}</span>
       {/if}
 
-      <!-- Backlog / Archive context -->
-      {#if isBacklog || isArchived}
+      <!-- Backlog context -->
+      {#if isBacklog}
         <span class="text-[10.5px] text-muted">{periodLabel}</span>
+        {#if backlogAge}
+          <span class="text-[10.5px] text-muted opacity-60">· {backlogAge}</span>
+        {/if}
       {/if}
 
-      {#if isBacklog && backlogAge}
-        <span class="text-[10.5px] text-muted opacity-60">· {backlogAge}</span>
-      {/if}
-
-      {#if isArchived && outcome}
-        <span class="text-[10.5px] {outcomeClass[outcome]}">{outcomeLabel[outcome]}</span>
+      <!-- Archive: period + outcome + done date -->
+      {#if isArchived}
+        <span class="text-[10.5px] text-muted">{periodLabel}</span>
+        {#if outcome}
+          <span class="text-[10.5px] {outcomeClass[outcome]}">{outcomeLabel[outcome]}</span>
+          {#if doneAtLabel}
+            <span class="text-[10.5px] text-muted opacity-60">· {doneAtLabel}</span>
+          {/if}
+        {/if}
       {/if}
     </div>
   </div>

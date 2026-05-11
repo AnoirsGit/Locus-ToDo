@@ -4,6 +4,8 @@ import '../../features/auth/auth_notifier.dart';
 import '../../shared/notifications/notification_prefs.dart';
 import '../../shared/notifications/notification_service.dart';
 import '../../shared/theme/theme.dart';
+import '../../pages/app_shell.dart';
+import '../../shared/theme/theme_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -12,9 +14,29 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authNotifierProvider).valueOrNull;
     final prefsAsync = ref.watch(notificationPrefsProvider);
+    final themeMode = ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        leadingWidth: 120,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text('Locus', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, fontFamily: 'Inter', color: context.colorTextStrong)),
+              const SizedBox(width: 5),
+              Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: context.colorBrand)),
+            ],
+          ),
+        ),
+        title: Text('Настройки', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
+        actions: [
+          IconButton(icon: const Icon(Icons.menu), onPressed: AppShell.openDrawer),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: ListView(
         children: [
           // ── Account ────────────────────────────────────────────────────
@@ -22,20 +44,56 @@ class SettingsPage extends ConsumerWidget {
             const SizedBox(height: 16),
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppColors.surface2Dark,
+                backgroundColor: context.colorSurface2,
                 child: Text(
                   user.email[0].toUpperCase(),
-                  style: const TextStyle(color: AppColors.brandDark),
+                  style: TextStyle(color: context.colorBrand),
                 ),
               ),
-              title: Text(user.email, style: const TextStyle(color: AppColors.textStrongDark)),
-              subtitle: const Text('Account', style: TextStyle(color: AppColors.mutedDark)),
+              title: Text(user.email, style: TextStyle(color: context.colorTextStrong)),
+              subtitle: Text('Account', style: TextStyle(color: context.colorMuted)),
             ),
-            const Divider(color: AppColors.borderDark),
+            Divider(color: context.colorBorder),
           ],
 
+          // ── Appearance ─────────────────────────────────────────────────
+          _SectionHeader(title: 'Appearance'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: context.colorSurface2,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  _ThemeOption(
+                    icon: Icons.light_mode_outlined,
+                    label: 'Light',
+                    selected: themeMode == ThemeMode.light,
+                    onTap: () => ref.read(themeModeProvider.notifier).setMode(ThemeMode.light),
+                  ),
+                  _ThemeOption(
+                    icon: Icons.brightness_auto_outlined,
+                    label: 'System',
+                    selected: themeMode == ThemeMode.system,
+                    onTap: () => ref.read(themeModeProvider.notifier).setMode(ThemeMode.system),
+                  ),
+                  _ThemeOption(
+                    icon: Icons.dark_mode_outlined,
+                    label: 'Dark',
+                    selected: themeMode == ThemeMode.dark,
+                    onTap: () => ref.read(themeModeProvider.notifier).setMode(ThemeMode.dark),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Divider(color: context.colorBorder),
+
           // ── Notifications ───────────────────────────────────────────────
-          const _SectionHeader(title: 'Notifications'),
+          _SectionHeader(title: 'Notifications'),
 
           prefsAsync.when(
             loading: () => const Padding(
@@ -44,22 +102,21 @@ class SettingsPage extends ConsumerWidget {
             ),
             error: (e, _) => ListTile(
               title: Text('Failed to load preferences: $e',
-                  style: const TextStyle(color: AppColors.dangerDark)),
+                  style: TextStyle(color: context.colorDanger)),
             ),
             data: (prefs) => _NotificationSection(prefs: prefs),
           ),
 
-          const Divider(color: AppColors.borderDark),
+          Divider(color: context.colorBorder),
 
           // ── Logout ─────────────────────────────────────────────────────
           ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.dangerDark),
-            title: const Text('Sign out', style: TextStyle(color: AppColors.dangerDark)),
+            leading: Icon(Icons.logout, color: context.colorDanger),
+            title: Text('Sign out', style: TextStyle(color: context.colorDanger)),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  backgroundColor: AppColors.surfaceDark,
                   title: const Text('Sign out?'),
                   actions: [
                     TextButton(
@@ -68,8 +125,8 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Sign out',
-                          style: TextStyle(color: AppColors.dangerDark)),
+                      child: Text('Sign out',
+                          style: TextStyle(color: context.colorDanger)),
                     ),
                   ],
                 ),
@@ -86,6 +143,61 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
+// ── Theme option button ────────────────────────────────────────────────────────
+
+class _ThemeOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ThemeOption({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? context.colorBrand.withAlpha(30) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? context.colorBrand : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 20,
+                  color: selected ? context.colorBrand : context.colorMuted),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? context.colorBrand : context.colorMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Section header ─────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
@@ -97,11 +209,11 @@ class _SectionHeader extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
         child: Text(
           title.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.1,
-            color: AppColors.mutedDark,
+            color: context.colorMuted,
           ),
         ),
       );
@@ -114,11 +226,10 @@ class _NotificationSection extends ConsumerWidget {
   const _NotificationSection({required this.prefs});
 
   Future<void> _requestAndSave(WidgetRef ref, NotificationPrefs updated) async {
-    // If enabling any notification for the first time, request permission
     if (updated.preDeadlineEnabled || updated.eveningSummaryEnabled) {
       await NotificationService.requestPermission();
     }
-    await ref.read(notificationPrefsProvider.notifier).update(updated);
+    await ref.read(notificationPrefsProvider.notifier).savePrefs(updated);
   }
 
   @override
@@ -132,15 +243,13 @@ class _NotificationSection extends ConsumerWidget {
             ref,
             prefs.copyWith(preDeadlineEnabled: val),
           ),
-          title: const Text('Pre-deadline reminder',
-              style: TextStyle(color: AppColors.textStrongDark)),
-          subtitle: const Text('Notify before a task is due',
-              style: TextStyle(color: AppColors.mutedDark, fontSize: 12)),
-          secondary: const Icon(Icons.alarm, color: AppColors.brandDark),
-          activeColor: AppColors.brandDark,
+          title: Text('Pre-deadline reminder',
+              style: TextStyle(color: context.colorTextStrong)),
+          subtitle: Text('Notify before a task is due',
+              style: TextStyle(color: context.colorMuted, fontSize: 12)),
+          secondary: Icon(Icons.alarm, color: context.colorBrand),
         ),
 
-        // Lead time picker (visible only when enabled)
         AnimatedCrossFade(
           duration: const Duration(milliseconds: 200),
           crossFadeState: prefs.preDeadlineEnabled
@@ -152,13 +261,13 @@ class _NotificationSection extends ConsumerWidget {
               minutes: prefs.preDeadlineMinutes,
               onChanged: (mins) => ref
                   .read(notificationPrefsProvider.notifier)
-                  .update(prefs.copyWith(preDeadlineMinutes: mins)),
+                  .savePrefs(prefs.copyWith(preDeadlineMinutes: mins)),
             ),
           ),
           secondChild: const SizedBox.shrink(),
         ),
 
-        const Divider(color: AppColors.borderDark, indent: 16, endIndent: 16),
+        Divider(color: context.colorBorder, indent: 16, endIndent: 16),
 
         // ── Evening summary toggle ──────────────────────────────────────
         SwitchListTile(
@@ -167,15 +276,13 @@ class _NotificationSection extends ConsumerWidget {
             ref,
             prefs.copyWith(eveningSummaryEnabled: val),
           ),
-          title: const Text('Evening summary',
-              style: TextStyle(color: AppColors.textStrongDark)),
-          subtitle: const Text('Daily recap of pending tasks',
-              style: TextStyle(color: AppColors.mutedDark, fontSize: 12)),
-          secondary: const Icon(Icons.nightlight_round, color: AppColors.brandDark),
-          activeColor: AppColors.brandDark,
+          title: Text('Evening summary',
+              style: TextStyle(color: context.colorTextStrong)),
+          subtitle: Text('Daily recap of pending tasks',
+              style: TextStyle(color: context.colorMuted, fontSize: 12)),
+          secondary: Icon(Icons.nightlight_round, color: context.colorBrand),
         ),
 
-        // Time picker (visible only when enabled)
         AnimatedCrossFade(
           duration: const Duration(milliseconds: 200),
           crossFadeState: prefs.eveningSummaryEnabled
@@ -188,7 +295,7 @@ class _NotificationSection extends ConsumerWidget {
               minute: prefs.eveningSummaryMinute,
               onChanged: (h, m) => ref
                   .read(notificationPrefsProvider.notifier)
-                  .update(prefs.copyWith(eveningSummaryHour: h, eveningSummaryMinute: m)),
+                  .savePrefs(prefs.copyWith(eveningSummaryHour: h, eveningSummaryMinute: m)),
             ),
           ),
           secondChild: const SizedBox.shrink(),
@@ -213,15 +320,15 @@ class _LeadTimePicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface2Dark,
+        color: context.colorSurface2,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Remind me',
-            style: TextStyle(fontSize: 12, color: AppColors.mutedDark),
+            style: TextStyle(fontSize: 12, color: context.colorMuted),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -234,17 +341,17 @@ class _LeadTimePicker extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.brandDark : AppColors.surfaceDark,
+                    color: selected ? context.colorBrand : context.colorSurface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: selected ? AppColors.brandDark : AppColors.borderDark,
+                      color: selected ? context.colorBrand : context.colorBorder,
                     ),
                   ),
                   child: Text(
                     _label(mins),
                     style: TextStyle(
                       fontSize: 13,
-                      color: selected ? Colors.white : AppColors.textDark,
+                      color: selected ? Colors.white : context.colorText,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
@@ -255,7 +362,7 @@ class _LeadTimePicker extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'before scheduled time',
-            style: const TextStyle(fontSize: 12, color: AppColors.muted2Dark),
+            style: TextStyle(fontSize: 12, color: context.colorMuted2),
           ),
         ],
       ),
@@ -289,16 +396,16 @@ class _EveningTimePicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface2Dark,
+        color: context.colorSurface2,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time, size: 18, color: AppColors.mutedDark),
+          Icon(Icons.access_time, size: 18, color: context.colorMuted),
           const SizedBox(width: 10),
-          const Text(
+          Text(
             'Send summary at',
-            style: TextStyle(fontSize: 13, color: AppColors.textDark),
+            style: TextStyle(fontSize: 13, color: context.colorText),
           ),
           const Spacer(),
           GestureDetector(
@@ -306,15 +413,6 @@ class _EveningTimePicker extends StatelessWidget {
               final picked = await showTimePicker(
                 context: context,
                 initialTime: TimeOfDay(hour: hour, minute: minute),
-                builder: (ctx, child) => Theme(
-                  data: Theme.of(ctx).copyWith(
-                    colorScheme: const ColorScheme.dark(
-                      primary: AppColors.brandDark,
-                      surface: AppColors.surfaceDark,
-                    ),
-                  ),
-                  child: child!,
-                ),
               );
               if (picked != null) {
                 onChanged(picked.hour, picked.minute);
@@ -323,16 +421,16 @@ class _EveningTimePicker extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.brandSoftDark,
+                color: context.colorBrandSoft,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.brandDark.withOpacity(0.4)),
+                border: Border.all(color: context.colorBrand.withAlpha(100)),
               ),
               child: Text(
                 _displayTime,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.brand2Dark,
+                  color: context.colorBrand2,
                 ),
               ),
             ),

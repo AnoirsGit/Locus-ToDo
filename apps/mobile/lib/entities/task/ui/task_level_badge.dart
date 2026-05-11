@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../shared/theme/theme.dart';
 import '../task.dart';
 
 class TaskLevelBadge extends StatelessWidget {
   final TaskLevel level;
 
   const TaskLevelBadge({super.key, required this.level});
-
-  static const _colors = {
-    TaskLevel.day:   Color(0xFF4BCE97),
-    TaskLevel.week:  Color(0xFF579DFF),
-    TaskLevel.month: Color(0xFF9F8FEF),
-    TaskLevel.year:  Color(0xFFE2B203),
-  };
 
   static const _labels = {
     TaskLevel.day:   'ДЕНЬ',
@@ -20,15 +14,30 @@ class TaskLevelBadge extends StatelessWidget {
     TaskLevel.year:  'ГОД',
   };
 
+  Color _color(BuildContext context) => switch (level) {
+    TaskLevel.day   => context.colorDay,
+    TaskLevel.week  => context.colorWeek,
+    TaskLevel.month => context.colorMonth,
+    TaskLevel.year  => context.colorYear,
+  };
+
+  Color _tint(BuildContext context) => switch (level) {
+    TaskLevel.day   => context.colorDayTint,
+    TaskLevel.week  => context.colorWeekTint,
+    TaskLevel.month => context.colorMonthTint,
+    TaskLevel.year  => context.colorYearTint,
+  };
+
   @override
   Widget build(BuildContext context) {
-    final color = _colors[level]!;
+    final color = _color(context);
+    final tint  = _tint(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: tint,
         borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withAlpha(80)),
       ),
       child: Text(
         _labels[level]!,

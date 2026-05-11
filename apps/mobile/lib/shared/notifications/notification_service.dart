@@ -82,6 +82,7 @@ class NotificationService {
       tzNotifyAt,
       _notifDetails(channelId: 'pre_deadline', channelName: 'Task reminders'),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -124,6 +125,7 @@ class NotificationService {
       tzTime,
       _notifDetails(channelId: 'evening_summary', channelName: 'Daily summary'),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 

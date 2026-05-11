@@ -121,6 +121,7 @@
   <TaskSection
     title={i18n.t('view.week_tasks')}
     tasks={weekTasks}
+    storageKey="week:week"
     onToggle={toggleTask}
     onEdit={(t) => { modal = { mode: 'edit', task: t } }}
   >
@@ -133,22 +134,22 @@
   </TaskSection>
 
   <!-- Month tasks -->
-  {#if monthTasks.length > 0}
-    <TaskSection
-      title={i18n.t('view.month_tasks')}
-      tasks={monthTasks}
-      onToggle={toggleTask}
-    />
-  {/if}
+  <TaskSection
+    title={i18n.t('view.month_tasks')}
+    tasks={monthTasks}
+    storageKey="week:month"
+    onToggle={toggleTask}
+    onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+  />
 
   <!-- Year tasks -->
-  {#if yearTasks.length > 0 }
-    <TaskSection
-      title={i18n.t('view.year_tasks')}
-      tasks={yearTasks}
-      onToggle={toggleTask}
-    />
-  {/if}
+  <TaskSection
+    title={i18n.t('view.year_tasks')}
+    tasks={yearTasks}
+    storageKey="week:year"
+    onToggle={toggleTask}
+    onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+  />
 
 </div>
 

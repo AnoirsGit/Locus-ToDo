@@ -4,6 +4,7 @@
   import type { TaskView, TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
   import { TaskModal } from '$widgets/task-modal'
+  import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
 
   type Props = { view: TaskView }
   const { view }: Props = $props()
@@ -101,21 +102,13 @@
     {#each (['week', 'month', 'year'] as const) as key}
       {@const items = grouped[key]}
       {#if items && items.length > 0}
-        <section class="section">
-          <div class="section-header">
-            <h2 class="section-title">{CONTEXT_LABELS[key]}</h2>
-            <span class="section-meta">{items.length}</span>
-          </div>
-          <div class="task-list cards">
-            {#each items as task (task.period.id)}
-              <TaskCard
-                {task}
-                onToggle={toggleTask}
-                onEdit={(t) => { modal = { mode: 'edit', task: t } }}
-              />
-            {/each}
-          </div>
-        </section>
+        <TaskSection
+          title={CONTEXT_LABELS[key]}
+          tasks={items}
+          storageKey="{view}:{key}"
+          onToggle={toggleTask}
+          onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+        />
       {/if}
     {/each}
 

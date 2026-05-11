@@ -1,4 +1,4 @@
-import '../entities/user/user.dart';
+import '../../entities/user/user.dart';
 import 'api_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,8 +12,8 @@ class AuthApi {
       'email': email,
       'password': password,
     });
-    final user = User.fromJson(res.data['user']);
-    final token = res.data['token'] as String;
+    final user = User.fromJson(res.data['user'] as Map<String, dynamic>);
+    final token = res.data['accessToken'] as String;
     return (user, token);
   }
 

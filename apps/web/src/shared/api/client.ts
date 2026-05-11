@@ -37,6 +37,7 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (res.status === 401) {
     localStorage.removeItem('access_token')
+    localStorage.removeItem('section_prefs')
     window.location.href = '/login'
     throw new ApiError(401, 'Unauthorized')
   }

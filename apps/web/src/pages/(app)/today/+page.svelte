@@ -4,6 +4,7 @@
   import { toggleTask } from '$features/toggle-task'
   import { TaskModal } from '$widgets/task-modal'
   import { i18n } from '$shared/lib/i18n'
+  import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
 
   // ── Date ─────────────────────────────────────────────────────────────────
   const now   = new Date()
@@ -117,52 +118,43 @@
     </section>
 
     <!-- ── Week context ───────────────────────────────────────────────────── -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">{i18n.t('view.week_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
-        <span class="section-meta">{weekTasks.length}</span>
-      </div>
-      <div class="task-list cards">
-        {#each weekTasks as task (task.period.id)}
-          <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
-        {/each}
-        <button class="add-task-row" onclick={() => openCreate('week')}>
-          + {i18n.t('action.add')}
-        </button>
-      </div>
-    </section>
+    <TaskSection
+      title="{i18n.t('view.week_goals')} · {i18n.t('view.context')}"
+      tasks={weekTasks}
+      storageKey="today:week"
+      onToggle={toggleTask}
+      onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+    >
+      {#snippet footer()}
+        <button class="add-task-row" onclick={() => openCreate('week')}>+ {i18n.t('action.add')}</button>
+      {/snippet}
+    </TaskSection>
 
     <!-- ── Month context ──────────────────────────────────────────────────── -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">{i18n.t('view.month_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
-        <span class="section-meta">{monthTasks.length}</span>
-      </div>
-      <div class="task-list cards">
-        {#each monthTasks as task (task.period.id)}
-          <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
-        {/each}
-        <button class="add-task-row" onclick={() => openCreate('month')}>
-          + {i18n.t('action.add')}
-        </button>
-      </div>
-    </section>
+    <TaskSection
+      title="{i18n.t('view.month_goals')} · {i18n.t('view.context')}"
+      tasks={monthTasks}
+      storageKey="today:month"
+      onToggle={toggleTask}
+      onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+    >
+      {#snippet footer()}
+        <button class="add-task-row" onclick={() => openCreate('month')}>+ {i18n.t('action.add')}</button>
+      {/snippet}
+    </TaskSection>
 
     <!-- ── Year context ───────────────────────────────────────────────────── -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">{i18n.t('view.year_goals')} <span class="section-sub">· {i18n.t('view.context')}</span></h2>
-        <span class="section-meta">{yearTasks.length}</span>
-      </div>
-      <div class="task-list cards">
-        {#each yearTasks as task (task.period.id)}
-          <TaskCard {task} onToggle={toggleTask} onEdit={(t) => { modal = { mode: 'edit', task: t } }} />
-        {/each}
-        <button class="add-task-row" onclick={() => openCreate('year')}>
-          + {i18n.t('action.add')}
-        </button>
-      </div>
-    </section>
+    <TaskSection
+      title="{i18n.t('view.year_goals')} · {i18n.t('view.context')}"
+      tasks={yearTasks}
+      storageKey="today:year"
+      onToggle={toggleTask}
+      onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+    >
+      {#snippet footer()}
+        <button class="add-task-row" onclick={() => openCreate('year')}>+ {i18n.t('action.add')}</button>
+      {/snippet}
+    </TaskSection>
 
   {/if}
 </div>

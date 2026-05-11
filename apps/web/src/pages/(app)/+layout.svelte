@@ -10,10 +10,8 @@
   import { page } from '$app/stores'
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
-  import { devTime } from '$shared/lib/devTime.svelte'
-  import DevTimePicker from '$shared/ui/DevTimePicker.svelte'
 
-  type AppView = TaskView | 'settings'
+  type AppView = TaskView | 'settings' | 'stats'
 
   type Props = { children: Snippet }
   const { children }: Props = $props()
@@ -26,10 +24,26 @@
     '/backlog':  'backlog',
     '/archive':  'archive',
     '/settings': 'settings',
+    '/stats':    'stats',
   }
 
   const currentView = $derived(routeToView[$page.url.pathname] ?? 'day')
   let isSidebarOpen = $state(false)
+  let isViewDropdownOpen = $state(false)
+
+  // View tab: day/week/month with localStorage persistence
+  const VIEW_TAB_KEY = 'view_tab_last_view'
+  const viewRoutes: Record<string, string> = { day: '/today', week: '/week', month: '/month' }
+  const isViewTab = $derived(['day', 'week', 'month'].includes(currentView))
+
+  let lastViewRoute = $state('/today')
+
+  $effect(() => {
+    if (isViewTab) {
+      lastViewRoute = $page.url.pathname
+      localStorage.setItem(VIEW_TAB_KEY, $page.url.pathname)
+    }
+  })
 
   const toISO = (d: Date) => d.toISOString().split('T')[0]
 
@@ -54,6 +68,12 @@
       i18n.locale = savedLocale
     }
 
+    // Restore last view tab
+    const savedView = localStorage.getItem(VIEW_TAB_KEY)
+    if (savedView && ['/today', '/week', '/month'].includes(savedView)) {
+      lastViewRoute = savedView
+    }
+
     try {
       if (!localStorage.getItem('access_token')) {
         goto('/login')
@@ -63,7 +83,7 @@
       const user = await authApi.me()
       userStore.set(user)
 
-      const now = devTime.now()
+      const now = new Date()
       const weekStart  = getMondayOfWeek(now)
       const monthStart = getMonthStart(now)
       const yearStart  = getYearStart(now)
@@ -100,51 +120,85 @@
       <span class="font-display italic text-xl font-medium text-strong">Locus</span>
       <div class="w-1 h-1 rounded-full bg-year mt-1"></div>
     </div>
-    <button 
-      class="btn-icon" 
-      onclick={() => isSidebarOpen = true}
-      aria-label="Открыть меню"
-    >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
+    <div class="mobile-header-right">
+      {#if isViewTab}
+        {@const viewLabels: Record<string, string> = {
+          day:   i18n.locale === 'ru' ? 'День'   : 'Day',
+          week:  i18n.locale === 'ru' ? 'Неделя' : 'Week',
+          month: i18n.locale === 'ru' ? 'Месяц'  : 'Month',
+        }}
+        <div class="view-dropdown-wrap">
+          <button
+            class="view-dropdown-trigger"
+            onclick={() => isViewDropdownOpen = !isViewDropdownOpen}
+          >
+            {viewLabels[currentView]}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="transition: transform 150ms" style:transform={isViewDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'}>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          {#if isViewDropdownOpen}
+            <div class="view-dropdown-menu">
+              {#each [['day', '/today'], ['week', '/week'], ['month', '/month']] as [v, href]}
+                <a
+                  {href}
+                  class="view-dropdown-item"
+                  class:active={currentView === v}
+                  onclick={() => isViewDropdownOpen = false}
+                >{viewLabels[v]}</a>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+      <button
+        class="btn-icon"
+        onclick={() => isSidebarOpen = true}
+        aria-label="Открыть меню"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <Sidebar {currentView} isOpen={isSidebarOpen} onClose={() => isSidebarOpen = false} />
-  
+
   <main class="main overflow-y-auto">
     {@render children()}
   </main>
 
-  {#if import.meta.env.DEV}
-    <div class="dev-time-wrap">
-      <DevTimePicker />
-    </div>
-  {/if}
-
   <nav class="bottom-nav">
-    <a href="/today" class="bottom-nav-item" class:active={currentView === 'day'}>
+    <a href={lastViewRoute} class="bottom-nav-item" class:active={isViewTab}>
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
-        <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+        <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+        <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+        <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
       </svg>
-      Сегодня
+      {i18n.locale === 'ru' ? 'Просмотр' : 'View'}
     </a>
-    <a href="/week" class="bottom-nav-item" class:active={currentView === 'week'}>
+    <a href="/backlog" class="bottom-nav-item" class:active={currentView === 'backlog'}>
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">
-        <path d="M3 3h18v18H3z" stroke="currentColor" stroke-width="2"/>
-        <path d="M9 3v18M15 3v18M3 9h18M3 15h18" stroke="currentColor" stroke-width="2"/>
+        <path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      Неделя
+      {i18n.locale === 'ru' ? 'Бэклог' : 'Backlog'}
     </a>
-    <a href="/month" class="bottom-nav-item" class:active={currentView === 'month'}>
+    <a href="/archive" class="bottom-nav-item" class:active={currentView === 'archive'}>
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">
-        <path d="M8 2v4M16 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
-        <path d="M7 14h2M11 14h2M15 14h2M7 18h2M11 18h2M15 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M3 9h18" stroke="currentColor" stroke-width="2"/>
+        <path d="M10 13h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      Месяц
+      {i18n.locale === 'ru' ? 'Архив' : 'Archive'}
+    </a>
+    <a href="/settings" class="bottom-nav-item" class:active={currentView === 'settings'}>
+      <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      {i18n.locale === 'ru' ? 'Профиль' : 'Profile'}
     </a>
   </nav>
 </div>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../shared/theme/theme.dart';
 import '../task.dart';
 import 'task_level_badge.dart';
 
@@ -29,10 +30,13 @@ class TaskCard extends StatelessWidget {
     final r = task.recurringConfig;
     if (r == null) return null;
     final parts = <String>[];
-    if (task.level == TaskLevel.week && r.dayOfWeek != null)
-      parts.add(_dayNames[r.dayOfWeek!]);
-    else if (task.level == TaskLevel.month && r.dayOfMonth != null)
+    if (task.level == TaskLevel.week && r.daysOfWeek != null && r.daysOfWeek!.isNotEmpty) {
+      final sorted = [...r.daysOfWeek!]..sort();
+      final monFirst = [...sorted.where((d) => d != 0), ...sorted.where((d) => d == 0)];
+      parts.add(monFirst.map((d) => _dayNames[d]).join(' '));
+    } else if (task.level == TaskLevel.month && r.dayOfMonth != null) {
       parts.add('${r.dayOfMonth}-го');
+    }
     if (task.scheduledTime != null) parts.add(task.scheduledTime!);
     return parts.isEmpty ? '↻' : '↻ ${parts.join(' · ')}';
   }
@@ -49,15 +53,36 @@ class TaskCard extends StatelessWidget {
     return 'до ${_monthNames[m]}';
   }
 
+  String? _archiveOutcome() {
+    if (task.period.status != TaskStatus.archived) return null;
+    final done = task.period.doneAt;
+    if (done == null) return 'failed';
+    final deadline = DateTime.utc(
+      task.period.periodEnd.year,
+      task.period.periodEnd.month,
+      task.period.periodEnd.day,
+      23, 59, 59,
+    );
+    return done.isAfter(deadline) ? 'late' : 'ontime';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDone = task.period.status == TaskStatus.done;
     final isOverdue = task.period.status == TaskStatus.overdue;
-    final colors = Theme.of(context).colorScheme;
+    final isArchived = task.period.status == TaskStatus.archived;
+    final archiveOutcome = _archiveOutcome();
 
     final recurringLabel = _recurringLabel();
     final targetDayLabel = _targetDayLabel();
     final deadlineLabel = _deadlineLabel();
+
+    // Archive outcome colors — semantic, same across themes
+    Color _outcomeColor(String? outcome) => switch (outcome) {
+      'ontime' => context.colorSuccess,
+      'late'   => context.colorYear,
+      _        => context.colorDanger,
+    };
 
     final card = InkWell(
       onTap: onEdit,
@@ -67,30 +92,47 @@ class TaskCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Checkbox
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                onToggle();
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
+            // Checkbox / outcome icon
+            if (isArchived)
+              Container(
                 width: 20,
                 height: 20,
                 margin: const EdgeInsets.only(top: 2, right: 12),
                 decoration: BoxDecoration(
-                  color: isDone ? colors.primary : Colors.transparent,
+                  color: _outcomeColor(archiveOutcome).withAlpha(56),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: isDone ? colors.primary : const Color(0xFF3A4550),
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: _outcomeColor(archiveOutcome), width: 1.5),
                 ),
-                child: isDone
-                    ? const Icon(Icons.check, size: 13, color: Colors.white)
-                    : null,
+                child: Icon(
+                  archiveOutcome == 'failed' ? Icons.close : Icons.check,
+                  size: 13,
+                  color: _outcomeColor(archiveOutcome),
+                ),
+              )
+            else
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onToggle();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 20,
+                  height: 20,
+                  margin: const EdgeInsets.only(top: 2, right: 12),
+                  decoration: BoxDecoration(
+                    color: isDone ? context.colorBrand : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isDone ? context.colorBrand : context.colorBorder2,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: isDone
+                      ? Icon(Icons.check, size: 13, color: context.isDark ? AppColors.backgroundDark : Colors.white)
+                      : null,
+                ),
               ),
-            ),
 
             // Body
             Expanded(
@@ -102,9 +144,9 @@ class TaskCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: isDone ? const Color(0xFF5D6E7A) : const Color(0xFFE2E8ED),
-                      decoration: isDone ? TextDecoration.lineThrough : null,
-                      decorationColor: const Color(0xFF5D6E7A),
+                      color: (isDone || isArchived) ? context.colorMuted2 : context.colorTextStrong,
+                      decoration: (isDone || isArchived) ? TextDecoration.lineThrough : null,
+                      decorationColor: context.colorMuted2,
                     ),
                   ),
                   if (task.description != null && task.description!.isNotEmpty) ...[
@@ -113,7 +155,7 @@ class TaskCard extends StatelessWidget {
                       task.description!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF7A8A97)),
+                      style: TextStyle(fontSize: 12, color: context.colorMuted),
                     ),
                   ],
                   const SizedBox(height: 6),
@@ -124,16 +166,27 @@ class TaskCard extends StatelessWidget {
                     runSpacing: 4,
                     children: [
                       if (showLevel) TaskLevelBadge(level: task.level),
-                      if (recurringLabel != null)
-                        _MetaChip(recurringLabel)
-                      else ...[
-                        if (task.scheduledTime != null)
-                          _MetaChip('⏱ ${task.scheduledTime}'),
-                        if (targetDayLabel != null) _MetaChip(targetDayLabel),
+                      if (isArchived) ...[
+                        if (archiveOutcome == 'ontime')
+                          _MetaChip('✓ выполнено', color: context.colorSuccess),
+                        if (archiveOutcome == 'late')
+                          _MetaChip('✓ с опозданием', color: context.colorYear),
+                        if (archiveOutcome == 'failed')
+                          _MetaChip('✗ не выполнено', color: context.colorDanger),
+                      ] else ...[
+                        if (recurringLabel != null)
+                          _MetaChip(recurringLabel, color: context.colorMuted)
+                        else ...[
+                          if (task.scheduledTime != null)
+                            _MetaChip('⏱ ${task.scheduledTime}', color: context.colorMuted),
+                          if (targetDayLabel != null)
+                            _MetaChip(targetDayLabel, color: context.colorMuted),
+                        ],
+                        if (deadlineLabel != null)
+                          _MetaChip(deadlineLabel, color: context.colorMuted),
+                        if (isOverdue)
+                          _MetaChip('просрочено', color: context.colorWarning),
                       ],
-                      if (deadlineLabel != null) _MetaChip(deadlineLabel),
-                      if (isOverdue)
-                        const _MetaChip('просрочено', color: Color(0xFFF87168)),
                     ],
                   ),
                 ],
@@ -144,44 +197,60 @@ class TaskCard extends StatelessWidget {
       ),
     );
 
+    final container = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: context.colorCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOverdue
+              ? context.colorWarning.withAlpha(96)
+              : isArchived
+                  ? context.colorBorder
+                  : context.colorBorder,
+        ),
+        // Subtle offset shadow in light mode (matches web card style)
+        boxShadow: context.isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withAlpha(18),
+                  blurRadius: 0,
+                  offset: const Offset(2, 2),
+                ),
+              ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: card,
+      ),
+    );
+
+    if (isArchived) return container;
+
     return Dismissible(
       key: ValueKey('${task.period.id}_swipe'),
       direction: DismissDirection.startToEnd,
       confirmDismiss: (_) async {
         HapticFeedback.mediumImpact();
         onToggle();
-        return false; // не удаляем из списка, просто тогл
+        return false;
       },
       background: Container(
         decoration: BoxDecoration(
           color: isDone
-              ? const Color(0x387A8A97)
-              : const Color(0x387EE2B8),
+              ? context.colorMuted.withAlpha(56)
+              : context.colorSuccess.withAlpha(56),
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.only(left: 20),
         alignment: Alignment.centerLeft,
         child: Icon(
           isDone ? Icons.close : Icons.check,
-          color: isDone ? const Color(0xFF7A8A97) : const Color(0xFF7EE2B8),
+          color: isDone ? context.colorMuted : context.colorSuccess,
         ),
       ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E2428),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isOverdue
-                ? const Color(0x60F87168)
-                : const Color(0xFF2E3740),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: card,
-        ),
-      ),
+      child: container,
     );
   }
 }
@@ -199,7 +268,7 @@ class _MetaChip extends StatelessWidget {
       style: TextStyle(
         fontFamily: 'monospace',
         fontSize: 10.5,
-        color: color ?? const Color(0xFF7A8A97),
+        color: color ?? context.colorMuted,
         fontWeight: FontWeight.w500,
       ),
     );

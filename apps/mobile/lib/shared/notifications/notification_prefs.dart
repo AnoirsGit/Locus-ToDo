@@ -62,7 +62,7 @@ class NotificationPrefsNotifier extends AsyncNotifier<NotificationPrefs> {
   @override
   Future<NotificationPrefs> build() => NotificationPrefs.load();
 
-  Future<void> update(NotificationPrefs updated) async {
+  Future<void> savePrefs(NotificationPrefs updated) async {
     await updated.save();
     state = AsyncData(updated);
   }

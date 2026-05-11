@@ -5,7 +5,7 @@
   import { userStore } from '$entities/user'
   import { onMount } from 'svelte'
 
-  type AppView = TaskView | 'settings'
+  type AppView = TaskView | 'settings' | 'stats'
   type Props = {
     currentView: AppView
     isOpen?: boolean
@@ -121,6 +121,21 @@
       </svg>
       {i18n.t('nav.archive')}
       {#if counts.archive > 0}<span class="nav-count">{counts.archive}</span>{/if}
+    </a>
+
+    <a href="/stats" class="nav-item" onclick={onClose} class:active={currentView === 'stats'}>
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+        <path d="M2 12V8M6 12V5M10 12V7M14 12V3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      {i18n.locale === 'ru' ? 'Статистика' : 'Stats'}
+    </a>
+
+    <a href="/docs" class="nav-item" onclick={onClose} class:active={currentView === 'docs'}>
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+        <rect x="2.5" y="1.5" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M5 5h6M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      {i18n.locale === 'ru' ? 'Документация' : 'Docs'}
     </a>
 
     <a href="/settings" class="nav-item" onclick={onClose} class:active={currentView === 'settings'}>

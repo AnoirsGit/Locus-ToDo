@@ -1,0 +1,108 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract image tag
+        id: meta
+        run: echo "version=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      # ── API ──────────────────────────────────────────────────────────────────
+      - name: Build & push API
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/locus-api:latest
+            ${{ env.IMAGE_PREFIX }}/locus-api:${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=api
+          cache-to:   type=gha,scope=api,mode=max
+
+      # ── Web ──────────────────────────────────────────────────────────────────
+      - name: Build & push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          build-args: PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/locus-web:latest
+            ${{ env.IMAGE_PREFIX }}/locus-web:${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=web
+          cache-to:   type=gha,scope=web,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/locus
+
+            # Write env file from secret (stored as one block in GitHub Secrets)
+            echo "${{ secrets.PROD_ENV }}" > .env
+
+            # Pull new images
+            IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+            GITHUB_REPOSITORY=${{ github.repository }}
+
+            IMAGE_TAG=$IMAGE_TAG \
+            GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
+            docker compose -f docker-compose.prod.yml pull
+
+            # Run migrations before restarting API
+            IMAGE_TAG=$IMAGE_TAG \
+            GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
+            docker compose -f docker-compose.prod.yml run --rm api \
+              node --import ./node_modules/tsx/esm/index.js src/db/migrate.js || true
+
+            # Rolling restart
+            IMAGE_TAG=$IMAGE_TAG \
+            GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Cleanup old images
+            docker image prune -f
