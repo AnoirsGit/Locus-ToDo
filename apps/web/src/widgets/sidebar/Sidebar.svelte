@@ -3,9 +3,11 @@
   import { taskStore } from '$entities/task'
   import { i18n } from '$shared/lib/i18n'
   import { userStore } from '$entities/user'
+  import { authApi } from '$shared/api/auth.api'
+  import { goto } from '$app/navigation'
   import { onMount } from 'svelte'
 
-  type AppView = TaskView | 'settings' | 'stats'
+  type AppView = TaskView | 'settings' | 'stats' | 'docs'
   type Props = {
     currentView: AppView
     isOpen?: boolean
@@ -37,6 +39,11 @@
 
   const toggleLocale = () => {
     i18n.locale = i18n.locale === 'ru' ? 'en' : 'ru'
+  }
+
+  const logout = async () => {
+    await authApi.logout()
+    goto('/login')
   }
 </script>
 
@@ -130,12 +137,12 @@
       {i18n.locale === 'ru' ? 'Статистика' : 'Stats'}
     </a>
 
-    <a href="/docs" class="nav-item" onclick={onClose} class:active={currentView === 'docs'}>
+    <a href="/notes" class="nav-item" onclick={onClose} class:active={currentView === 'docs'}>
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
         <rect x="2.5" y="1.5" width="11" height="13" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
         <path d="M5 5h6M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
       </svg>
-      {i18n.locale === 'ru' ? 'Документация' : 'Docs'}
+      {i18n.locale === 'ru' ? 'Заметки' : 'Notes'}
     </a>
 
     <a href="/settings" class="nav-item" onclick={onClose} class:active={currentView === 'settings'}>
@@ -174,12 +181,18 @@
     {#if userStore.user?.name}
       <div class="user-card">
         <div class="user-avatar">{userStore.user.name.charAt(0).toUpperCase()}</div>
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <div class="user-name truncate">{userStore.user.name}</div>
           {#if userStore.user.email}
             <div class="user-email truncate">{userStore.user.email}</div>
           {/if}
         </div>
+        <button class="logout-btn" onclick={logout} title={i18n.locale === 'ru' ? 'Выйти' : 'Log out'}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M11 11l3-3-3-3M14 8H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     {/if}
   </div>

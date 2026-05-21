@@ -5,6 +5,7 @@
   import { TaskModal } from '$widgets/task-modal'
   import { i18n } from '$shared/lib/i18n'
   import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
+  import { tagStore } from '$entities/tag'
 
   // ── Date ─────────────────────────────────────────────────────────────────
   const now   = new Date()
@@ -109,6 +110,7 @@
             onToggle={toggleTask}
             onEdit={(t) => { modal = { mode: 'edit', task: t } }}
             showLevel={false}
+            tags={tagStore.getTagsForTask(task.id)}
           />
         {/each}
         <button class="add-task-row" onclick={() => openCreate('day')}>

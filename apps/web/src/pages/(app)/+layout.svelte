@@ -1,9 +1,11 @@
 <script lang="ts">
   import { Sidebar } from '$widgets/sidebar'
+  import Toasts from '$shared/ui/Toasts.svelte'
   import { i18n } from '$shared/lib/i18n'
   import { taskStore } from '$entities/task'
   import { tasksApi } from '$entities/task'
   import { userStore } from '$entities/user'
+  import { tagStore } from '$entities/tag'
   import { authApi } from '$shared/api/auth.api'
   import type { TaskView } from '$entities/task'
   import type { Snippet } from 'svelte'
@@ -11,7 +13,7 @@
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
 
-  type AppView = TaskView | 'settings' | 'stats'
+  type AppView = TaskView | 'settings' | 'stats' | 'docs'
 
   type Props = { children: Snippet }
   const { children }: Props = $props()
@@ -25,6 +27,7 @@
     '/archive':  'archive',
     '/settings': 'settings',
     '/stats':    'stats',
+    '/notes':    'docs',
   }
 
   const currentView = $derived(routeToView[$page.url.pathname] ?? 'day')
@@ -105,6 +108,7 @@
       ])
 
       taskStore.setItems([...dayResults.flat(), ...week, ...month, ...year, ...backlog, ...archive])
+      tagStore.loadTaskAssignments()
     } catch (err) {
       console.error('[layout] bootstrap error', err)
       goto('/login')
@@ -169,6 +173,8 @@
     {@render children()}
   </main>
 
+  <Toasts />
+
   <nav class="bottom-nav">
     <a href={lastViewRoute} class="bottom-nav-item" class:active={isViewTab}>
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">
@@ -185,13 +191,12 @@
       </svg>
       {i18n.locale === 'ru' ? 'Бэклог' : 'Backlog'}
     </a>
-    <a href="/archive" class="bottom-nav-item" class:active={currentView === 'archive'}>
+    <a href="/notes" class="bottom-nav-item" class:active={currentView === 'docs'}>
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
-        <path d="M3 9h18" stroke="currentColor" stroke-width="2"/>
-        <path d="M10 13h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      {i18n.locale === 'ru' ? 'Архив' : 'Archive'}
+      {i18n.locale === 'ru' ? 'Заметки' : 'Notes'}
     </a>
     <a href="/settings" class="bottom-nav-item" class:active={currentView === 'settings'}>
       <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none">

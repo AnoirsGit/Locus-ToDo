@@ -1,0 +1,4 @@
+export type { Tag } from './model/tag.types'
+export { tagStore } from './model/tag.store.svelte'
+export { default as TagChip } from './ui/TagChip.svelte'
+export { default as TagPicker } from './ui/TagPicker.svelte'

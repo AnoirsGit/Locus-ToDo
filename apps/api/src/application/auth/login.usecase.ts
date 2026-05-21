@@ -3,12 +3,13 @@ import type { IUserRepository } from '../../domain/user/user.port.js'
 import type { User } from '../../domain/user/user.types.js'
 
 export type LoginInput = { email: string; password: string }
-export type LoginResult = { user: User; accessToken: string }
+export type LoginResult = { user: User; accessToken: string; refreshToken: string }
 
 export const loginUseCase = async (
   users: IUserRepository,
   input: LoginInput,
   signToken: (payload: object) => string,
+  createRefreshToken: (userId: string) => Promise<string>,
 ): Promise<LoginResult> => {
   const found = await users.findByEmail(input.email)
   const invalid = () => Object.assign(new Error('Invalid credentials'), { statusCode: 401 })
@@ -20,5 +21,6 @@ export const loginUseCase = async (
 
   const { passwordHash: _, ...user } = found
   const accessToken = signToken({ id: user.id, email: user.email })
-  return { user, accessToken }
+  const refreshToken = await createRefreshToken(user.id)
+  return { user, accessToken, refreshToken }
 }

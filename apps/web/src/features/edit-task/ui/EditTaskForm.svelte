@@ -1,6 +1,8 @@
 <script lang="ts">
   import { TaskFormFields, taskStore, tasksApi } from '$entities/task'
   import type { TaskWithPeriod, TaskLevel } from '$entities/task'
+  import { tagsApi } from '$shared/api/tags.api'
+  import { tagStore } from '$entities/tag'
   import { onMount } from 'svelte'
 
   type Props = { task: TaskWithPeriod; onClose?: () => void }
@@ -17,11 +19,16 @@
   let dayOfMonth    = $state(task.recurringConfig?.dayOfMonth?.toString() ?? '')
 
   let subtasks = $state<TaskWithPeriod[]>([])
+  let tagIds = $state<string[]>([])
 
   onMount(async () => {
     try {
       subtasks = await tasksApi.getSubtasks(task.id)
     } catch { /* no subtasks or offline */ }
+    try {
+      const tags = await tagsApi.getTaskTags(task.id)
+      tagIds = tags.map(t => t.id)
+    } catch { /* offline or no tags */ }
   })
 
   const handleAddSubtask = async (subTitle: string) => {
@@ -107,6 +114,8 @@
     } catch {
       // keep optimistic update
     }
+    tagsApi.setTaskTags(task.id, tagIds).catch(() => { /* best effort */ })
+    tagStore.setTaskTagsLocal(task.id, tagIds)
   }
 </script>
 
@@ -114,6 +123,7 @@
   <TaskFormFields
     bind:title bind:description bind:level bind:scheduledTime
     bind:targetDate bind:deadlineMonth bind:recurring bind:daysOfWeek bind:dayOfMonth
+    bind:tagIds
     {subtasks}
     onAddSubtask={handleAddSubtask}
     onToggleSubtask={handleToggleSubtask}

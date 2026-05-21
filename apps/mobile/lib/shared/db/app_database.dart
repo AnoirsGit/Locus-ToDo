@@ -78,12 +78,11 @@ class AppDatabase extends _$AppDatabase {
       into(taskPeriods).insertOnConflictUpdate(period);
 
   /// All active tasks+periods (todo|done|overdue) for a given view
-  Future<List<TaskData>> getTasksByView(String view) {
-    // Returns just TaskData rows — caller joins via period queries
+  Future<List<Task>> getTasksByView(String view) {
     return (select(tasks)).get();
   }
 
-  Future<List<TaskPeriodData>> getActivePeriods() =>
+  Future<List<TaskPeriod>> getActivePeriods() =>
       (select(taskPeriods)
         ..where((p) => p.status.isIn(['todo', 'done', 'overdue']))).get();
 
@@ -95,7 +94,7 @@ class AppDatabase extends _$AppDatabase {
             updatedAt: Value(DateTime.now()),
           ));
 
-  Future<List<TaskPeriodData>> getPeriodsForDate(String isoDate) =>
+  Future<List<TaskPeriod>> getPeriodsForDate(String isoDate) =>
       (select(taskPeriods)
         ..where((p) =>
             p.status.isIn(['todo', 'done', 'overdue']) &

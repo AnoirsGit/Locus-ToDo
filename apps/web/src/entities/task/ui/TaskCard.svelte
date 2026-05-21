@@ -1,15 +1,21 @@
 <script lang="ts">
   import type { TaskWithPeriod } from '../model/task.types'
   import TaskLevelBadge from './TaskLevelBadge.svelte'
+  import SubtaskChecklist from './SubtaskChecklist.svelte'
   import { DAY_NAMES_SHORT, MONTH_NAMES_SHORT } from '../model/task.constants'
+
+  type TagLike = { id: string; name: string; color: string | null }
 
   type Props = {
     task: TaskWithPeriod
     onToggle?: (periodId: string) => void
     onEdit?: (task: TaskWithPeriod) => void
     showLevel?: boolean
+    tags?: TagLike[]
   }
-  const { task, onToggle, onEdit, showLevel = true }: Props = $props()
+  const { task, onToggle, onEdit, showLevel = true, tags = [] }: Props = $props()
+
+  let subtasksOpen = $state(false)
 
   const p         = $derived(task.period)
   const isDone    = $derived(p.status === 'done')
@@ -29,6 +35,13 @@
     return d.toLocaleDateString('en', { month: 'long', year: 'numeric', timeZone: 'UTC' })
   }
   const fmtYear = (iso: string) => iso.slice(0, 4)
+
+  // Strip HTML tags for the card snippet (description is rich HTML from the editor)
+  const descText = $derived(
+    task.description
+      ? task.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      : null
+  )
 
   const periodLabel = $derived((() => {
     if (task.level === 'day')   return fmt(p.periodStart)
@@ -130,8 +143,8 @@
   <div class="task-body">
     <span class="task-title">{task.title}</span>
 
-    {#if task.description}
-      <p class="task-desc truncate">{task.description}</p>
+    {#if descText}
+      <p class="task-desc truncate">{descText}</p>
     {/if}
 
     <div class="task-meta">
@@ -171,6 +184,41 @@
         {/if}
       {/if}
     </div>
+
+    {#if tags.length > 0}
+      <div class="task-tags">
+        {#each tags as tag (tag.id)}
+          <span
+            class="tag-chip"
+            style:background={tag.color ?? 'var(--color-surface)'}
+            style:color={tag.color ? '#fff' : 'var(--color-text)'}
+          >{tag.name}</span>
+        {/each}
+      </div>
+    {/if}
+
+    {#if !isArchived && !isBacklog}
+      <div class="subtask-toggle-row">
+        <button
+          class="subtask-toggle-btn"
+          onclick={(e) => { e.stopPropagation(); subtasksOpen = !subtasksOpen }}
+          type="button"
+        >
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style:transform={subtasksOpen ? 'rotate(90deg)' : 'none'} style="transition:transform 0.15s">
+            <path d="M2.5 1.5l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Subtasks
+        </button>
+      </div>
+
+      {#if subtasksOpen}
+        <SubtaskChecklist
+          parentTaskId={task.id}
+          parentLevel={task.level}
+          parentPeriodStart={task.period.periodStart}
+        />
+      {/if}
+    {/if}
   </div>
 
   {#if onEdit}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { taskStore, TaskCard } from '$entities/task'
+  import { tagStore } from '$entities/tag'
   import { i18n } from '$shared/lib/i18n'
   import type { TaskView, TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
@@ -84,6 +85,7 @@
               onToggle={toggleTask}
               onEdit={(t) => { modal = { mode: 'edit', task: t } }}
               showLevel={view === 'backlog' || view === 'archive'}
+              tags={tagStore.getTagsForTask(task.id)}
             />
           {/each}
         {:else}

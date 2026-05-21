@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte'
   import { TaskCard } from '$entities/task'
   import type { TaskWithPeriod } from '$entities/task'
+  import { tagStore } from '$entities/tag'
   import { sectionPrefs } from '$shared/lib/sectionPrefs.svelte'
 
   let {
@@ -59,7 +60,7 @@
     <div class="section-body-inner">
       <div class="task-list cards">
         {#each tasks as task (task.period.id)}
-          <TaskCard {task} onToggle={onToggle} onEdit={onEdit} />
+          <TaskCard {task} onToggle={onToggle} onEdit={onEdit} tags={tagStore.getTagsForTask(task.id)} />
         {/each}
         {@render footer?.()}
       </div>

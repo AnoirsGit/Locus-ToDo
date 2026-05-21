@@ -19,7 +19,7 @@
   let editor: Editor | null = null
 
   let active = $state({
-    bold: false, italic: false,
+    bold: false, italic: false, strike: false,
     bulletList: false, orderedList: false, taskList: false,
   })
 
@@ -27,6 +27,7 @@
     active = {
       bold:        e.isActive('bold'),
       italic:      e.isActive('italic'),
+      strike:      e.isActive('strike'),
       bulletList:  e.isActive('bulletList'),
       orderedList: e.isActive('orderedList'),
       taskList:    e.isActive('taskList'),
@@ -82,6 +83,10 @@
     <button type="button" class="rte-btn rte-btn-i" class:on={active.italic}
       onmousedown={btn(() => editor?.chain().focus().toggleItalic().run())}
       title="Italic (Ctrl+I)"><em>I</em></button>
+
+    <button type="button" class="rte-btn rte-btn-s" class:on={active.strike}
+      onmousedown={btn(() => editor?.chain().focus().toggleStrike().run())}
+      title="Strikethrough (Ctrl+Shift+X)"><s>S</s></button>
 
     <span class="rte-sep"></span>
 
@@ -157,6 +162,7 @@
   .rte-btn:hover { background: var(--color-surface-2); color: var(--color-text); }
   .rte-btn.on    { background: var(--color-surface-2); color: var(--color-text-strong); }
   .rte-btn-i em  { font-style: italic; }
+  .rte-btn-s s   { text-decoration: line-through; }
 
   .rte-sep {
     width: 1px; height: 16px; flex-shrink: 0;

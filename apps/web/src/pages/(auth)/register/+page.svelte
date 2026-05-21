@@ -16,6 +16,7 @@
     try {
       const result = await authApi.register({ name, email, password })
       localStorage.setItem('access_token', result.accessToken)
+      localStorage.setItem('refresh_token', result.refreshToken)
       userStore.set(result.user)
       goto('/today')
     } catch (err: any) {
