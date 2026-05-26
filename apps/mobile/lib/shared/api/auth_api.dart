@@ -19,8 +19,9 @@ class AuthApi {
     return (user, accessToken, refreshToken);
   }
 
-  Future<(User, String, String)> register(String email, String password) async {
+  Future<(User, String, String)> register(String name, String email, String password) async {
     final res = await _client.post('/auth/register', data: {
+      'name': name,
       'email': email,
       'password': password,
     });
@@ -32,6 +33,14 @@ class AuthApi {
 
   Future<User> me() async {
     final res = await _client.get('/auth/me');
+    return User.fromJson(res.data);
+  }
+
+  Future<User> updateProfile({String? name, String? email}) async {
+    final res = await _client.patch('/auth/profile', data: {
+      if (name != null) 'name': name,
+      if (email != null) 'email': email,
+    });
     return User.fromJson(res.data);
   }
 }

@@ -31,17 +31,22 @@ class AuthNotifier extends AsyncNotifier<User?> {
     });
   }
 
-  Future<void> register(String email, String password) async {
+  Future<void> register(String name, String email, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final (user, accessToken, refreshToken) =
-          await ref.read(authApiProvider).register(email, password);
+          await ref.read(authApiProvider).register(name, email, password);
       await ref.read(secureStorageProvider).saveTokens(
         accessToken: accessToken,
         refreshToken: refreshToken,
       );
       return user;
     });
+  }
+
+  Future<void> updateProfile({String? name, String? email}) async {
+    final updated = await ref.read(authApiProvider).updateProfile(name: name, email: email);
+    state = AsyncData(updated);
   }
 
   Future<void> logout() async {

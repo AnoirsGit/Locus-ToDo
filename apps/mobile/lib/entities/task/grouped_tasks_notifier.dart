@@ -82,6 +82,11 @@ class GroupedTasksNotifier extends FamilyAsyncNotifier<GroupedTasks, String> {
     await refresh();
   }
 
+  Future<void> replan(String taskId, String periodStart) async {
+    await _api.replanTask(taskId, periodStart);
+    await refresh();
+  }
+
   Future<void> toggle(TaskWithPeriod task) async {
     final newStatus = task.period.status == TaskStatus.done
         ? TaskStatus.todo

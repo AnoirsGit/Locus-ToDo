@@ -36,6 +36,11 @@ class TasksApi {
   Future<void> deleteTask(String id) async {
     await _client.delete('/tasks/$id');
   }
+
+  Future<TaskWithPeriod> replanTask(String taskId, String periodStart) async {
+    final res = await _client.post('/tasks/$taskId/replan', data: {'periodStart': periodStart});
+    return TaskWithPeriod.fromJson(res.data);
+  }
 }
 
 final tasksApiProvider =

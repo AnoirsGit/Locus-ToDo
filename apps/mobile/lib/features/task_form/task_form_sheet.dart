@@ -170,6 +170,51 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     );
   }
 
+  void _replan() {
+    final task = widget.existingTask!;
+    final now = DateTime.now();
+    String iso(DateTime d) => d.toIso8601String().split('T')[0];
+
+    String periodStart;
+    switch (task.level) {
+      case TaskLevel.day:
+        periodStart = iso(now);
+      case TaskLevel.week:
+        periodStart = iso(now.subtract(Duration(days: now.weekday - 1)));
+      case TaskLevel.month:
+        periodStart = iso(DateTime(now.year, now.month, 1));
+      case TaskLevel.year:
+        periodStart = '${now.year}-01-01';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colorCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Text('Перепланировать?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
+        content: Text(
+          'Задача будет перенесена в текущий период ($periodStart).',
+          style: TextStyle(fontSize: 13, color: context.colorMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Отмена', style: TextStyle(color: context.colorText)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+              await ref.read(tasksApiProvider).replanTask(task.id, periodStart);
+            },
+            child: Text('Перенести', style: TextStyle(color: context.colorBrand, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _toggleDay(int dow) {
     setState(() {
       if (_daysOfWeek.contains(dow)) {
@@ -267,6 +312,16 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                     ),
                   ),
                 const Spacer(),
+                if (_isEdit && widget.existingTask!.period.status == TaskStatus.backlog)
+                  TextButton.icon(
+                    onPressed: _replan,
+                    icon: Icon(Icons.redo, size: 16, color: context.colorBrand),
+                    label: Text('Replan', style: TextStyle(fontSize: 12, color: context.colorBrand)),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
                 if (_isEdit && widget.onDelete != null)
                   IconButton(
                     icon: Icon(Icons.delete_outline, size: 20, color: context.colorDanger),

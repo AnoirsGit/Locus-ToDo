@@ -3,7 +3,7 @@
   import { noteStore } from '$entities/note'
 
   // Top-level nodes become columns; their children become cards
-  const columns = $derived(noteStore.nodes)
+  const columns = $derived(noteStore.rootNodes)
 
   let editingId = $state<string | null>(null)
 
@@ -14,6 +14,17 @@
 </script>
 
 <div class="note-board">
+  {#if noteStore.loaded && columns.length === 0}
+    <div class="note-board-empty">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" opacity="0.35">
+        <rect x="2" y="4" width="9" height="28" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="13.5" y="4" width="9" height="20" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="25" y="4" width="9" height="24" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <span>No columns yet — add one to get started</span>
+    </div>
+  {/if}
+
   {#each columns as col (col.id)}
     <div class="note-board-col">
       <!-- Column header = top-level node -->
@@ -82,10 +93,17 @@
         <!-- Add card button -->
         <button
           class="note-board-add-card"
-          onclick={() => {
-            const newCard = noteStore.addAfter(col.children.at(-1)?.id ?? col.id)
-            editingId = newCard.id
-            noteStore.indent(newCard.id)
+          onclick={async () => {
+            const lastChild = col.children.at(-1)
+            if (lastChild) {
+              const newCard = await noteStore.addAfter(lastChild.id)
+              editingId = newCard.id
+            } else {
+              // Column has no children yet — add a root node then indent under col
+              const newCard = await noteStore.addAfter(col.id)
+              noteStore.indent(newCard.id)
+              editingId = newCard.id
+            }
           }}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -97,11 +115,11 @@
     </div>
   {/each}
 
-  <!-- Add column -->
+  <!-- Add column (always shown, acts as CTA when empty too) -->
   <button
     class="note-board-add-col"
-    onclick={() => {
-      const node = noteStore.addRoot()
+    onclick={async () => {
+      const node = await noteStore.addRoot()
       editingId = node.id
     }}
   >
@@ -111,3 +129,20 @@
     Add column
   </button>
 </div>
+
+<style>
+  .note-board-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 64px 32px;
+    color: var(--color-muted);
+    width: 280px;
+  }
+
+  .note-board-empty span {
+    font-size: 13px;
+    text-align: center;
+  }
+</style>

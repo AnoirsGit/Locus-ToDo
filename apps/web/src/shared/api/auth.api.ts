@@ -12,6 +12,8 @@ export const authApi = {
   register: (dto: LoginDto & { name: string; timezone?: string }) => api.post<AuthResult>('/auth/register', dto),
   me:       () => api.get<AuthResult['user']>('/auth/me'),
   refresh:  (refreshToken: string) => api.post<{ accessToken: string; refreshToken: string }>('/auth/refresh', { refreshToken }),
+  updateProfile: (patch: { name?: string; email?: string }) =>
+    api.patch<AuthResult['user']>('/auth/profile', patch),
   logout:   async () => {
     const refreshToken = typeof localStorage !== 'undefined' ? localStorage.getItem('refresh_token') : null
     if (refreshToken) {

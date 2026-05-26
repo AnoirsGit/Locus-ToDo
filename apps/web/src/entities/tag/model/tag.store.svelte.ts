@@ -7,13 +7,35 @@ type State = {
   loaded: boolean
   taskTagsMap: Record<string, string[]>  // taskId → tagIds
   taskTagsLoaded: boolean
+  filterTagIds: Set<string>
 }
 
-const state = $state<State>({ tags: [], loaded: false, taskTagsMap: {}, taskTagsLoaded: false })
+const state = $state<State>({ tags: [], loaded: false, taskTagsMap: {}, taskTagsLoaded: false, filterTagIds: new Set() })
 
 export const tagStore = {
   get tags() { return state.tags },
   get loaded() { return state.loaded },
+  get filterTagIds() { return state.filterTagIds },
+  get isFiltering() { return state.filterTagIds.size > 0 },
+
+  toggleFilterTag(id: string) {
+    const next = new Set(state.filterTagIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    state.filterTagIds = next
+  },
+
+  clearFilter() {
+    state.filterTagIds = new Set()
+  },
+
+  filterTasks<T extends { id: string }>(tasks: T[]): T[] {
+    if (state.filterTagIds.size === 0) return tasks
+    return tasks.filter(t => {
+      const taskTags = state.taskTagsMap[t.id] ?? []
+      return [...state.filterTagIds].every(fid => taskTags.includes(fid))
+    })
+  },
 
   async load() {
     if (state.loaded) return

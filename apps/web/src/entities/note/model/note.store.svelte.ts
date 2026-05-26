@@ -18,6 +18,15 @@ const flattenTree = (nodes: NoteNode[], depth = 0, parentId: string | null = nul
 
 // ─── Immutable tree helpers ────────────────────────────────────────────────
 
+const findNodeById = (nodes: NoteNode[], id: string): NoteNode | null => {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    const found = findNodeById(n.children, id)
+    if (found) return found
+  }
+  return null
+}
+
 const updateNodeInTree = (nodes: NoteNode[], id: string, patch: Partial<NoteNode>): NoteNode[] =>
   nodes.map(n => n.id === id
     ? { ...n, ...patch }
@@ -36,7 +45,6 @@ const newNode = (type: NoteNodeType = 'bullet'): NoteNode => ({
   children: [],
 })
 
-// Find parentId of a given node id in the tree
 const findParentId = (nodes: NoteNode[], targetId: string, parentId: string | null = null): string | null => {
   for (const n of nodes) {
     if (n.id === targetId) return parentId
@@ -44,6 +52,19 @@ const findParentId = (nodes: NoteNode[], targetId: string, parentId: string | nu
     if (found !== undefined) return found
   }
   return undefined as any
+}
+
+// Build path from root to targetId (inclusive), returns [{id, content}]
+const buildPath = (nodes: NoteNode[], targetId: string, path: Array<{ id: string; content: string }> = []): Array<{ id: string; content: string }> | null => {
+  for (const n of nodes) {
+    const next = [...path, { id: n.id, content: n.content }]
+    if (n.id === targetId) return next
+    if (n.children.length) {
+      const found = buildPath(n.children, targetId, next)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 // ─── Debounce helper ───────────────────────────────────────────────────────
@@ -57,15 +78,72 @@ const debounce = (key: string, fn: () => void, ms = 600) => {
 
 // ─── Store ─────────────────────────────────────────────────────────────────
 
-type State = { nodes: NoteNode[]; loaded: boolean }
+type State = {
+  nodes: NoteNode[]
+  loaded: boolean
+  rootId: string | null
+  selectedIds: Set<string>
+}
 
-const state = $state<State>({ nodes: [], loaded: false })
+const state = $state<State>({
+  nodes: [],
+  loaded: false,
+  rootId: null,
+  selectedIds: new Set(),
+})
 
 export const noteStore = {
   get nodes() { return state.nodes },
   get loaded() { return state.loaded },
 
-  get flat(): FlatNode[] { return flattenTree(state.nodes) },
+  // Root visible nodes (scoped to current page)
+  get rootNodes(): NoteNode[] {
+    if (!state.rootId) return state.nodes
+    return findNodeById(state.nodes, state.rootId)?.children ?? state.nodes
+  },
+
+  // Flat list of visible nodes (scoped to current page root)
+  get flat(): FlatNode[] {
+    return flattenTree(this.rootNodes)
+  },
+
+  // Breadcrumb path from global root to current rootId (inclusive)
+  get breadcrumbs(): Array<{ id: string; content: string }> {
+    if (!state.rootId) return []
+    return buildPath(state.nodes, state.rootId) ?? []
+  },
+
+  get rootId() { return state.rootId },
+  get selectedIds() { return state.selectedIds },
+
+  // ── Page navigation ───────────────────────────────────────────────────────
+
+  setRoot(id: string | null) {
+    state.rootId = id
+    state.selectedIds = new Set()
+  },
+
+  // ── Selection ─────────────────────────────────────────────────────────────
+
+  setSelection(ids: Set<string>) {
+    state.selectedIds = new Set(ids)
+  },
+
+  clearSelection() {
+    state.selectedIds = new Set()
+  },
+
+  async deleteSelected() {
+    const ids = [...state.selectedIds]
+    if (!ids.length) return
+    state.selectedIds = new Set()
+    let nodes = state.nodes
+    for (const id of ids) {
+      nodes = removeNodeFromTree(nodes, id)
+    }
+    state.nodes = nodes
+    await Promise.all(ids.map(id => notesApi.delete(id).catch(() => {})))
+  },
 
   // ── Init ─────────────────────────────────────────────────────────────────
 
@@ -105,7 +183,6 @@ export const noteStore = {
     const entry = flat.find(f => f.node.id === afterId)
     const parentId = entry?.parentId ?? null
 
-    // Find position in parent list
     const parentList = parentId
       ? (flat.find(f => f.node.id === parentId)?.node.children ?? state.nodes)
       : state.nodes
@@ -171,7 +248,7 @@ export const noteStore = {
   unindent(id: string) {
     const flat = flattenTree(state.nodes)
     const entry = flat.find(f => f.node.id === id)
-    if (!entry?.parentId) return  // already root
+    if (!entry?.parentId) return
 
     const parentEntry = flat.find(f => f.node.id === entry.parentId)
     if (!parentEntry) return
@@ -179,7 +256,6 @@ export const noteStore = {
     const grandParentId = parentEntry.parentId
     const node = entry.node
 
-    // Remove from parent, insert after parent in grandparent list
     let result = updateNodeInTree(state.nodes, parentEntry.node.id, {
       children: parentEntry.node.children.filter(c => c.id !== id),
     })
@@ -217,13 +293,26 @@ export const noteStore = {
   /** Add a root-level node at the end */
   async addRoot(): Promise<NoteNode> {
     const node = newNode('text')
-    const sortOrder = state.nodes.length * 10
-    state.nodes = [...state.nodes, node]
 
-    notesApi.create({ id: node.id, parentId: null, nodeType: node.type, content: '', sortOrder }).catch(() => {
-      toastStore.error('Failed to create note')
-      state.nodes = removeNodeFromTree(state.nodes, node.id)
-    })
+    if (state.rootId) {
+      // We're inside a page — add as child of rootId
+      const rootNode = findNodeById(state.nodes, state.rootId)
+      const sortOrder = (rootNode?.children.length ?? 0) * 10
+      state.nodes = updateNodeInTree(state.nodes, state.rootId, {
+        children: [...(rootNode?.children ?? []), node],
+      })
+      notesApi.create({ id: node.id, parentId: state.rootId, nodeType: node.type, content: '', sortOrder }).catch(() => {
+        toastStore.error('Failed to create note')
+        state.nodes = removeNodeFromTree(state.nodes, node.id)
+      })
+    } else {
+      const sortOrder = state.nodes.length * 10
+      state.nodes = [...state.nodes, node]
+      notesApi.create({ id: node.id, parentId: null, nodeType: node.type, content: '', sortOrder }).catch(() => {
+        toastStore.error('Failed to create note')
+        state.nodes = removeNodeFromTree(state.nodes, node.id)
+      })
+    }
 
     return node
   },

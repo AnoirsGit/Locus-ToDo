@@ -70,7 +70,11 @@
   }
 </script>
 
-<form onsubmit={handleSubmit} class="flex flex-col">
+<form
+  onsubmit={handleSubmit}
+  onkeydown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && title.trim()) (e.currentTarget as HTMLFormElement).requestSubmit() }}
+  class="flex flex-col"
+>
   <TaskFormFields
     bind:title bind:description bind:level bind:scheduledTime
     bind:targetDate bind:deadlineMonth bind:recurring bind:daysOfWeek bind:dayOfMonth

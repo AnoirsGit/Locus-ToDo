@@ -5,7 +5,7 @@
   import { taskStore } from '$entities/task'
   import { tasksApi } from '$entities/task'
   import { userStore } from '$entities/user'
-  import { tagStore } from '$entities/tag'
+  import { tagStore, TagFilterBar } from '$entities/tag'
   import { authApi } from '$shared/api/auth.api'
   import type { TaskView } from '$entities/task'
   import type { Snippet } from 'svelte'
@@ -38,6 +38,7 @@
   const VIEW_TAB_KEY = 'view_tab_last_view'
   const viewRoutes: Record<string, string> = { day: '/today', week: '/week', month: '/month' }
   const isViewTab = $derived(['day', 'week', 'month'].includes(currentView))
+  const isHorizonView = $derived(['day', 'week', 'month', 'year'].includes(currentView))
 
   let lastViewRoute = $state('/today')
 
@@ -108,6 +109,7 @@
       ])
 
       taskStore.setItems([...dayResults.flat(), ...week, ...month, ...year, ...backlog, ...archive])
+      tagStore.load()
       tagStore.loadTaskAssignments()
     } catch (err) {
       console.error('[layout] bootstrap error', err)
@@ -170,6 +172,27 @@
   <Sidebar {currentView} isOpen={isSidebarOpen} onClose={() => isSidebarOpen = false} />
 
   <main class="main overflow-y-auto">
+    {#if isHorizonView}
+      <nav class="desktop-horizon-tabs">
+        <a href="/today" class="horizon-tab" class:active={currentView === 'day'}>
+          {i18n.locale === 'ru' ? 'Сегодня' : 'Today'}
+        </a>
+        <a href="/week" class="horizon-tab" class:active={currentView === 'week'}>
+          {i18n.locale === 'ru' ? 'Неделя' : 'Week'}
+        </a>
+        <a href="/month" class="horizon-tab" class:active={currentView === 'month'}>
+          {i18n.locale === 'ru' ? 'Месяц' : 'Month'}
+        </a>
+        <a href="/year" class="horizon-tab" class:active={currentView === 'year'}>
+          {i18n.locale === 'ru' ? 'Год' : 'Year'}
+        </a>
+      </nav>
+    {/if}
+    {#if isHorizonView || currentView === 'backlog'}
+      <div class="tag-filter-wrap">
+        <TagFilterBar />
+      </div>
+    {/if}
     {@render children()}
   </main>
 

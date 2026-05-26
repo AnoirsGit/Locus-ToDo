@@ -12,15 +12,19 @@ class RegisterPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
+  final _nameController     = TextEditingController();
   final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameFocus          = FocusNode();
   final _emailFocus         = FocusNode();
   final _passwordFocus      = FocusNode();
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _nameFocus.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -28,6 +32,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   void _submit() {
     ref.read(authNotifierProvider.notifier).register(
+      _nameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text,
     );
@@ -78,6 +83,20 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
                   const SizedBox(height: 28),
 
+                  _FieldLabel(label: 'Имя'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _nameController,
+                    focusNode: _nameFocus,
+                    keyboardType: TextInputType.name,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    onSubmitted: (_) => _emailFocus.requestFocus(),
+                    decoration: const InputDecoration(hintText: 'Ваше имя'),
+                  ),
+
+                  const SizedBox(height: 14),
+
                   _FieldLabel(label: 'Email'),
                   const SizedBox(height: 6),
                   TextField(
@@ -118,7 +137,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : _submit,
+                      onPressed: isLoading || _nameController.text.trim().isEmpty ? null : _submit,
                       child: isLoading
                           ? const SizedBox(
                               width: 20, height: 20,

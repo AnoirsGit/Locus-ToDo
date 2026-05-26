@@ -1,5 +1,6 @@
 <script lang="ts">
   import { taskStore } from '$entities/task'
+  import { tagStore } from '$entities/tag'
   import { MONTH_NAMES_SHORT } from '$entities/task'
   import type { TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
@@ -51,21 +52,21 @@
   })
 
   const weekTasks = $derived(
-    taskStore.items.filter(
+    tagStore.filterTasks(taskStore.items.filter(
       (t) => t.level === 'week' &&
         (t.period.status === 'todo' || t.period.status === 'overdue' || t.period.status === 'done'),
-    ),
+    )),
   )
 
   const tasksByDay = $derived.by(() => {
     const map = new Map<string, TaskWithPeriod[]>()
     for (const d of weekDays) {
       const key = toISO(d)
-      map.set(key, taskStore.items.filter(
+      map.set(key, tagStore.filterTasks(taskStore.items.filter(
         (t) =>
           (t.period.status === 'todo' || t.period.status === 'overdue' || t.period.status === 'done') &&
           (t.period.targetDate === key || (t.level === 'day' && t.period.periodStart === key)),
-      ))
+      )))
     }
     return map
   })

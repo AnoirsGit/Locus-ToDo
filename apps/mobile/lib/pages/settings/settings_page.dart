@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/auth_notifier.dart';
+import '../../shared/api/tags_api.dart';
 import '../../shared/notifications/notification_prefs.dart';
 import '../../shared/notifications/notification_service.dart';
+import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/theme/theme_provider.dart';
@@ -46,12 +48,17 @@ class SettingsPage extends ConsumerWidget {
               leading: CircleAvatar(
                 backgroundColor: context.colorSurface2,
                 child: Text(
-                  user.email[0].toUpperCase(),
+                  (user.name.isNotEmpty ? user.name : user.email)[0].toUpperCase(),
                   style: TextStyle(color: context.colorBrand),
                 ),
               ),
-              title: Text(user.email, style: TextStyle(color: context.colorTextStrong)),
-              subtitle: Text('Account', style: TextStyle(color: context.colorMuted)),
+              title: Text(
+                user.name.isNotEmpty ? user.name : user.email,
+                style: TextStyle(color: context.colorTextStrong),
+              ),
+              subtitle: Text(user.email, style: TextStyle(color: context.colorMuted, fontSize: 12)),
+              trailing: Icon(Icons.edit_outlined, size: 18, color: context.colorMuted),
+              onTap: () => _showEditProfileDialog(context, ref, user.name, user.email),
             ),
             Divider(color: context.colorBorder),
           ],
@@ -109,6 +116,12 @@ class SettingsPage extends ConsumerWidget {
 
           Divider(color: context.colorBorder),
 
+          // ── Tags ───────────────────────────────────────────────────────
+          _SectionHeader(title: 'Tags'),
+          _TagManagementSection(),
+
+          Divider(color: context.colorBorder),
+
           // ── Logout ─────────────────────────────────────────────────────
           ListTile(
             leading: Icon(Icons.logout, color: context.colorDanger),
@@ -141,6 +154,54 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _showEditProfileDialog(BuildContext context, WidgetRef ref, String currentName, String currentEmail) {
+  final nameCtrl = TextEditingController(text: currentName);
+  final emailCtrl = TextEditingController(text: currentEmail);
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      title: const Text('Edit profile'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: nameCtrl,
+            decoration: const InputDecoration(labelText: 'Name'),
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: emailCtrl,
+            decoration: const InputDecoration(labelText: 'Email'),
+            keyboardType: TextInputType.emailAddress,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () async {
+            final name = nameCtrl.text.trim();
+            final email = emailCtrl.text.trim();
+            Navigator.pop(ctx);
+            await ref.read(authNotifierProvider.notifier).updateProfile(
+              name: name.isNotEmpty ? name : null,
+              email: email.isNotEmpty ? email : null,
+            );
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
 }
 
 // ── Theme option button ────────────────────────────────────────────────────────
@@ -372,6 +433,107 @@ class _LeadTimePicker extends StatelessWidget {
   String _label(int mins) {
     if (mins < 60) return '${mins}m';
     return '${mins ~/ 60}h';
+  }
+}
+
+// ── Tag management ────────────────────────────────────────────────────────────
+
+class _TagManagementSection extends ConsumerWidget {
+  const _TagManagementSection();
+
+  Color _parseColor(String? hex) {
+    if (hex == null) return Colors.grey;
+    try {
+      return Color(int.parse(hex.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return Colors.grey;
+    }
+  }
+
+  void _showCreateTagDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('New tag'),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Tag name'),
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (_) async {
+            final name = nameCtrl.text.trim();
+            if (name.isEmpty) return;
+            Navigator.pop(ctx);
+            await ref.read(tagsApiProvider).create(name);
+            await ref.read(tagStoreProvider.notifier).reload();
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+              await ref.read(tagsApiProvider).create(name);
+              await ref.read(tagStoreProvider.notifier).reload();
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tags = ref.watch(tagStoreProvider).tags;
+
+    return Column(
+      children: [
+        if (tags.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              'No tags yet',
+              style: TextStyle(fontSize: 13, color: context.colorMuted),
+            ),
+          )
+        else
+          ...tags.map((tag) => ListTile(
+                dense: true,
+                leading: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _parseColor(tag.color),
+                  ),
+                ),
+                title: Text(tag.name, style: TextStyle(fontSize: 14, color: context.colorText)),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete_outline, size: 18, color: context.colorMuted),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () async {
+                    await ref.read(tagsApiProvider).delete(tag.id);
+                    await ref.read(tagStoreProvider.notifier).reload();
+                  },
+                ),
+              )),
+        ListTile(
+          dense: true,
+          leading: Icon(Icons.add, size: 18, color: context.colorBrand),
+          title: Text('Add tag', style: TextStyle(fontSize: 14, color: context.colorBrand)),
+          onTap: () => _showCreateTagDialog(context, ref),
+        ),
+      ],
+    );
   }
 }
 

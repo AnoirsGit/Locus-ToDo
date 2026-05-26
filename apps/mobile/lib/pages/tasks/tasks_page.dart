@@ -6,6 +6,7 @@ import '../../entities/task/grouped_tasks_notifier.dart';
 import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
+import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 
 class TasksPage extends ConsumerWidget {
@@ -156,7 +157,7 @@ class TasksPage extends ConsumerWidget {
 
 // ── Body ───────────────────────────────────────────────────────────────────────
 
-class _Body extends StatelessWidget {
+class _Body extends ConsumerWidget {
   final String view;
   final GroupedTasks data;
   final bool canCreate;
@@ -174,18 +175,23 @@ class _Body extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (data.primary.isEmpty && !data.hasContext) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tagState = ref.watch(tagStoreProvider);
+    final filteredPrimary = tagState.filterTasks(data.primary, (t) => t.id);
+
+    if (filteredPrimary.isEmpty && !data.hasContext && !tagState.isFiltering) {
       return _Empty(canCreate: canCreate, onCreate: onCreate);
     }
 
     return ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 100),
       children: [
-        if (data.primary.isEmpty && canCreate)
+        if (tagState.tags.isNotEmpty)
+          _TagFilterBar(tagState: tagState, onToggle: (id) => ref.read(tagStoreProvider.notifier).toggleFilterTag(id), onClear: () => ref.read(tagStoreProvider.notifier).clearFilter()),
+        if (filteredPrimary.isEmpty && canCreate)
           _emptyPrimary(context)
         else
-          ...data.primary.map((task) => TaskCard(
+          ...filteredPrimary.map((task) => TaskCard(
                 task: task,
                 showLevel: view == 'backlog' || view == 'archive',
                 onToggle: () => onToggle(task),
@@ -341,6 +347,56 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
               : const SizedBox(width: double.infinity, height: 0),
         ),
       ],
+    );
+  }
+}
+
+// ── Tag filter bar ─────────────────────────────────────────────────────────────
+
+class _TagFilterBar extends StatelessWidget {
+  final TagStoreState tagState;
+  final void Function(String) onToggle;
+  final VoidCallback onClear;
+
+  const _TagFilterBar({required this.tagState, required this.onToggle, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          ...tagState.tags.map((tag) {
+            final active = tagState.filterTagIds.contains(tag.id);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(tag.name, style: const TextStyle(fontSize: 12)),
+                selected: active,
+                onSelected: (_) => onToggle(tag.id),
+                selectedColor: tag.color != null
+                    ? Color(int.parse(tag.color!.replaceFirst('#', '0xFF')))
+                    : context.colorBrand,
+                showCheckmark: false,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                visualDensity: VisualDensity.compact,
+              ),
+            );
+          }),
+          if (tagState.isFiltering)
+            TextButton(
+              onPressed: onClear,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text('Clear', style: TextStyle(fontSize: 12, color: context.colorMuted)),
+            ),
+        ],
+      ),
     );
   }
 }

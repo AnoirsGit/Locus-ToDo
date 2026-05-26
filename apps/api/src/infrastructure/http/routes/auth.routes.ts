@@ -23,6 +23,13 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 })
 
+const profileSchema = z.object({
+  name:  z.string().min(1).max(100).optional(),
+  email: z.string().email().optional(),
+}).refine((d) => d.name !== undefined || d.email !== undefined, {
+  message: 'At least one field required',
+})
+
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   const sign = (payload: object) =>
     fastify.jwt.sign(payload, { expiresIn: process.env.JWT_EXPIRES_IN ?? '15m' })
@@ -80,6 +87,14 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/me', { onRequest: [authenticate] }, async (req, reply) => {
     const { id } = req.user as { id: string }
     const user = await userRepository.findById(id)
+    if (!user) return reply.status(404).send({ error: 'User not found' })
+    return user
+  })
+
+  fastify.patch('/profile', { onRequest: [authenticate] }, async (req, reply) => {
+    const { id } = req.user as { id: string }
+    const input = profileSchema.parse(req.body)
+    const user = await userRepository.update(id, input)
     if (!user) return reply.status(404).send({ error: 'User not found' })
     return user
   })

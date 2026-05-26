@@ -7,9 +7,9 @@ inline editing, two views: Outline (tree) and Board (columns).
 ## Checklist
 
 - [x] Branch created: `feat/notes`
-- [ ] `entities/note/` — NoteNode types, store, mocks
-- [ ] `widgets/note-tree/` — NoteTree + NoteRow (outline view)
-- [ ] `widgets/note-board/` — NoteBoard (column view)
+- [x] `entities/note/` — NoteNode types, API-backed store, CRUD + indent/unindent/collapse
+- [x] `widgets/note-tree/` — NoteTree + NoteRow (outline view, keyboard nav, multi-select, pages/zoom)
+- [x] `widgets/note-board/` — NoteBoard (column view); uses rootNodes for page scope; async addAfter/addRoot fixed
 - [x] `pages/(app)/notes/+page.svelte` — Notes page with view toggle (route: /notes)
 - [x] Bottom nav: Archive → Notes
 - [x] `(app)/+layout.svelte` — 'docs' AppView, '/notes' route
@@ -28,7 +28,33 @@ inline editing, two views: Outline (tree) and Board (columns).
 - Backspace on empty — delete node, focus previous
 - Tab — indent (become child of previous sibling)
 - Shift+Tab — unindent (move up one level)
-- Click bullet — collapse/expand children
+- ArrowUp / ArrowDown — move focus between visible nodes
+- Shift+ArrowUp / Shift+ArrowDown — extend/shrink selection
+- Escape — clear selection
+- Click bullet (leaf node) — zoom into node as page root
+- Click bullet (parent node) — collapse/expand children
+
+## Pages (Workflowy-style zoom)
+
+- `noteStore.rootId` — the node currently acting as the page root (null = global root)
+- `noteStore.rootNodes` — visible top-level nodes (children of rootId, or all nodes)
+- `noteStore.breadcrumbs` — path array `[{id, content}]` from global root to rootId
+- `noteStore.setRoot(id)` — zoom into a node; `setRoot(null)` returns to global root
+- Breadcrumb nav rendered at top of NoteTree: Home → ancestor1 → … → current (bold)
+- Clicking any ancestor breadcrumb navigates to that level
+- `addRoot()` adds as child of rootId when inside a page
+
+## Multi-select
+
+- `noteStore.selectedIds: Set<string>` — currently selected node IDs
+- `noteStore.setSelection(ids)` / `clearSelection()` / `deleteSelected()`
+- Selection toolbar appears when `selectedIds.size > 0`: shows count + Delete + Clear (✕)
+- **Range select**: Shift+Click from anchor to clicked node (contiguous range in flat list)
+- **Toggle select**: Ctrl/Cmd+Click toggles individual node
+- **Single select**: plain Click selects only the clicked node, sets anchor
+- **Keyboard extend**: Shift+Arrow grows/shrinks selection from current focus end
+- Selected rows get `background: var(--color-brand-soft)` highlight
 
 ## Storage
-Mock data for now (same pattern as tasks). API integration later.
+API-backed: `notesApi` CRUD, debounced PATCH for content, immediate PATCH for type/collapsed/parent.
+Migration: `004_notes.sql`.

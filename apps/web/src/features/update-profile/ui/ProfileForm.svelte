@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { authApi } from '$shared/api/auth.api'
   import { userStore } from '$entities/user'
 
   const user = $derived(userStore.user)
@@ -6,13 +7,24 @@
   let name = $state(user?.name ?? '')
   let email = $state(user?.email ?? '')
   let saved = $state(false)
+  let error = $state('')
+  let loading = $state(false)
 
-  const handleSubmit = (e: SubmitEvent) => {
+  const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault()
     if (!name.trim() || !email.trim()) return
-    userStore.patch({ name: name.trim(), email: email.trim() })
-    saved = true
-    setTimeout(() => { saved = false }, 2000)
+    loading = true
+    error = ''
+    try {
+      const updated = await authApi.updateProfile({ name: name.trim(), email: email.trim() })
+      userStore.patch({ name: updated.name, email: updated.email })
+      saved = true
+      setTimeout(() => { saved = false }, 2000)
+    } catch (err: any) {
+      error = err.message ?? 'Ошибка сохранения'
+    } finally {
+      loading = false
+    }
   }
 </script>
 
@@ -42,13 +54,16 @@
   <div class="flex items-center gap-3">
     <button
       type="submit"
-      disabled={!name.trim() || !email.trim()}
+      disabled={loading || !name.trim() || !email.trim()}
       class="btn primary"
     >
-      Сохранить
+      {loading ? 'Сохраняем…' : 'Сохранить'}
     </button>
     {#if saved}
       <span class="font-mono text-[11px] text-success">Сохранено</span>
+    {/if}
+    {#if error}
+      <span class="font-mono text-[11px] text-danger">{error}</span>
     {/if}
   </div>
 </form>

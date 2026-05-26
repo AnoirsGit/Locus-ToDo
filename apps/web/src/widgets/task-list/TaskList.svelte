@@ -10,7 +10,11 @@
   type Props = { view: TaskView }
   const { view }: Props = $props()
 
-  const grouped = $derived(taskStore.getForView(view))
+  const _grouped = $derived(taskStore.getForView(view))
+  const grouped = $derived({
+    primary: tagStore.filterTasks(_grouped.primary),
+    context: _grouped.context,
+  })
 
   const canCreate = $derived(view === 'week' || view === 'month' || view === 'year')
   const defaultLevel = $derived<TaskLevel>(

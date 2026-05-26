@@ -11,6 +11,7 @@ export type IUserRepository = {
   findByEmail(email: string): Promise<UserWithHash | null>
   findById(id: string): Promise<User | null>
   create(input: CreateUserInput): Promise<User>
+  update(userId: string, patch: { name?: string; email?: string }): Promise<User | null>
   getSettings(userId: string): Promise<UserSettings>
   updateSettings(userId: string, patch: Partial<Omit<UserSettings, 'userId'>>): Promise<UserSettings>
 }
