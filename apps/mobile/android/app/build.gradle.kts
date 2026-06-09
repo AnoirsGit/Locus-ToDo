@@ -1,7 +1,8 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -16,14 +17,14 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
     }
 
     defaultConfig {
         applicationId = "com.locus.app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -34,11 +35,11 @@ android {
         create("release") {
             val keystorePropsFile = rootProject.file("key.properties")
             if (keystorePropsFile.exists()) {
-                val props = java.util.Properties()
+                val props = Properties()
                 keystorePropsFile.inputStream().use { props.load(it) }
-                keyAlias     = props["keyAlias"]     as String
-                keyPassword  = props["keyPassword"]  as String
-                storeFile    = file(props["storeFile"] as String)
+                keyAlias      = props["keyAlias"]      as String
+                keyPassword   = props["keyPassword"]   as String
+                storeFile     = file(props["storeFile"] as String)
                 storePassword = props["storePassword"] as String
             }
         }
@@ -46,12 +47,10 @@ android {
 
     buildTypes {
         release {
-            val keystorePropsFile = rootProject.file("key.properties")
-            signingConfig = if (keystorePropsFile.exists())
+            signingConfig = if (rootProject.file("key.properties").exists())
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
-            isMinifyEnabled = false
         }
     }
 }

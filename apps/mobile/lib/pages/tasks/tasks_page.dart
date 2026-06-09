@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../entities/task/task.dart';
 import '../../entities/task/grouped_tasks_notifier.dart';
@@ -77,6 +78,7 @@ class TasksPage extends ConsumerWidget {
   }
 
   AppBar _buildAppBar(BuildContext context, String view) {
+    final isHorizon = _canCreate;
     return AppBar(
       leadingWidth: 120,
       leading: Padding(
@@ -94,6 +96,20 @@ class TasksPage extends ConsumerWidget {
       title: Text(_titles[view] ?? view,
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
       actions: [
+        if (isHorizon) ...[
+          _AppBarChip(
+            icon: Icons.inbox_outlined,
+            label: 'Бэклог',
+            onTap: () => context.go('/backlog'),
+          ),
+          const SizedBox(width: 6),
+          _AppBarChip(
+            icon: Icons.archive_outlined,
+            label: 'Архив',
+            onTap: () => context.go('/archive'),
+          ),
+          const SizedBox(width: 4),
+        ],
         IconButton(icon: const Icon(Icons.menu), onPressed: AppShell.openDrawer),
         const SizedBox(width: 4),
       ],
@@ -396,6 +412,39 @@ class _TagFilterBar extends StatelessWidget {
               child: Text('Clear', style: TextStyle(fontSize: 12, color: context.colorMuted)),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ── AppBar chip button ─────────────────────────────────────────────────────────
+
+class _AppBarChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _AppBarChip({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: context.colorSurface2,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: context.colorBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: context.colorMuted),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 12, color: context.colorMuted, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }

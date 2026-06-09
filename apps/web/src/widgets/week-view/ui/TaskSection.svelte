@@ -12,14 +12,15 @@
     onEdit,
     footer,
     storageKey = '',
+    compact = false,
   } = $props<{
     title: string
     tasks: TaskWithPeriod[]
     onToggle: (id: string) => void
     onEdit?: (task: TaskWithPeriod) => void
     footer?: Snippet
-    /** Unique key for sessionStorage, e.g. "week:month". If empty, section is always open. */
     storageKey?: string
+    compact?: boolean
   }>()
 
   const collapsible = $derived(storageKey !== '')
@@ -58,7 +59,7 @@
 
   <div class="section-body" class:collapsed={!open}>
     <div class="section-body-inner">
-      <div class="task-list cards">
+      <div class="task-list cards" class:compact>
         {#each tasks as task (task.period.id)}
           <TaskCard {task} onToggle={onToggle} onEdit={onEdit} tags={tagStore.getTagsForTask(task.id)} />
         {/each}

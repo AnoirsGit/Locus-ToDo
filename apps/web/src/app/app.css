@@ -492,6 +492,8 @@
   .task-list.cards { gap: 12px; }
 }
 
+.task-list.cards.compact { gap: 8px; }
+
 .task-list.cards .task {
   width: 100%;
   padding: 12px;
@@ -502,6 +504,8 @@
   transition: all 120ms ease;
   border-bottom: 1px solid var(--color-border) !important; /* Force all-around border consistency */
 }
+
+.task-list.cards .task.level-day { padding: 8px 10px; }
 
 .task-list.cards .task:hover {
   transform: translate(-1px, -1px);
@@ -605,7 +609,7 @@
 
 .task-body { flex: 1; min-width: 0; padding-top: 1px; }
 
-.task-title { font-size: 14.5px; font-weight: 450; color: var(--color-text); line-height: 1.4; letter-spacing: -0.005em; }
+.task-title { font-size: 13px; font-weight: 450; color: var(--color-text); line-height: 1.4; letter-spacing: -0.005em; }
 
 .task-desc { font-size: 13px; color: var(--color-muted); margin-top: 2px; line-height: 1.45; }
 
