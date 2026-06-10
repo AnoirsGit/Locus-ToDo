@@ -26,13 +26,17 @@ class _FakeNotesApi extends NotesApi {
   Future<NoteDto> create({
     required String id,
     String? parentId,
+    String nodeType = 'text',
     required String content,
+    String? url,
     required int sortOrder,
   }) async =>
       NoteDto(
         id: id,
         parentId: parentId,
+        nodeType: nodeType,
         content: content,
+        url: url,
         collapsed: false,
         sortOrder: sortOrder,
         children: const [],
@@ -41,9 +45,11 @@ class _FakeNotesApi extends NotesApi {
   @override
   Future<void> update(
     String id, {
+    String? nodeType,
     String? content,
     bool? collapsed,
     Object? parentId,
+    Object? url,
     int? sortOrder,
   }) async {
     updates.add((id: id, content: content));
@@ -83,12 +89,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, 'Beta'), findsOneWidget);
 
-    // Delete it via the row's actions sheet.
+    // Delete it via the row's actions sheet (test locale is en).
     await tester.tap(find.byIcon(Icons.more_horiz).at(1));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Удалить'));
+    await tester.ensureVisible(find.text('Delete'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Удалить'));
+    await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 
     expect(api.deletes, ['b']);
