@@ -1,0 +1,284 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/api/notes_api.dart';
+import 'note_node.dart';
+
+class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
+  late NotesApi _api;
+  final Map<String, Timer> _debounceTimers = {};
+
+  @override
+  Future<List<NoteNode>> build() async {
+    _api = ref.read(notesApiProvider);
+    final dtos = await _api.list();
+    return dtos.map(NoteNode.fromDto).toList();
+  }
+
+  List<NoteNode> get _nodes => state.value ?? [];
+
+  // ── Tree helpers ─────────────────────────────────────────────────────────
+
+  List<NoteNode> _mapNodes(
+    List<NoteNode> nodes,
+    String id,
+    NoteNode Function(NoteNode) fn,
+  ) =>
+      nodes
+          .map((n) => n.id == id
+              ? fn(n)
+              : n.copyWith(children: _mapNodes(n.children, id, fn)))
+          .toList();
+
+  List<NoteNode> _removeNode(List<NoteNode> nodes, String id) => nodes
+      .where((n) => n.id != id)
+      .map((n) => n.copyWith(children: _removeNode(n.children, id)))
+      .toList();
+
+  NoteNode? _findNode(List<NoteNode> nodes, String id) {
+    for (final n in nodes) {
+      if (n.id == id) return n;
+      final found = _findNode(n.children, id);
+      if (found != null) return found;
+    }
+    return null;
+  }
+
+  List<NoteNode>? _findPath(List<NoteNode> nodes, String targetId) {
+    for (final n in nodes) {
+      if (n.id == targetId) return [n];
+      final sub = _findPath(n.children, targetId);
+      if (sub != null) return [n, ...sub];
+    }
+    return null;
+  }
+
+  /// (found, parentId) — parentId is null for root-level nodes.
+  (bool, String?) _findParent(List<NoteNode> nodes, String id, [String? parent]) {
+    for (final n in nodes) {
+      if (n.id == id) return (true, parent);
+      final sub = _findParent(n.children, id, n.id);
+      if (sub.$1) return sub;
+    }
+    return (false, null);
+  }
+
+  List<NoteNode> _siblingsOf(String? parentId) =>
+      parentId == null ? _nodes : (_findNode(_nodes, parentId)?.children ?? []);
+
+  Iterable<String> _subtreeIds(NoteNode node) sync* {
+    yield node.id;
+    for (final child in node.children) {
+      yield* _subtreeIds(child);
+    }
+  }
+
+  // ── Computed views ────────────────────────────────────────────────────────
+
+  List<NoteNode> visibleRoots(String? rootId) {
+    if (rootId == null) return _nodes;
+    return _findNode(_nodes, rootId)?.children ?? [];
+  }
+
+  List<({String id, String content})> breadcrumbs(String? rootId) {
+    if (rootId == null) return [];
+    final path = _findPath(_nodes, rootId);
+    return path?.map((n) => (id: n.id, content: n.content)).toList() ?? [];
+  }
+
+  ({int index, int count, bool isRoot})? siblingInfo(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return null;
+    final siblings = _siblingsOf(parentId);
+    return (
+      index: siblings.indexWhere((n) => n.id == id),
+      count: siblings.length,
+      isRoot: parentId == null,
+    );
+  }
+
+  int descendantCount(String id) {
+    final node = _findNode(_nodes, id);
+    return node == null ? 0 : _subtreeIds(node).length - 1;
+  }
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
+  void toggleCollapse(String id) {
+    final target = _findNode(_nodes, id);
+    if (target == null) return;
+    final collapsed = !target.collapsed;
+    state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(collapsed: collapsed)));
+    _api.update(id, collapsed: collapsed).catchError((_) {});
+  }
+
+  void addChild(String parentId) {
+    final fresh = NoteNode(id: generateUuid(), type: NoteNodeType.bullet);
+    final parentNode = _findNode(_nodes, parentId);
+    final sortOrder = (parentNode?.children.length ?? 0) * 10;
+
+    state = AsyncData(_mapNodes(_nodes, parentId, (n) => n.copyWith(
+          collapsed: false,
+          children: [...n.children, fresh],
+        )));
+
+    _api
+        .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
+        .ignore();
+  }
+
+  void addRoot({String? underRootId}) {
+    if (underRootId != null) {
+      addChild(underRootId);
+      return;
+    }
+    final fresh = NoteNode(id: generateUuid());
+    final sortOrder = _nodes.length * 10;
+    state = AsyncData([..._nodes, fresh]);
+    _api
+        .create(id: fresh.id, parentId: null, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
+        .ignore();
+  }
+
+  void addAfter(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+    final fresh = NoteNode(id: generateUuid(), type: NoteNodeType.bullet);
+
+    if (parentId == null) {
+      state = AsyncData([..._nodes]..insert(idx + 1, fresh));
+    } else {
+      state = AsyncData(_mapNodes(_nodes, parentId, (n) => n.copyWith(
+            children: [...n.children]..insert(idx + 1, fresh),
+          )));
+    }
+    _api
+        .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: (idx + 1) * 10)
+        .ignore();
+  }
+
+  void indent(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+    if (idx < 1) return;
+
+    final node = siblings[idx];
+    final prev = siblings[idx - 1];
+    final sortOrder = prev.children.length * 10;
+
+    var nodes = _removeNode(_nodes, id);
+    nodes = _mapNodes(nodes, prev.id, (n) => n.copyWith(
+          collapsed: false,
+          children: [...n.children, node],
+        ));
+    state = AsyncData(nodes);
+
+    _api.update(id, parentId: prev.id, sortOrder: sortOrder).catchError((_) {});
+  }
+
+  void unindent(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found || parentId == null) return;
+    final (_, grandParentId) = _findParent(_nodes, parentId);
+    final node = _findNode(_nodes, id);
+    if (node == null) return;
+
+    var nodes = _removeNode(_nodes, id);
+    List<NoteNode> insertAfterParent(List<NoteNode> list) {
+      final i = list.indexWhere((n) => n.id == parentId);
+      if (i != -1) return [...list]..insert(i + 1, node);
+      return list
+          .map((n) => n.copyWith(children: insertAfterParent(n.children)))
+          .toList();
+    }
+
+    nodes = insertAfterParent(nodes);
+    state = AsyncData(nodes);
+
+    final gpList = grandParentId == null ? nodes : (_findNode(nodes, grandParentId)?.children ?? []);
+    final parentIdx = gpList.indexWhere((n) => n.id == parentId);
+    _api.update(id, parentId: grandParentId, sortOrder: (parentIdx + 1) * 10).catchError((_) {});
+  }
+
+  void moveUp(String id) => _moveSibling(id, -1);
+  void moveDown(String id) => _moveSibling(id, 1);
+
+  void _moveSibling(String id, int delta) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+    final target = idx + delta;
+    if (idx < 0 || target < 0 || target >= siblings.length) return;
+
+    final reordered = [...siblings];
+    final tmp = reordered[idx];
+    reordered[idx] = reordered[target];
+    reordered[target] = tmp;
+
+    if (parentId == null) {
+      state = AsyncData(reordered);
+    } else {
+      state = AsyncData(_mapNodes(_nodes, parentId, (n) => n.copyWith(children: reordered)));
+    }
+    for (final i in [idx, target]) {
+      _api.update(reordered[i].id, sortOrder: i * 10).catchError((_) {});
+    }
+  }
+
+  void updateContent(String id, String content) {
+    state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(content: content)));
+
+    _debounceTimers[id]?.cancel();
+    _debounceTimers[id] = Timer(const Duration(milliseconds: 600), () {
+      _api.update(id, content: content).catchError((_) {});
+      _debounceTimers.remove(id);
+    });
+  }
+
+  void updateType(String id, NoteNodeType type) {
+    state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(type: type)));
+    _api.update(id, nodeType: type.api).catchError((_) {});
+  }
+
+  void updateUrl(String id, String? url) {
+    final normalized = (url == null || url.trim().isEmpty) ? null : url.trim();
+    state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(url: normalized)));
+    _api.update(id, url: normalized).catchError((_) {});
+  }
+
+  // Cancel pending content saves for the node and all its descendants,
+  // otherwise a debounced PATCH can fire after the DELETE and 404.
+  void _cancelDebounce(String id) {
+    final node = _findNode(_nodes, id);
+    final ids = node == null ? [id] : _subtreeIds(node);
+    for (final nodeId in ids) {
+      _debounceTimers.remove(nodeId)?.cancel();
+    }
+  }
+
+  void removeNote(String id) {
+    _cancelDebounce(id);
+    state = AsyncData(_removeNode(_nodes, id));
+    _api.delete(id).catchError((_) {});
+  }
+
+  void deleteMultiple(Set<String> ids) {
+    var nodes = _nodes;
+    for (final id in ids) {
+      _cancelDebounce(id);
+      nodes = _removeNode(nodes, id);
+    }
+    state = AsyncData(nodes);
+    for (final id in ids) {
+      _api.delete(id).catchError((_) {});
+    }
+  }
+}
+
+final notesProvider = AsyncNotifierProvider<NotesNotifier, List<NoteNode>>(
+  NotesNotifier.new,
+);
