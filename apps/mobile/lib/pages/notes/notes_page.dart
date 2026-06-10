@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/api/notes_api.dart';
 import '../../pages/app_shell.dart';
@@ -27,50 +28,6 @@ NoteNode _dtoToNode(NoteDto dto) => NoteNode(
       collapsed: dto.collapsed,
       children: dto.children.map(_dtoToNode).toList(),
     );
-
-// ── UI state (zoom + selection) ───────────────────────────────────────────────
-
-class NotesUiState {
-  final String? rootId;
-  final Set<String> selectedIds;
-
-  const NotesUiState({this.rootId, this.selectedIds = const {}});
-
-  bool get isSelecting => selectedIds.isNotEmpty;
-
-  NotesUiState copyWith({String? rootId, bool clearRoot = false, Set<String>? selectedIds}) =>
-      NotesUiState(
-        rootId: clearRoot ? null : (rootId ?? this.rootId),
-        selectedIds: selectedIds ?? this.selectedIds,
-      );
-}
-
-class NotesUiNotifier extends StateNotifier<NotesUiState> {
-  NotesUiNotifier() : super(const NotesUiState());
-
-  void setRoot(String? id) => state = NotesUiState(
-        rootId: id,
-        selectedIds: const {},
-      );
-
-  void startSelect(String id) => state = state.copyWith(selectedIds: {id});
-
-  void toggleSelect(String id) {
-    final next = Set<String>.from(state.selectedIds);
-    if (next.contains(id)) {
-      next.remove(id);
-    } else {
-      next.add(id);
-    }
-    state = state.copyWith(selectedIds: next);
-  }
-
-  void clearSelection() => state = state.copyWith(selectedIds: const {});
-}
-
-final notesUiProvider = StateNotifierProvider<NotesUiNotifier, NotesUiState>(
-  (_) => NotesUiNotifier(),
-);
 
 // ── Notifier ──────────────────────────────────────────────────────────────────
 
@@ -242,32 +199,77 @@ final notesProvider = AsyncNotifierProvider<NotesNotifier, List<NoteNode>>(
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-class NotesPage extends ConsumerWidget {
-  const NotesPage({super.key});
+class NotesPage extends ConsumerStatefulWidget {
+  /// Zoomed note id from the route (`/notes/:id`); null on the root page.
+  final String? rootId;
+
+  const NotesPage({super.key, this.rootId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotesPage> createState() => _NotesPageState();
+}
+
+class _NotesPageState extends ConsumerState<NotesPage> {
+  // Selection is per-page so it never leaks between stacked zoom pages.
+  Set<String> _selectedIds = {};
+
+  void _startSelect(String id) => setState(() => _selectedIds = {id});
+
+  void _toggleSelect(String id) {
+    final next = Set<String>.from(_selectedIds);
+    if (!next.remove(id)) next.add(id);
+    setState(() => _selectedIds = next);
+  }
+
+  void _clearSelection() => setState(() => _selectedIds = {});
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(notesProvider);
-    final uiState = ref.watch(notesUiProvider);
     final notifier = ref.read(notesProvider.notifier);
-    final uiNotifier = ref.read(notesUiProvider.notifier);
+    final rootId = widget.rootId;
+    final isZoomed = rootId != null;
+    final crumbs = state.hasValue
+        ? notifier.breadcrumbs(rootId)
+        : <({String id, String content})>[];
+
+    // Stale deep link: the zoomed note no longer exists → back to the root page.
+    if (isZoomed && state.hasValue && crumbs.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/notes');
+      });
+    }
+
+    final zoomedTitle = crumbs.isNotEmpty && crumbs.last.content.isNotEmpty
+        ? crumbs.last.content
+        : 'Без названия';
 
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 120,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text('Locus', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, fontFamily: 'Inter', color: context.colorTextStrong)),
-              const SizedBox(width: 5),
-              Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: context.colorBrand)),
-            ],
-          ),
+        leadingWidth: isZoomed ? null : 120,
+        leading: isZoomed
+            ? BackButton(
+                onPressed: () => context.canPop()
+                    ? context.pop()
+                    : context.go('/notes'),
+              )
+            : Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text('Locus', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, fontFamily: 'Inter', color: context.colorTextStrong)),
+                    const SizedBox(width: 5),
+                    Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: context.colorBrand)),
+                  ],
+                ),
+              ),
+        title: Text(
+          isZoomed ? zoomedTitle : 'Заметки',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText),
+          overflow: TextOverflow.ellipsis,
         ),
-        title: Text('Заметки', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
         actions: [
           IconButton(icon: const Icon(Icons.menu), onPressed: AppShell.openDrawer),
           const SizedBox(width: 4),
@@ -289,35 +291,34 @@ class NotesPage extends ConsumerWidget {
           ),
         ),
         data: (allNodes) {
-          final roots = notifier.visibleRoots(uiState.rootId);
-          final crumbs = notifier.breadcrumbs(uiState.rootId);
+          final roots = notifier.visibleRoots(rootId);
 
           return Column(
             children: [
               // Breadcrumbs
-              if (uiState.rootId != null)
+              if (isZoomed)
                 _BreadcrumbBar(
                   crumbs: crumbs,
-                  onHome: () => uiNotifier.setRoot(null),
-                  onCrumb: (id) => uiNotifier.setRoot(id),
+                  onHome: () => context.go('/notes'),
+                  onCrumb: (id) => context.go('/notes/$id'),
                 ),
 
               // Multi-select toolbar
-              if (uiState.isSelecting)
+              if (_selectedIds.isNotEmpty)
                 _SelectionBar(
-                  count: uiState.selectedIds.length,
+                  count: _selectedIds.length,
                   onDelete: () {
-                    notifier.deleteMultiple(uiState.selectedIds);
-                    uiNotifier.clearSelection();
+                    notifier.deleteMultiple(_selectedIds);
+                    _clearSelection();
                   },
-                  onClear: uiNotifier.clearSelection,
+                  onClear: _clearSelection,
                 ),
 
               // Note tree
               Expanded(
                 child: roots.isEmpty
                     ? _emptyState(context, canAdd: true,
-                        onAdd: () => notifier.addRoot(underRootId: uiState.rootId))
+                        onAdd: () => notifier.addRoot(underRootId: rootId))
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(0, 4, 0, 80),
                         itemCount: roots.length,
@@ -326,10 +327,10 @@ class NotesPage extends ConsumerWidget {
                           node: roots[i],
                           depth: 0,
                           notifier: notifier,
-                          uiState: uiState,
-                          onSelect: uiNotifier.toggleSelect,
-                          onLongPress: uiNotifier.startSelect,
-                          onZoom: uiNotifier.setRoot,
+                          selectedIds: _selectedIds,
+                          onSelect: _toggleSelect,
+                          onLongPress: _startSelect,
+                          onZoom: (id) => context.push('/notes/$id'),
                         ),
                       ),
               ),
@@ -338,11 +339,7 @@ class NotesPage extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final uiState = ref.read(notesUiProvider);
-          final notifier = ref.read(notesProvider.notifier);
-          notifier.addRoot(underRootId: uiState.rootId);
-        },
+        onPressed: () => ref.read(notesProvider.notifier).addRoot(underRootId: rootId),
         backgroundColor: context.colorBrand,
         foregroundColor: Colors.white,
         elevation: 2,
@@ -515,7 +512,7 @@ class _NoteRow extends StatefulWidget {
   final NoteNode node;
   final int depth;
   final NotesNotifier notifier;
-  final NotesUiState uiState;
+  final Set<String> selectedIds;
   final void Function(String) onSelect;
   final void Function(String) onLongPress;
   final void Function(String) onZoom;
@@ -525,7 +522,7 @@ class _NoteRow extends StatefulWidget {
     required this.node,
     required this.depth,
     required this.notifier,
-    required this.uiState,
+    required this.selectedIds,
     required this.onSelect,
     required this.onLongPress,
     required this.onZoom,
@@ -592,8 +589,8 @@ class _NoteRowState extends State<_NoteRow> {
     final node = widget.node;
     final hasChildren = node.children.isNotEmpty;
     final indent = widget.depth * 20.0;
-    final isSelected = widget.uiState.selectedIds.contains(node.id);
-    final isSelecting = widget.uiState.isSelecting;
+    final isSelected = widget.selectedIds.contains(node.id);
+    final isSelecting = widget.selectedIds.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,7 +699,7 @@ class _NoteRowState extends State<_NoteRow> {
                 node: child,
                 depth: widget.depth + 1,
                 notifier: widget.notifier,
-                uiState: widget.uiState,
+                selectedIds: widget.selectedIds,
                 onSelect: widget.onSelect,
                 onLongPress: widget.onLongPress,
                 onZoom: widget.onZoom,

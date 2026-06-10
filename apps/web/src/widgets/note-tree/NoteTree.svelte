@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation'
   import { noteStore } from '$entities/note'
   import NoteRow from './NoteRow.svelte'
 
@@ -95,7 +96,7 @@
   <!-- Breadcrumb navigation -->
   {#if noteStore.rootId}
     <nav class="note-breadcrumb">
-      <button class="note-crumb note-crumb-home" onclick={() => noteStore.setRoot(null)}>
+      <button class="note-crumb note-crumb-home" onclick={() => goto('/notes')}>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M1 6L6 1.5L11 6V11H7.5V8H4.5V11H1V6Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
         </svg>
@@ -104,7 +105,7 @@
       {#each crumbs as crumb, i}
         <span class="note-crumb-sep">›</span>
         {#if i < crumbs.length - 1}
-          <button class="note-crumb" onclick={() => noteStore.setRoot(crumb.id)}>
+          <button class="note-crumb" onclick={() => goto(`/notes/${crumb.id}`)}>
             {crumb.content || 'Untitled'}
           </button>
         {:else}
@@ -139,7 +140,7 @@
         onFocusMove={handleFocusMove}
         onSelectExtend={handleSelectExtend}
         onSelect={handleSelect}
-        onZoom={(id) => noteStore.setRoot(id)}
+        onZoom={(id) => goto(`/notes/${id}`)}
       />
     {/each}
 
