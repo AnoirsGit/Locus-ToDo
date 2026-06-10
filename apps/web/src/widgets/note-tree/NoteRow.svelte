@@ -69,6 +69,23 @@
       return
     }
 
+    // Delete selected nodes (not just text): multi-selection, or this row's
+    // text fully selected. Plain click-to-edit keeps normal text editing.
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      const input = e.target as HTMLInputElement
+      const fullySelected =
+        input.value.length > 0 &&
+        input.selectionStart === 0 &&
+        input.selectionEnd === input.value.length
+      const inSelection = noteStore.selectedIds.has(node.id)
+      if (inSelection && (noteStore.selectedIds.size > 1 || fullySelected)) {
+        e.preventDefault()
+        noteStore.deleteSelected()
+        onFocusChange(null)
+        return
+      }
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault()
       noteStore.addAfter(node.id).then(newNode => onFocusChange(newNode.id))

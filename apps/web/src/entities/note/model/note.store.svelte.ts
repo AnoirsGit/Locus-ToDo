@@ -76,6 +76,30 @@ const debounce = (key: string, fn: () => void, ms = 600) => {
   debounceMap.set(key, setTimeout(() => { fn(); debounceMap.delete(key) }, ms))
 }
 
+const collectSubtreeIds = (node: NoteNode): string[] =>
+  [node.id, ...node.children.flatMap(collectSubtreeIds)]
+
+// Cancel pending content saves for the node and all its descendants,
+// otherwise a debounced PATCH can fire after the DELETE and 404.
+const cancelContentDebounce = (nodes: NoteNode[], id: string) => {
+  const target = findNodeById(nodes, id)
+  const ids = target ? collectSubtreeIds(target) : [id]
+  for (const nodeId of ids) {
+    const key = `content:${nodeId}`
+    clearTimeout(debounceMap.get(key))
+    debounceMap.delete(key)
+  }
+}
+
+// In-flight optimistic creates: a DELETE issued before the POST resolves
+// would 404 and the INSERT would land after, leaving a ghost note.
+const pendingCreates = new Map<string, Promise<unknown>>()
+
+const trackCreate = (id: string, promise: Promise<unknown>) => {
+  pendingCreates.set(id, promise)
+  promise.finally(() => pendingCreates.delete(id))
+}
+
 // ─── Store ─────────────────────────────────────────────────────────────────
 
 type State = {
@@ -139,10 +163,14 @@ export const noteStore = {
     state.selectedIds = new Set()
     let nodes = state.nodes
     for (const id of ids) {
+      cancelContentDebounce(nodes, id)
       nodes = removeNodeFromTree(nodes, id)
     }
     state.nodes = nodes
-    await Promise.all(ids.map(id => notesApi.delete(id).catch(() => {})))
+    await Promise.all(ids.map(async id => {
+      await pendingCreates.get(id)
+      await notesApi.delete(id).catch(() => {})
+    }))
   },
 
   // ── Init ─────────────────────────────────────────────────────────────────
@@ -196,10 +224,10 @@ export const noteStore = {
     }
     state.nodes = insert(state.nodes)
 
-    notesApi.create({ id: node.id, parentId, nodeType: node.type, content: '', sortOrder }).catch(() => {
+    trackCreate(node.id, notesApi.create({ id: node.id, parentId, nodeType: node.type, content: '', sortOrder }).catch(() => {
       toastStore.error('Failed to create note')
       state.nodes = removeNodeFromTree(state.nodes, node.id)
-    })
+    }))
 
     return node
   },
@@ -209,11 +237,18 @@ export const noteStore = {
     const flat = flattenTree(state.nodes)
     const idx = flat.findIndex(f => f.node.id === id)
     const focusId = idx > 0 ? flat[idx - 1].node.id : null
+    cancelContentDebounce(state.nodes, id)
     state.nodes = removeNodeFromTree(state.nodes, id)
 
-    notesApi.delete(id).catch(() => {
+    const pending = pendingCreates.get(id)
+    const doDelete = () => notesApi.delete(id).catch(() => {
       toastStore.error('Failed to delete note')
     })
+    if (pending) {
+      pending.then(doDelete)
+    } else {
+      doDelete()
+    }
 
     return focusId
   },
@@ -301,17 +336,17 @@ export const noteStore = {
       state.nodes = updateNodeInTree(state.nodes, state.rootId, {
         children: [...(rootNode?.children ?? []), node],
       })
-      notesApi.create({ id: node.id, parentId: state.rootId, nodeType: node.type, content: '', sortOrder }).catch(() => {
+      trackCreate(node.id, notesApi.create({ id: node.id, parentId: state.rootId, nodeType: node.type, content: '', sortOrder }).catch(() => {
         toastStore.error('Failed to create note')
         state.nodes = removeNodeFromTree(state.nodes, node.id)
-      })
+      }))
     } else {
       const sortOrder = state.nodes.length * 10
       state.nodes = [...state.nodes, node]
-      notesApi.create({ id: node.id, parentId: null, nodeType: node.type, content: '', sortOrder }).catch(() => {
+      trackCreate(node.id, notesApi.create({ id: node.id, parentId: null, nodeType: node.type, content: '', sortOrder }).catch(() => {
         toastStore.error('Failed to create note')
         state.nodes = removeNodeFromTree(state.nodes, node.id)
-      })
+      }))
     }
 
     return node

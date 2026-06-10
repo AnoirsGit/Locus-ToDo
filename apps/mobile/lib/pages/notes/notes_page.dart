@@ -200,7 +200,25 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     });
   }
 
+  Iterable<String> _subtreeIds(NoteNode node) sync* {
+    yield node.id;
+    for (final child in node.children) {
+      yield* _subtreeIds(child);
+    }
+  }
+
+  // Cancel pending content saves for the node and all its descendants,
+  // otherwise a debounced PATCH can fire after the DELETE and 404.
+  void _cancelDebounce(String id) {
+    final node = _findNode(_nodes, id);
+    final ids = node == null ? [id] : _subtreeIds(node);
+    for (final nodeId in ids) {
+      _debounceTimers.remove(nodeId)?.cancel();
+    }
+  }
+
   void removeNote(String id) {
+    _cancelDebounce(id);
     state = AsyncData(_removeNode(_nodes, id));
     _api.delete(id).catchError((_) {});
   }
@@ -208,6 +226,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
   void deleteMultiple(Set<String> ids) {
     var nodes = _nodes;
     for (final id in ids) {
+      _cancelDebounce(id);
       nodes = _removeNode(nodes, id);
     }
     state = AsyncData(nodes);
@@ -303,6 +322,7 @@ class NotesPage extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(0, 4, 0, 80),
                         itemCount: roots.length,
                         itemBuilder: (ctx, i) => _NoteRow(
+                          key: ValueKey(roots[i].id),
                           node: roots[i],
                           depth: 0,
                           notifier: notifier,
@@ -501,6 +521,7 @@ class _NoteRow extends StatefulWidget {
   final void Function(String) onZoom;
 
   const _NoteRow({
+    super.key,
     required this.node,
     required this.depth,
     required this.notifier,
@@ -532,6 +553,17 @@ class _NoteRowState extends State<_NoteRow> {
   }
 
   @override
+  void didUpdateWidget(covariant _NoteRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If this State ever gets reused for a different node, drop the stale
+    // controller text so _commit can't write it onto the new node.
+    if (oldWidget.node.id != widget.node.id) {
+      _ctrl.text = widget.node.content;
+      _editing = false;
+    }
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
     _focusNode.dispose();
@@ -549,8 +581,10 @@ class _NoteRowState extends State<_NoteRow> {
   }
 
   void _commit() {
-    widget.notifier.updateContent(widget.node.id, _ctrl.text);
-    setState(() => _editing = false);
+    if (_ctrl.text != widget.node.content) {
+      widget.notifier.updateContent(widget.node.id, _ctrl.text);
+    }
+    if (mounted) setState(() => _editing = false);
   }
 
   @override
@@ -664,6 +698,7 @@ class _NoteRowState extends State<_NoteRow> {
         ),
         if (!node.collapsed && hasChildren)
           ...node.children.map((child) => _NoteRow(
+                key: ValueKey(child.id),
                 node: child,
                 depth: widget.depth + 1,
                 notifier: widget.notifier,
