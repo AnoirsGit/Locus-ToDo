@@ -1,5 +1,6 @@
 <script lang="ts">
   import { taskStore, TaskCard } from '$entities/task'
+  import { tagStore } from '$entities/tag'
   import { i18n } from '$shared/lib/i18n'
   import type { TaskView, TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
@@ -9,7 +10,11 @@
   type Props = { view: TaskView }
   const { view }: Props = $props()
 
-  const grouped = $derived(taskStore.getForView(view))
+  const _grouped = $derived(taskStore.getForView(view))
+  const grouped = $derived({
+    primary: tagStore.filterTasks(_grouped.primary),
+    context: _grouped.context,
+  })
 
   const canCreate = $derived(view === 'week' || view === 'month' || view === 'year')
   const defaultLevel = $derived<TaskLevel>(
@@ -63,11 +68,25 @@
       <div class="page-eyebrow">{eyebrow} </div>
       <h1 class="page-title"><em>{title}</em></h1>
     </div>
-    {#if canCreate}
-      <div class="page-actions">
+    <div class="page-actions">
+      {#if canCreate}
+        <a href="/backlog" class="btn">
+          <svg viewBox="0 0 16 16" fill="none" style="width:13px;height:13px;flex-shrink:0">
+            <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          Бэклог
+        </a>
+        <a href="/archive" class="btn">
+          <svg viewBox="0 0 16 16" fill="none" style="width:13px;height:13px;flex-shrink:0">
+            <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M1.5 6.5h13" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M6 9.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          Архив
+        </a>
         <button class="btn primary" onclick={openCreate}>+ Add task</button>
-      </div>
-    {/if}
+      {/if}
+    </div>
   </div>
 
   {#if taskStore.loading}
@@ -84,6 +103,7 @@
               onToggle={toggleTask}
               onEdit={(t) => { modal = { mode: 'edit', task: t } }}
               showLevel={view === 'backlog' || view === 'archive'}
+              tags={tagStore.getTagsForTask(task.id)}
             />
           {/each}
         {:else}
@@ -108,6 +128,7 @@
           storageKey="{view}:{key}"
           onToggle={toggleTask}
           onEdit={(t) => { modal = { mode: 'edit', task: t } }}
+          compact={key === 'week'}
         />
       {/if}
     {/each}

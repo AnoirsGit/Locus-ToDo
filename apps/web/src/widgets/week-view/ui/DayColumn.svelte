@@ -2,6 +2,7 @@
   import { TaskCard } from '$entities/task';
   import type { TaskWithPeriod } from '$entities/task';
   import { DAY_NAMES_SHORT } from '$entities/task';
+  import { tagStore } from '$entities/tag';
 
   let { 
     day, 
@@ -53,6 +54,7 @@
         onToggle={onToggle}
         onEdit={onEdit}
         showLevel={false}
+        tags={tagStore.getTagsForTask(task.id)}
       />
     {/each}
 

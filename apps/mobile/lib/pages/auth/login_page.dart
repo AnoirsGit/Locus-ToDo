@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../features/auth/auth_notifier.dart';
 import '../../shared/theme/theme.dart';
 
@@ -38,59 +39,45 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final isLoading = authState.isLoading;
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                         MediaQuery.of(context).padding.top -
-                         MediaQuery.of(context).padding.bottom,
-            ),
-            child: IntrinsicHeight(
+      body: Column(
+        children: [
+          // ── Hero (mirrors web left panel) ────────────────────────────────
+          _HeroPanel(),
+
+          // ── Form section (mirrors web right panel) ───────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 72),
+                  const SizedBox(height: 36),
 
-                  // ── Brand ───────────────────────────────────────────────
-                  Row(
-                    children: [
-                      Text(
-                        'Locus',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 32,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? AppColors.textStrongDark
-                              : AppColors.textStrongLight,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 6, height: 6,
-                        decoration: BoxDecoration(
-                          color: AppColors.yearDark,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                  // Title
                   Text(
-                    'Sign in to continue',
+                    'С возвращением.',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? AppColors.mutedDark
-                          : AppColors.mutedLight,
+                      fontFamilyFallback: const ['Georgia', 'serif'],
+                      fontStyle: FontStyle.italic,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -0.6,
+                      color: context.colorTextStrong,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Войдите, чтобы продолжить.',
+                    style: TextStyle(
+                      fontFamilyFallback: const ['Georgia', 'serif'],
+                      fontStyle: FontStyle.italic,
+                      fontSize: 15,
+                      color: context.colorMuted,
                     ),
                   ),
 
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 28),
 
                   // ── Email ────────────────────────────────────────────────
                   _FieldLabel(label: 'Email'),
@@ -102,15 +89,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     enableSuggestions: false,
-                    onTap: () => _emailFocus.requestFocus(),
                     onSubmitted: (_) => _passwordFocus.requestFocus(),
                     decoration: const InputDecoration(hintText: 'you@example.com'),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
                   // ── Password ─────────────────────────────────────────────
-                  _FieldLabel(label: 'Password'),
+                  _FieldLabel(label: 'Пароль'),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _passwordController,
@@ -121,19 +107,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     decoration: const InputDecoration(hintText: '••••••••'),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
 
                   // ── Error ────────────────────────────────────────────────
                   if (authState.hasError)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                         authState.error.toString(),
-                        style: const TextStyle(
-                          color: AppColors.dangerDark,
-                          fontSize: 13,
-                        ),
-                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.colorDanger, fontSize: 13),
                       ),
                     ),
 
@@ -150,21 +132,145 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Sign in'),
+                          : const Text('Войти'),
                     ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(height: 18),
+
+                  // ── Footer ───────────────────────────────────────────────
+                  GestureDetector(
+                    onTap: () => context.go('/register'),
+                    child: Text.rich(
+                      TextSpan(
+                        text: 'Нет аккаунта? ',
+                        style: TextStyle(fontSize: 13, color: context.colorMuted),
+                        children: [
+                          TextSpan(
+                            text: 'Зарегистрироваться',
+                            style: TextStyle(
+                              color: context.colorTextStrong,
+                              decoration: TextDecoration.underline,
+                              decorationColor: context.colorBorder2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 32),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
+
+// ── Hero panel ────────────────────────────────────────────────────────────────
+
+class _HeroPanel extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final heroBg    = context.isDark ? AppColors.surfaceDark     : AppColors.textStrongLight;
+    final heroText  = context.isDark ? AppColors.textStrongDark  : AppColors.backgroundLight;
+    final accentClr = context.isDark ? AppColors.brand2Dark      : AppColors.yearSoftLight;
+    final logoBg    = context.isDark ? AppColors.brandSoftDark   : AppColors.backgroundLight;
+    final logoText  = context.isDark ? AppColors.brandDark       : AppColors.textStrongLight;
+
+    return Container(
+      width: double.infinity,
+      color: heroBg,
+      padding: EdgeInsets.fromLTRB(
+        28,
+        MediaQuery.of(context).padding.top + 40,
+        28,
+        36,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Brand row
+          Row(
+            children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: logoBg,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'L',
+                  style: TextStyle(
+                    fontFamilyFallback: const ['Georgia', 'serif'],
+                    fontStyle: FontStyle.italic,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: logoText,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Locus',
+                style: TextStyle(
+                  fontFamilyFallback: const ['Georgia', 'serif'],
+                  fontStyle: FontStyle.italic,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.5,
+                  color: heroText,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 28),
+
+          // Pull quote
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamilyFallback: const ['Georgia', 'serif'],
+                fontSize: 24,
+                fontWeight: FontWeight.w400,
+                height: 1.25,
+                letterSpacing: -0.4,
+                color: heroText,
+              ),
+              children: [
+                const TextSpan(text: 'Дисциплина — это не наказание.\nЭто тихая привилегия\n'),
+                TextSpan(
+                  text: 'выбирать то, что ты оставишь.',
+                  style: TextStyle(color: accentClr),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Tagline
+          Text(
+            '© 2026 — ИНСТРУМЕНТ САМОДИСЦИПЛИНЫ',
+            style: TextStyle(
+              fontFamily: 'RobotoMono',
+              fontSize: 9,
+              letterSpacing: 1.2,
+              color: heroText.withAlpha(120),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Field label ───────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String label;
@@ -177,9 +283,7 @@ class _FieldLabel extends StatelessWidget {
       fontSize: 12,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.04,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? AppColors.mutedDark
-          : AppColors.mutedLight,
+      color: context.colorMuted,
     ),
   );
 }

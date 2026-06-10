@@ -7,9 +7,7 @@ import '../../shared/notifications/notification_service.dart';
 import '../../shared/notifications/notification_prefs.dart';
 import 'task.dart';
 
-class TasksNotifier extends AsyncNotifier<List<TaskWithPeriod>> {
-  final String? view;
-  TasksNotifier({this.view});
+class TasksNotifier extends FamilyAsyncNotifier<List<TaskWithPeriod>, String?> {
 
   AppDatabase       get _db     => ref.read(appDatabaseProvider);
   LocalTaskRepository get _local => ref.read(localTaskRepositoryProvider);
@@ -17,7 +15,7 @@ class TasksNotifier extends AsyncNotifier<List<TaskWithPeriod>> {
   SyncWorker        get _sync   => ref.read(syncWorkerProvider);
 
   @override
-  Future<List<TaskWithPeriod>> build() async {
+  Future<List<TaskWithPeriod>> build(String? arg) async {
     // 1. Show local data immediately (no spinner if cached)
     final cached = await _local.getActiveTasks();
     if (cached.isNotEmpty) {
@@ -29,7 +27,7 @@ class TasksNotifier extends AsyncNotifier<List<TaskWithPeriod>> {
 
     // 3. Fetch from API and refresh local cache
     try {
-      final fresh = await _api.fetchTasks(view: view);
+      final fresh = await _api.fetchTasks(view: arg);
       await _local.saveTasksWithPeriods(fresh);
 
       // 4. Reschedule notifications with fresh data
@@ -80,7 +78,7 @@ class TasksNotifier extends AsyncNotifier<List<TaskWithPeriod>> {
 
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => build());
+    state = await AsyncValue.guard(() => build(arg));
   }
 
   Future<void> createTask(Map<String, dynamic> data) async {
@@ -102,4 +100,4 @@ class TasksNotifier extends AsyncNotifier<List<TaskWithPeriod>> {
 }
 
 final tasksNotifierProvider = AsyncNotifierProviderFamily<TasksNotifier,
-    List<TaskWithPeriod>, String?>(() => TasksNotifier());
+    List<TaskWithPeriod>, String?>(TasksNotifier.new);

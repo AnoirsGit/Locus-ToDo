@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/user/user.dart';
 import '../../shared/api/auth_api.dart';
@@ -20,17 +21,46 @@ class AuthNotifier extends AsyncNotifier<User?> {
   Future<void> login(String email, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final (user, token) = await ref.read(authApiProvider).login(email, password);
+      final (user, accessToken, refreshToken) =
+          await ref.read(authApiProvider).login(email, password);
       await ref.read(secureStorageProvider).saveTokens(
-        accessToken: token,
-        refreshToken: '',
+        accessToken: accessToken,
+        refreshToken: refreshToken,
       );
       return user;
     });
   }
 
+  Future<void> register(String name, String email, String password) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final (user, accessToken, refreshToken) =
+          await ref.read(authApiProvider).register(name, email, password);
+      await ref.read(secureStorageProvider).saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+      return user;
+    });
+  }
+
+  Future<void> updateProfile({String? name, String? email}) async {
+    final updated = await ref.read(authApiProvider).updateProfile(name: name, email: email);
+    state = AsyncData(updated);
+  }
+
   Future<void> logout() async {
-    await ref.read(secureStorageProvider).clearTokens();
+    final storage = ref.read(secureStorageProvider);
+    final refreshToken = await storage.getRefreshToken();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        final dio = ref.read(dioProvider);
+        await dio.post('/auth/logout', data: {'refreshToken': refreshToken});
+      } on DioException catch (_) {
+        // Best-effort revocation — clear locally regardless
+      }
+    }
+    await storage.clearTokens();
     state = const AsyncData(null);
   }
 }

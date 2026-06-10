@@ -5,6 +5,7 @@
   import { TaskModal } from '$widgets/task-modal'
   import { i18n } from '$shared/lib/i18n'
   import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
+  import { tagStore } from '$entities/tag'
 
   // ── Date ─────────────────────────────────────────────────────────────────
   const now   = new Date()
@@ -23,12 +24,12 @@
   const quietWord = QUIET_WORDS[now.getUTCDay() % QUIET_WORDS.length]
 
   // ── Tasks ────────────────────────────────────────────────────────────────
-  const todayTasks = $derived(taskStore.getForDate(today))
+  const todayTasks = $derived(tagStore.filterTasks(taskStore.getForDate(today)))
   const active     = $derived(taskStore.items.filter(t =>
     ['todo','done','overdue'].includes(t.period.status)))
-  const weekTasks  = $derived(active.filter(t => t.level === 'week'))
-  const monthTasks = $derived(active.filter(t => t.level === 'month'))
-  const yearTasks  = $derived(active.filter(t => t.level === 'year'))
+  const weekTasks  = $derived(tagStore.filterTasks(active.filter(t => t.level === 'week')))
+  const monthTasks = $derived(tagStore.filterTasks(active.filter(t => t.level === 'month')))
+  const yearTasks  = $derived(tagStore.filterTasks(active.filter(t => t.level === 'year')))
 
   // ── Progress ─────────────────────────────────────────────────────────────
   const totalToday = $derived(todayTasks.length)
@@ -109,6 +110,7 @@
             onToggle={toggleTask}
             onEdit={(t) => { modal = { mode: 'edit', task: t } }}
             showLevel={false}
+            tags={tagStore.getTagsForTask(task.id)}
           />
         {/each}
         <button class="add-task-row" onclick={() => openCreate('day')}>

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/task/task.dart';
+import '../../shared/api/tags_api.dart';
 import '../../shared/api/tasks_api.dart';
+import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/rich_text_editor.dart';
 
 class TaskFormSheet extends ConsumerStatefulWidget {
   final TaskWithPeriod? existingTask;
@@ -26,7 +29,7 @@ class TaskFormSheet extends ConsumerStatefulWidget {
 
 class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
   late final TextEditingController _titleCtrl;
-  late final TextEditingController _descCtrl;
+  String _descriptionHtml = '';
   late TaskLevel _level;
   String? _scheduledTime;
   String? _targetDate;
@@ -37,6 +40,9 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
 
   List<TaskWithPeriod> _subtasks = [];
   bool _subtasksLoaded = false;
+
+  List<String> _tagIds = [];
+  bool _tagsLoaded = false;
 
   bool get _isEdit => widget.existingTask != null;
 
@@ -57,7 +63,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     super.initState();
     final t = widget.existingTask;
     _titleCtrl = TextEditingController(text: t?.title ?? '');
-    _descCtrl  = TextEditingController(text: t?.description ?? '');
+    _descriptionHtml = t?.description ?? '';
     _level = t?.level ?? widget.defaultLevel;
     _scheduledTime = t?.scheduledTime;
     _targetDate = t?.period.targetDate?.split('T')[0];
@@ -65,7 +71,10 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     _recurring = t?.recurringConfig != null;
     _daysOfWeek = List<int>.from(t?.recurringConfig?.daysOfWeek ?? []);
     _dayOfMonth = t?.recurringConfig?.dayOfMonth;
-    if (_isEdit) _loadSubtasks();
+    if (_isEdit) {
+      _loadSubtasks();
+      _loadTags();
+    }
   }
 
   Future<void> _loadSubtasks() async {
@@ -78,10 +87,18 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     }
   }
 
+  Future<void> _loadTags() async {
+    try {
+      final tags = await ref.read(tagsApiProvider).getTaskTags(widget.existingTask!.id);
+      if (mounted) setState(() { _tagIds = tags.map((t) => t.id).toList(); _tagsLoaded = true; });
+    } catch (_) {
+      if (mounted) setState(() => _tagsLoaded = true);
+    }
+  }
+
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _descCtrl.dispose();
     super.dispose();
   }
 
@@ -103,7 +120,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       'title': title,
       'level': _level.name,
       'periodStart': _periodStart(),
-      if (_descCtrl.text.trim().isNotEmpty) 'description': _descCtrl.text.trim(),
+      if (_descriptionHtml.isNotEmpty) 'description': _descriptionHtml,
       if (_scheduledTime != null) 'scheduledTime': _scheduledTime,
       if (_level == TaskLevel.week && _targetDate != null) 'targetDate': _targetDate,
       if (_level == TaskLevel.year && _deadlineMonth != null) 'deadlineMonth': _deadlineMonth,
@@ -115,6 +132,15 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
         },
     };
     widget.onSubmit(data);
+
+    // Save tags for edit mode (we have the task ID)
+    if (_isEdit) {
+      final taskId = widget.existingTask!.id;
+      ref.read(tagsApiProvider).setTaskTags(taskId, _tagIds)
+          .then((_) => ref.read(tagStoreProvider.notifier).setTaskTagsLocal(taskId, _tagIds))
+          .catchError((_) {});
+    }
+
     Navigator.pop(context);
   }
 
@@ -138,6 +164,51 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
               widget.onDelete!();
             },
             child: Text('Delete', style: TextStyle(color: context.colorDanger, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _replan() {
+    final task = widget.existingTask!;
+    final now = DateTime.now();
+    String iso(DateTime d) => d.toIso8601String().split('T')[0];
+
+    String periodStart;
+    switch (task.level) {
+      case TaskLevel.day:
+        periodStart = iso(now);
+      case TaskLevel.week:
+        periodStart = iso(now.subtract(Duration(days: now.weekday - 1)));
+      case TaskLevel.month:
+        periodStart = iso(DateTime(now.year, now.month, 1));
+      case TaskLevel.year:
+        periodStart = '${now.year}-01-01';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colorCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Text('Перепланировать?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
+        content: Text(
+          'Задача будет перенесена в текущий период ($periodStart).',
+          style: TextStyle(fontSize: 13, color: context.colorMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Отмена', style: TextStyle(color: context.colorText)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+              await ref.read(tasksApiProvider).replanTask(task.id, periodStart);
+            },
+            child: Text('Перенести', style: TextStyle(color: context.colorBrand, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -241,6 +312,16 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                     ),
                   ),
                 const Spacer(),
+                if (_isEdit && widget.existingTask!.period.status == TaskStatus.backlog)
+                  TextButton.icon(
+                    onPressed: _replan,
+                    icon: Icon(Icons.redo, size: 16, color: context.colorBrand),
+                    label: Text('Replan', style: TextStyle(fontSize: 12, color: context.colorBrand)),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
                 if (_isEdit && widget.onDelete != null)
                   IconButton(
                     icon: Icon(Icons.delete_outline, size: 20, color: context.colorDanger),
@@ -288,18 +369,13 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                     textInputAction: TextInputAction.next,
                   ),
 
-                  // Description — subtle, borderless
-                  TextField(
-                    controller: _descCtrl,
-                    style: TextStyle(fontSize: 14, color: context.colorText, height: 1.5),
-                    decoration: InputDecoration(
-                      hintText: 'Add description…',
-                      hintStyle: TextStyle(fontSize: 14, color: context.colorMuted2),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                    ),
-                    maxLines: null,
-                    textInputAction: TextInputAction.newline,
+                  // Description — rich text editor
+                  const SizedBox(height: 8),
+                  RichTextEditor(
+                    initialValue: _descriptionHtml,
+                    onChanged: (html) => _descriptionHtml = html,
+                    placeholder: 'Add description…',
+                    minHeight: 100,
                   ),
 
                   const SizedBox(height: 20),
@@ -401,6 +477,20 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                       ],
                     ),
                   ),
+
+                  // Tags (edit mode only — need task ID to save)
+                  if (_isEdit)
+                    _DetailRow(
+                      icon: Icons.label_outline,
+                      label: 'Tags',
+                      child: _TagsRow(
+                        tagIds: _tagIds,
+                        loaded: _tagsLoaded,
+                        allTags: ref.read(tagStoreProvider).tags,
+                        onChanged: (ids) => setState(() => _tagIds = ids),
+                        context: context,
+                      ),
+                    ),
 
                   // Week recurring — day chips
                   if (_recurring && _level == TaskLevel.week)
@@ -868,6 +958,202 @@ class _DayOfMonthRow extends StatelessWidget {
             ),
         ],
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+// ── Tags row ───────────────────────────────────────────────────────────────────
+
+Color _parseHexColor(String hex) {
+  final h = hex.replaceFirst('#', '');
+  final value = int.tryParse(h.length == 6 ? 'FF$h' : h, radix: 16);
+  return value != null ? Color(value) : const Color(0xFF888888);
+}
+
+class _TagsRow extends StatelessWidget {
+  final List<String> tagIds;
+  final bool loaded;
+  final List<TagDto> allTags;
+  final ValueChanged<List<String>> onChanged;
+  final BuildContext context;
+
+  const _TagsRow({
+    required this.tagIds,
+    required this.loaded,
+    required this.allTags,
+    required this.onChanged,
+    required this.context,
+  });
+
+  void _openPicker(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _TagPickerSheet(
+        allTags: allTags,
+        selectedIds: tagIds,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext ctx) {
+    if (!loaded) {
+      return SizedBox(
+        width: 16, height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2, color: context.colorMuted),
+      );
+    }
+
+    final selected = allTags.where((t) => tagIds.contains(t.id)).toList();
+
+    return GestureDetector(
+      onTap: () => _openPicker(ctx),
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ...selected.map((tag) {
+            final color = tag.color != null ? _parseHexColor(tag.color!) : context.colorMuted;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withAlpha(28),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: color.withAlpha(100)),
+              ),
+              child: Text(
+                tag.name,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color),
+              ),
+            );
+          }),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: context.colorSurface2,
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: context.colorBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add, size: 12, color: context.colorMuted),
+                const SizedBox(width: 3),
+                Text(
+                  selected.isEmpty ? 'Add tags' : 'Edit',
+                  style: TextStyle(fontSize: 12, color: context.colorMuted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TagPickerSheet extends StatefulWidget {
+  final List<TagDto> allTags;
+  final List<String> selectedIds;
+  final ValueChanged<List<String>> onChanged;
+
+  const _TagPickerSheet({
+    required this.allTags,
+    required this.selectedIds,
+    required this.onChanged,
+  });
+
+  @override
+  State<_TagPickerSheet> createState() => _TagPickerSheetState();
+}
+
+class _TagPickerSheetState extends State<_TagPickerSheet> {
+  late List<String> _ids;
+
+  @override
+  void initState() {
+    super.initState();
+    _ids = List.from(widget.selectedIds);
+  }
+
+  void _toggle(String id) {
+    setState(() {
+      if (_ids.contains(id)) {
+        _ids = _ids.where((i) => i != id).toList();
+      } else {
+        _ids = [..._ids, id];
+      }
+    });
+    widget.onChanged(_ids);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: context.colorBorder2,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Tags',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.colorTextStrong),
+          ),
+          const SizedBox(height: 12),
+          if (widget.allTags.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text('No tags yet. Create tags in Settings.', style: TextStyle(fontSize: 13, color: context.colorMuted)),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.allTags.map((tag) {
+                final isSelected = _ids.contains(tag.id);
+                final color = tag.color != null ? _parseHexColor(tag.color!) : context.colorMuted;
+                return GestureDetector(
+                  onTap: () => _toggle(tag.id),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? color.withAlpha(35) : context.colorSurface2,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? color.withAlpha(160) : context.colorBorder,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      tag.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected ? color : context.colorMuted,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
       ),
     );
   }

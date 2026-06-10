@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/theme.dart';
+import '../../../shared/providers/tag_store.dart';
 import '../task.dart';
 import 'task_level_badge.dart';
 
-class TaskCard extends StatelessWidget {
+class TaskCard extends ConsumerWidget {
   final TaskWithPeriod task;
   final VoidCallback onToggle;
   final VoidCallback? onEdit;
@@ -67,7 +69,8 @@ class TaskCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tags = ref.watch(tagStoreProvider).getTagsForTask(task.id);
     final isDone = task.period.status == TaskStatus.done;
     final isOverdue = task.period.status == TaskStatus.overdue;
     final isArchived = task.period.status == TaskStatus.archived;
@@ -152,7 +155,11 @@ class TaskCard extends StatelessWidget {
                   if (task.description != null && task.description!.isNotEmpty) ...[
                     const SizedBox(height: 3),
                     Text(
-                      task.description!,
+                      // Strip HTML tags so the card shows plain-text preview
+                      task.description!
+                          .replaceAll(RegExp(r'<[^>]*>'), ' ')
+                          .replaceAll(RegExp(r'\s+'), ' ')
+                          .trim(),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12, color: context.colorMuted),
@@ -189,6 +196,36 @@ class TaskCard extends StatelessWidget {
                       ],
                     ],
                   ),
+
+                  // Tag chips
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 4,
+                      children: tags.map((tag) {
+                        final color = tag.color != null
+                            ? _parseHexColor(tag.color!)
+                            : context.colorMuted;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: color.withAlpha(28),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: color.withAlpha(90)),
+                          ),
+                          child: Text(
+                            tag.name,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: color,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -253,6 +290,12 @@ class TaskCard extends StatelessWidget {
       child: container,
     );
   }
+}
+
+Color _parseHexColor(String hex) {
+  final h = hex.replaceFirst('#', '');
+  final value = int.tryParse(h.length == 6 ? 'FF$h' : h, radix: 16);
+  return value != null ? Color(value) : const Color(0xFF888888);
 }
 
 class _MetaChip extends StatelessWidget {

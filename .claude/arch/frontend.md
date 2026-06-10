@@ -25,18 +25,24 @@ apps/web/src/
     task-list/              # Generic list for month/year/backlog/archive
     task-modal/             # Create/edit modal wrapper
     week-view/              # Kanban day grid (WeekHeader, DayColumn, TaskSection)
+    note-tree/              # Outline view — NoteTree + NoteRow (recursive, inline edit)
+    note-board/             # Board view — NoteBoard (top-level nodes = columns)
   features/
     create-task/            # createTask() + CreateTaskForm
-    edit-task/              # EditTaskForm
+    edit-task/              # EditTaskForm (with subtask checklist + tag picker)
     toggle-task/            # toggleTask() — optimistic
     replan-task/            # replanTask()
     update-profile/         # ProfileForm
+    manage-tags/            # TagsSettings (CRUD for user tags, color picker)
   entities/
-    task/                   # TaskCard, TaskLevelBadge, TaskFormFields, taskStore, tasksApi, mocks
+    task/                   # TaskCard, TaskLevelBadge, TaskFormFields, SubtaskChecklist, taskStore, tasksApi, mocks
+    note/                   # NoteNode types, noteStore (API-backed), tree ops
+    tag/                    # Tag type, tagStore (API-backed + taskTagsMap cache), TagChip, TagPicker
     user/                   # userStore (no UI)
   shared/
-    api/                    # fetch client, auth.api.ts, tasks.api.ts
-    ui/                     # RichTextEditor
+    api/                    # fetch client, auth.api.ts, tasks.api.ts, notes.api.ts, tags.api.ts
+    ui/                     # RichTextEditor, Toasts
+    lib/                    # toast.svelte.ts, i18n, sectionPrefs
 ```
 
 Aliases: `$widgets/*`, `$features/*`, `$entities/*`, `$shared/*`
@@ -80,8 +86,10 @@ Design system classes in `app.css`: `.task`, `.btn`, `.sidebar`, `.modal`, `.aut
 /today      → day tasks (target_date filter) + week/month/year context (goals)
 /week       → WeekView (nav + week list + day grid + context)
 /month /year /backlog /archive → TaskList widget
+/notes      → Notes page — Outline view (NoteTree) + Board view (NoteBoard), toggle
 /settings   → ProfileForm + task config
 /login /register → auth pages
+/docs       → Public documentation page (task lifecycle, horizons, etc.)
 ```
 
 ---

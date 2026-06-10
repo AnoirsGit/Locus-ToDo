@@ -1,0 +1,297 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../features/auth/auth_notifier.dart';
+import '../../shared/theme/theme.dart';
+
+class RegisterPage extends ConsumerStatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends ConsumerState<RegisterPage> {
+  final _nameController     = TextEditingController();
+  final _emailController    = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameFocus          = FocusNode();
+  final _emailFocus         = FocusNode();
+  final _passwordFocus      = FocusNode();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nameFocus.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    ref.read(authNotifierProvider.notifier).register(
+      _nameController.text.trim(),
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+    final isLoading = authState.isLoading;
+
+    return Scaffold(
+      body: Column(
+        children: [
+          // ── Hero ──────────────────────────────────────────────────────────
+          _HeroPanel(),
+
+          // ── Form ──────────────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 36),
+
+                  Text(
+                    'Создать аккаунт.',
+                    style: TextStyle(
+                      fontFamilyFallback: const ['Georgia', 'serif'],
+                      fontStyle: FontStyle.italic,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -0.6,
+                      color: context.colorTextStrong,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Начните путь к дисциплине.',
+                    style: TextStyle(
+                      fontFamilyFallback: const ['Georgia', 'serif'],
+                      fontStyle: FontStyle.italic,
+                      fontSize: 15,
+                      color: context.colorMuted,
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  _FieldLabel(label: 'Имя'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _nameController,
+                    focusNode: _nameFocus,
+                    keyboardType: TextInputType.name,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    onSubmitted: (_) => _emailFocus.requestFocus(),
+                    decoration: const InputDecoration(hintText: 'Ваше имя'),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  _FieldLabel(label: 'Email'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _emailController,
+                    focusNode: _emailFocus,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    onSubmitted: (_) => _passwordFocus.requestFocus(),
+                    decoration: const InputDecoration(hintText: 'you@example.com'),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  _FieldLabel(label: 'Пароль'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _passwordController,
+                    focusNode: _passwordFocus,
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
+                    decoration: const InputDecoration(hintText: '••••••••'),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  if (authState.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        authState.error.toString(),
+                        style: TextStyle(color: context.colorDanger, fontSize: 13),
+                      ),
+                    ),
+
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isLoading || _nameController.text.trim().isEmpty ? null : _submit,
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Зарегистрироваться'),
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  GestureDetector(
+                    onTap: () => context.go('/login'),
+                    child: Text.rich(
+                      TextSpan(
+                        text: 'Уже есть аккаунт? ',
+                        style: TextStyle(fontSize: 13, color: context.colorMuted),
+                        children: [
+                          TextSpan(
+                            text: 'Войти',
+                            style: TextStyle(
+                              color: context.colorTextStrong,
+                              decoration: TextDecoration.underline,
+                              decorationColor: context.colorBorder2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hero panel ────────────────────────────────────────────────────────────────
+
+class _HeroPanel extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final heroBg    = context.isDark ? AppColors.surfaceDark     : AppColors.textStrongLight;
+    final heroText  = context.isDark ? AppColors.textStrongDark  : AppColors.backgroundLight;
+    final accentClr = context.isDark ? AppColors.brand2Dark      : AppColors.yearSoftLight;
+    final logoBg    = context.isDark ? AppColors.brandSoftDark   : AppColors.backgroundLight;
+    final logoText  = context.isDark ? AppColors.brandDark       : AppColors.textStrongLight;
+
+    return Container(
+      width: double.infinity,
+      color: heroBg,
+      padding: EdgeInsets.fromLTRB(
+        28,
+        MediaQuery.of(context).padding.top + 40,
+        28,
+        36,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: logoBg,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'L',
+                  style: TextStyle(
+                    fontFamilyFallback: const ['Georgia', 'serif'],
+                    fontStyle: FontStyle.italic,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: logoText,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Locus',
+                style: TextStyle(
+                  fontFamilyFallback: const ['Georgia', 'serif'],
+                  fontStyle: FontStyle.italic,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.5,
+                  color: heroText,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 28),
+
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamilyFallback: const ['Georgia', 'serif'],
+                fontSize: 24,
+                fontWeight: FontWeight.w400,
+                height: 1.25,
+                letterSpacing: -0.4,
+                color: heroText,
+              ),
+              children: [
+                const TextSpan(text: 'Дисциплина — это не наказание.\nЭто тихая привилегия\n'),
+                TextSpan(
+                  text: 'выбирать то, что ты оставишь.',
+                  style: TextStyle(color: accentClr),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          Text(
+            '© 2026 — ИНСТРУМЕНТ САМОДИСЦИПЛИНЫ',
+            style: TextStyle(
+              fontFamily: 'RobotoMono',
+              fontSize: 9,
+              letterSpacing: 1.2,
+              color: heroText.withAlpha(120),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  const _FieldLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.04,
+      color: context.colorMuted,
+    ),
+  );
+}

@@ -32,6 +32,9 @@ importers:
       fastify:
         specifier: ^5.0.0
         version: 5.8.5
+      ioredis:
+        specifier: ^5.10.1
+        version: 5.10.1
       luxon:
         specifier: ^3.7.2
         version: 3.7.2

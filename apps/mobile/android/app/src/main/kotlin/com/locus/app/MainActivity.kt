@@ -1,4 +1,4 @@
-package com.example.locus_mobile
+package com.locus.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TaskLevel, TaskWithPeriod } from '../model/task.types'
   import RichTextEditor from '$shared/ui/RichTextEditor.svelte'
+  import { TagPicker } from '$entities/tag'
 
   const MONTH_NAMES = [
     'January','February','March','April','May','June',
@@ -25,6 +26,7 @@
     recurring: boolean
     daysOfWeek: number[]
     dayOfMonth: string
+    tagIds?: string[]
     // Subtasks — only used in edit mode
     subtasks?: TaskWithPeriod[]
     onAddSubtask?: (title: string) => Promise<void>
@@ -43,6 +45,7 @@
     recurring = $bindable(),
     daysOfWeek = $bindable(),
     dayOfMonth = $bindable(),
+    tagIds = $bindable(),
     subtasks,
     onAddSubtask,
     onToggleSubtask,
@@ -305,6 +308,20 @@
           class="tform-control"
           style="width: 60px"
         />
+      </div>
+    {/if}
+
+    <!-- Tags -->
+    {#if tagIds !== undefined}
+      <div class="tform-row">
+        <div class="tform-field-label">
+          <svg class="tform-icon" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 010 1.414l-4.586 4.586a1 1 0 01-1.414 0L3.293 8.293A1 1 0 013 7.586V4z" stroke="currentColor" stroke-width="1.4"/>
+            <circle cx="5.5" cy="5.5" r="1" fill="currentColor"/>
+          </svg>
+          Tags
+        </div>
+        <TagPicker selectedIds={tagIds} onChange={(ids) => { tagIds = ids }} />
       </div>
     {/if}
 

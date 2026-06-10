@@ -1,182 +1,95 @@
 <script lang="ts">
-  import { taskStore } from '$entities/task'
-  import type { TaskWithPeriod } from '$entities/task'
+  import { onMount } from 'svelte'
+  import { statsApi, type StatsData, type PeriodStat } from '$shared/api/stats.api'
   import { i18n } from '$shared/lib/i18n'
 
-  // ── Date helpers ─────────────────────────────────────────────────────────────
+  const NOW = new Date()
+  const today = NOW.toISOString().split('T')[0]
 
-  const toISO = (d: Date) => d.toISOString().split('T')[0]
+  let data    = $state<StatsData | null>(null)
+  let loading = $state(true)
+  let error   = $state<string | null>(null)
+
+  onMount(async () => {
+    try {
+      data = await statsApi.get(today)
+    } catch (e: any) {
+      error = e.message ?? 'Failed to load stats'
+    } finally {
+      loading = false
+    }
+  })
+
+  // ── Label helpers ─────────────────────────────────────────────────────────
+
   const addDays = (iso: string, n: number) => {
     const d = new Date(iso + 'T00:00:00Z')
     d.setUTCDate(d.getUTCDate() + n)
-    return toISO(d)
+    return d.toISOString().split('T')[0]
   }
 
-  const NOW = new Date()
-
-  const currentWeekStart = (() => {
-    const dow = NOW.getUTCDay()
-    const d = new Date(NOW)
-    d.setUTCDate(NOW.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
-    return toISO(d)
-  })()
-
-  const currentMonthStart = `${NOW.getUTCFullYear()}-${String(NOW.getUTCMonth() + 1).padStart(2, '0')}-01`
-  const currentYearStart  = `${NOW.getUTCFullYear()}-01-01`
-  const today = toISO(NOW)
-
-  // ── Label helpers ─────────────────────────────────────────────────────────────
-
-  const shortDate = (iso: string) => {
-    const d = new Date(iso + 'T00:00:00Z')
-    return d.toLocaleDateString(i18n.locale, { day: 'numeric', month: 'short', timeZone: 'UTC' })
-  }
-  const monthLabel = (iso: string) => {
-    const d = new Date(iso + 'T00:00:00Z')
-    const sameYear = d.getUTCFullYear() === NOW.getUTCFullYear()
-    return d.toLocaleDateString(i18n.locale, {
-      month: 'short',
-      year: sameYear ? undefined : 'numeric',
-      timeZone: 'UTC',
-    })
-  }
+  const shortDate = (iso: string) =>
+    new Date(iso + 'T00:00:00Z').toLocaleDateString(i18n.locale, { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
   const weekLabel = (start: string) => `${shortDate(start)} – ${shortDate(addDays(start, 6))}`
 
-  // ── Stat computation helpers ──────────────────────────────────────────────────
+  const monthLabel = (iso: string) => {
+    const d = new Date(iso + 'T00:00:00Z')
+    const sameYear = d.getUTCFullYear() === NOW.getUTCFullYear()
+    return d.toLocaleDateString(i18n.locale, { month: 'short', year: sameYear ? undefined : 'numeric', timeZone: 'UTC' })
+  }
 
-  type Stat = { label: string; start: string; done: number; total: number; pct: number; current?: boolean }
+  // ── Derived trend with "current" row prepended ────────────────────────────
 
-  const isActive = (t: TaskWithPeriod) =>
-    t.period.status === 'todo' || t.period.status === 'done' || t.period.status === 'overdue'
+  const pct = (done: number, total: number) => total > 0 ? Math.round((done / total) * 100) : 0
 
-  const isArchivedDone = (t: TaskWithPeriod) =>
-    t.period.status === 'archived' && t.period.doneAt != null
+  type TrendRow = PeriodStat & { label: string; pct: number; current?: boolean }
 
-  const pct = (done: number, total: number) => (total > 0 ? Math.round((done / total) * 100) : 0)
-
-  // ── Current-period snapshots ──────────────────────────────────────────────────
-
-  const todayTasks = $derived(
-    taskStore.items.filter(t =>
-      t.level === 'day' &&
-      isActive(t) &&
-      (t.period.targetDate === today || t.period.periodStart === today),
-    ),
-  )
-  const todayDone  = $derived(todayTasks.filter(t => t.period.status === 'done').length)
-
-  const curWeekTasks = $derived(
-    taskStore.items.filter(t =>
-      t.level === 'week' && isActive(t) && t.period.periodStart === currentWeekStart,
-    ),
-  )
-  const curWeekDone = $derived(curWeekTasks.filter(t => t.period.status === 'done').length)
-
-  // Day tasks across the whole current week
-  const curWeekDayTasks = $derived(
-    taskStore.items.filter(t => {
-      if (t.level !== 'day' || !isActive(t)) return false
-      const ps = t.period.periodStart
-      return ps >= currentWeekStart && ps <= addDays(currentWeekStart, 6)
-    }),
-  )
-  const curWeekDayDone = $derived(curWeekDayTasks.filter(t => t.period.status === 'done').length)
-
-  const curMonthTasks = $derived(
-    taskStore.items.filter(t =>
-      t.level === 'month' && isActive(t) && t.period.periodStart === currentMonthStart,
-    ),
-  )
-  const curMonthDone = $derived(curMonthTasks.filter(t => t.period.status === 'done').length)
-
-  const curYearTasks = $derived(
-    taskStore.items.filter(t =>
-      t.level === 'year' && isActive(t) && t.period.periodStart === currentYearStart,
-    ),
-  )
-  const curYearDone = $derived(curYearTasks.filter(t => t.period.status === 'done').length)
-
-  // Overdue counts
-  const overdueToday = $derived(todayTasks.filter(t => t.period.status === 'overdue').length)
-  const overdueWeek  = $derived(curWeekTasks.filter(t => t.period.status === 'overdue').length)
-
-  // ── Historical week trend ─────────────────────────────────────────────────────
-
-  const weekTrend = $derived.by((): Stat[] => {
-    const archived = taskStore.items.filter(t => t.level === 'week' && t.period.status === 'archived')
-    const groups = new Map<string, TaskWithPeriod[]>()
-    for (const t of archived) {
-      const k = t.period.periodStart
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k)!.push(t)
-    }
-    const hist: Stat[] = [...groups.entries()].map(([start, tasks]) => {
-      const total = tasks.length
-      const done  = tasks.filter(t => t.period.doneAt != null).length
-      return { start, label: weekLabel(start), done, total, pct: pct(done, total) }
-    })
-    hist.sort((a, b) => b.start.localeCompare(a.start))
-    // Add current week at top
-    const cur: Stat = {
-      start: currentWeekStart,
+  const weekTrendRows = $derived.by((): TrendRow[] => {
+    if (!data) return []
+    const currentWeekStart = (() => {
+      const dow = NOW.getUTCDay()
+      const d = new Date(NOW)
+      d.setUTCDate(NOW.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
+      return d.toISOString().split('T')[0]
+    })()
+    const cur: TrendRow = {
+      periodStart: currentWeekStart,
       label: weekLabel(currentWeekStart),
-      done: curWeekDone,
-      total: curWeekTasks.length,
-      pct: pct(curWeekDone, curWeekTasks.length),
+      done: data.snapshot.week.done,
+      total: data.snapshot.week.total,
+      pct: pct(data.snapshot.week.done, data.snapshot.week.total),
       current: true,
     }
-    return [cur, ...hist.slice(0, 9)]
+    const hist = data.weekTrend.map(s => ({ ...s, label: weekLabel(s.periodStart), pct: pct(s.done, s.total) }))
+    return [cur, ...hist]
   })
 
-  // ── Historical month trend ────────────────────────────────────────────────────
-
-  const monthTrend = $derived.by((): Stat[] => {
-    const archived = taskStore.items.filter(t => t.level === 'month' && t.period.status === 'archived')
-    const groups = new Map<string, TaskWithPeriod[]>()
-    for (const t of archived) {
-      const k = t.period.periodStart
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k)!.push(t)
-    }
-    const hist: Stat[] = [...groups.entries()].map(([start, tasks]) => {
-      const total = tasks.length
-      const done  = tasks.filter(t => t.period.doneAt != null).length
-      return { start, label: monthLabel(start), done, total, pct: pct(done, total) }
-    })
-    hist.sort((a, b) => b.start.localeCompare(a.start))
-    const cur: Stat = {
-      start: currentMonthStart,
+  const monthTrendRows = $derived.by((): TrendRow[] => {
+    if (!data) return []
+    const currentMonthStart = `${NOW.getUTCFullYear()}-${String(NOW.getUTCMonth() + 1).padStart(2, '0')}-01`
+    const cur: TrendRow = {
+      periodStart: currentMonthStart,
       label: monthLabel(currentMonthStart),
-      done: curMonthDone,
-      total: curMonthTasks.length,
-      pct: pct(curMonthDone, curMonthTasks.length),
+      done: data.snapshot.month.done,
+      total: data.snapshot.month.total,
+      pct: pct(data.snapshot.month.done, data.snapshot.month.total),
       current: true,
     }
-    return [cur, ...hist.slice(0, 5)]
+    const hist = data.monthTrend.map(s => ({ ...s, label: monthLabel(s.periodStart), pct: pct(s.done, s.total) }))
+    return [cur, ...hist]
   })
 
-  // ── Year history ──────────────────────────────────────────────────────────────
-
-  const yearHistory = $derived.by((): Stat[] => {
-    const archived = taskStore.items.filter(t => t.level === 'year' && t.period.status === 'archived')
-    const groups = new Map<string, TaskWithPeriod[]>()
-    for (const t of archived) {
-      const k = t.period.periodStart
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k)!.push(t)
-    }
-    return [...groups.entries()]
-      .map(([start, tasks]) => {
-        const total = tasks.length
-        const done  = tasks.filter(t => t.period.doneAt != null).length
-        const yr    = new Date(start + 'T00:00:00Z').getUTCFullYear()
-        return { start, label: String(yr), done, total, pct: pct(done, total) }
-      })
-      .sort((a, b) => b.start.localeCompare(a.start))
+  const yearRows = $derived.by((): TrendRow[] => {
+    if (!data) return []
+    return data.yearHistory.map(s => ({
+      ...s,
+      label: String(new Date(s.periodStart + 'T00:00:00Z').getUTCFullYear()),
+      pct: pct(s.done, s.total),
+    }))
   })
 
-  // ── UI helpers ────────────────────────────────────────────────────────────────
+  // ── UI helpers ────────────────────────────────────────────────────────────
 
   const pctColor = (p: number) =>
     p >= 80 ? 'bar-success' : p >= 50 ? 'bar-warning' : p > 0 ? 'bar-danger' : 'bar-empty'
@@ -187,7 +100,6 @@
 
 <div class="main-inner">
 
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <div class="page-header">
     <div class="page-header-left">
       <div class="page-eyebrow">{i18n.locale === 'ru' ? 'ОБЗОР' : 'OVERVIEW'}</div>
@@ -195,96 +107,94 @@
     </div>
   </div>
 
-  {#if taskStore.loading}
+  {#if loading}
     <div class="empty"><p class="text-muted">{i18n.t('action.loading')}</p></div>
+
+  {:else if error || !data}
+    <div class="empty">
+      <p class="empty-title">{i18n.locale === 'ru' ? 'Ошибка загрузки' : 'Failed to load'}</p>
+      <p class="empty-body">{error}</p>
+    </div>
+
   {:else}
 
     <!-- ── Snapshot cards ─────────────────────────────────────────────────── -->
     <section class="section">
       <div class="snap-grid">
 
-        <!-- Today -->
         <div class="snap-card level-day">
           <div class="snap-label">{i18n.locale === 'ru' ? 'Сегодня' : 'Today'}</div>
           <div class="snap-nums">
-            <span class="snap-done">{todayDone}</span>
-            <span class="snap-total">/{todayTasks.length}</span>
+            <span class="snap-done">{data.snapshot.today.done}</span>
+            <span class="snap-total">/{data.snapshot.today.total}</span>
           </div>
           <div class="snap-bar-track">
-            <div class="snap-bar-fill day" style="width:{pct(todayDone, todayTasks.length)}%"></div>
+            <div class="snap-bar-fill day" style="width:{pct(data.snapshot.today.done, data.snapshot.today.total)}%"></div>
           </div>
           <div class="snap-meta">
-            <span class="snap-pct">{pct(todayDone, todayTasks.length)}%</span>
-            {#if overdueToday > 0}
-              <span class="snap-penalty">{overdueToday} overdue</span>
+            <span class="snap-pct">{pct(data.snapshot.today.done, data.snapshot.today.total)}%</span>
+            {#if data.snapshot.today.overdue > 0}
+              <span class="snap-penalty">{data.snapshot.today.overdue} overdue</span>
             {/if}
           </div>
         </div>
 
-        <!-- This week -->
         <div class="snap-card level-week">
           <div class="snap-label">{i18n.locale === 'ru' ? 'Эта неделя' : 'This week'}</div>
           <div class="snap-nums">
-            <span class="snap-done">{curWeekDone}</span>
-            <span class="snap-total">/{curWeekTasks.length}</span>
+            <span class="snap-done">{data.snapshot.week.done}</span>
+            <span class="snap-total">/{data.snapshot.week.total}</span>
           </div>
           <div class="snap-bar-track">
-            <div class="snap-bar-fill week" style="width:{pct(curWeekDone, curWeekTasks.length)}%"></div>
+            <div class="snap-bar-fill week" style="width:{pct(data.snapshot.week.done, data.snapshot.week.total)}%"></div>
           </div>
           <div class="snap-meta">
-            <span class="snap-pct">{pct(curWeekDone, curWeekTasks.length)}%</span>
-            {#if overdueWeek > 0}
-              <span class="snap-penalty">{overdueWeek} overdue</span>
+            <span class="snap-pct">{pct(data.snapshot.week.done, data.snapshot.week.total)}%</span>
+            {#if data.snapshot.week.overdue > 0}
+              <span class="snap-penalty">{data.snapshot.week.overdue} overdue</span>
             {/if}
           </div>
-          {#if curWeekDayTasks.length > 0}
-            <div class="snap-sub">
-              {curWeekDayDone}/{curWeekDayTasks.length} {i18n.locale === 'ru' ? 'дн. задач' : 'day tasks'}
-            </div>
-          {/if}
         </div>
 
-        <!-- This month -->
         <div class="snap-card level-month">
           <div class="snap-label">{i18n.locale === 'ru' ? 'Этот месяц' : 'This month'}</div>
           <div class="snap-nums">
-            <span class="snap-done">{curMonthDone}</span>
-            <span class="snap-total">/{curMonthTasks.length}</span>
+            <span class="snap-done">{data.snapshot.month.done}</span>
+            <span class="snap-total">/{data.snapshot.month.total}</span>
           </div>
           <div class="snap-bar-track">
-            <div class="snap-bar-fill month" style="width:{pct(curMonthDone, curMonthTasks.length)}%"></div>
+            <div class="snap-bar-fill month" style="width:{pct(data.snapshot.month.done, data.snapshot.month.total)}%"></div>
           </div>
           <div class="snap-meta">
-            <span class="snap-pct">{pct(curMonthDone, curMonthTasks.length)}%</span>
+            <span class="snap-pct">{pct(data.snapshot.month.done, data.snapshot.month.total)}%</span>
           </div>
         </div>
 
-        <!-- This year -->
         <div class="snap-card level-year">
           <div class="snap-label">{NOW.getUTCFullYear()}</div>
           <div class="snap-nums">
-            <span class="snap-done">{curYearDone}</span>
-            <span class="snap-total">/{curYearTasks.length}</span>
+            <span class="snap-done">{data.snapshot.year.done}</span>
+            <span class="snap-total">/{data.snapshot.year.total}</span>
           </div>
           <div class="snap-bar-track">
-            <div class="snap-bar-fill year" style="width:{pct(curYearDone, curYearTasks.length)}%"></div>
+            <div class="snap-bar-fill year" style="width:{pct(data.snapshot.year.done, data.snapshot.year.total)}%"></div>
           </div>
           <div class="snap-meta">
-            <span class="snap-pct">{pct(curYearDone, curYearTasks.length)}%</span>
+            <span class="snap-pct">{pct(data.snapshot.year.done, data.snapshot.year.total)}%</span>
           </div>
         </div>
 
       </div>
     </section>
 
-    <!-- ── Weekly trend ───────────────────────────────────────────────────── -->
-    {#if weekTrend.some(s => s.total > 0)}
+    <!-- ── Weekly trend ──────────────────────────────────────────────────── -->
+    {#if weekTrendRows.some(s => s.total > 0)}
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">{i18n.locale === 'ru' ? 'По неделям' : 'Weekly trend'}</h2>
         </div>
         <div class="trend-list">
-          {#each weekTrend.filter(s => s.total > 0 || s.current) as stat}
+          {#each weekTrendRows.filter(s => s.total > 0 || s.current) as stat}
             <div class="trend-row" class:trend-current={stat.current}>
               <div class="trend-label">
                 {stat.label}
@@ -294,10 +204,7 @@
               </div>
               <div class="trend-bar-wrap">
                 <div class="trend-bar-track">
-                  <div
-                    class="trend-bar-fill {pctColor(stat.pct)}"
-                    style="width:{stat.pct}%"
-                  ></div>
+                  <div class="trend-bar-fill {pctColor(stat.pct)}" style="width:{stat.pct}%"></div>
                 </div>
               </div>
               <div class="trend-right">
@@ -310,14 +217,14 @@
       </section>
     {/if}
 
-    <!-- ── Monthly trend ──────────────────────────────────────────────────── -->
-    {#if monthTrend.some(s => s.total > 0)}
+    <!-- ── Monthly trend ─────────────────────────────────────────────────── -->
+    {#if monthTrendRows.some(s => s.total > 0)}
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">{i18n.locale === 'ru' ? 'По месяцам' : 'Monthly trend'}</h2>
         </div>
         <div class="trend-list">
-          {#each monthTrend.filter(s => s.total > 0 || s.current) as stat}
+          {#each monthTrendRows.filter(s => s.total > 0 || s.current) as stat}
             <div class="trend-row" class:trend-current={stat.current}>
               <div class="trend-label">
                 {stat.label}
@@ -327,10 +234,7 @@
               </div>
               <div class="trend-bar-wrap">
                 <div class="trend-bar-track">
-                  <div
-                    class="trend-bar-fill {pctColor(stat.pct)}"
-                    style="width:{stat.pct}%"
-                  ></div>
+                  <div class="trend-bar-fill {pctColor(stat.pct)}" style="width:{stat.pct}%"></div>
                 </div>
               </div>
               <div class="trend-right">
@@ -343,22 +247,19 @@
       </section>
     {/if}
 
-    <!-- ── Year history ───────────────────────────────────────────────────── -->
-    {#if yearHistory.length > 0}
+    <!-- ── Year history ──────────────────────────────────────────────────── -->
+    {#if yearRows.length > 0}
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">{i18n.locale === 'ru' ? 'По годам' : 'Year history'}</h2>
         </div>
         <div class="trend-list">
-          {#each yearHistory as stat}
+          {#each yearRows as stat}
             <div class="trend-row">
               <div class="trend-label">{stat.label}</div>
               <div class="trend-bar-wrap">
                 <div class="trend-bar-track">
-                  <div
-                    class="trend-bar-fill {pctColor(stat.pct)}"
-                    style="width:{stat.pct}%"
-                  ></div>
+                  <div class="trend-bar-fill {pctColor(stat.pct)}" style="width:{stat.pct}%"></div>
                 </div>
               </div>
               <div class="trend-right">
@@ -371,7 +272,7 @@
       </section>
     {/if}
 
-    {#if weekTrend.every(s => s.total === 0) && monthTrend.every(s => s.total === 0) && yearHistory.length === 0}
+    {#if weekTrendRows.every(s => s.total === 0) && monthTrendRows.every(s => s.total === 0) && yearRows.length === 0}
       <div class="empty">
         <p class="empty-title">{i18n.locale === 'ru' ? 'Нет данных' : 'No history yet'}</p>
         <p class="empty-body">{i18n.locale === 'ru' ? 'Статистика появится после первых архивных периодов' : 'Stats will appear after your first archived periods'}</p>
@@ -382,7 +283,6 @@
 </div>
 
 <style>
-  /* ── Snapshot grid ──────────────────────────────────────────────────────── */
   .snap-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -401,58 +301,25 @@
     flex-direction: column;
     gap: 6px;
   }
-
-  .snap-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.7px;
-    text-transform: uppercase;
-    color: var(--color-muted);
-  }
-
-  .snap-nums {
-    display: flex;
-    align-items: baseline;
-    gap: 1px;
-  }
+  .snap-label { font-size: 10px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: var(--color-muted); }
+  .snap-nums  { display: flex; align-items: baseline; gap: 1px; }
   .snap-done  { font-size: 28px; font-weight: 600; color: var(--color-text-strong); line-height: 1; }
   .snap-total { font-size: 14px; color: var(--color-muted); }
-
-  .snap-bar-track {
-    height: 4px;
-    background: var(--color-border);
-    border-radius: 2px;
-    overflow: hidden;
-    margin: 2px 0;
-  }
-  .snap-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.4s ease;
-  }
+  .snap-bar-track { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin: 2px 0; }
+  .snap-bar-fill  { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
   .snap-bar-fill.day   { background: var(--color-day); }
   .snap-bar-fill.week  { background: var(--color-week); }
   .snap-bar-fill.month { background: var(--color-month); }
   .snap-bar-fill.year  { background: var(--color-year); }
-
-  .snap-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .snap-pct { font-size: 12px; font-weight: 500; color: var(--color-muted); }
+  .snap-meta    { display: flex; align-items: center; gap: 8px; }
+  .snap-pct     { font-size: 12px; font-weight: 500; color: var(--color-muted); }
   .snap-penalty { font-size: 10.5px; color: var(--color-danger); }
-  .snap-sub { font-size: 10.5px; color: var(--color-muted-2); margin-top: 2px; }
-
-  /* Level border accent */
   .level-day   { border-left: 3px solid var(--color-day); }
   .level-week  { border-left: 3px solid var(--color-week); }
   .level-month { border-left: 3px solid var(--color-month); }
   .level-year  { border-left: 3px solid var(--color-year); }
 
-  /* ── Trend list ─────────────────────────────────────────────────────────── */
   .trend-list { display: flex; flex-direction: column; gap: 6px; }
-
   .trend-row {
     display: grid;
     grid-template-columns: 160px 1fr auto;
@@ -462,64 +329,21 @@
     border-bottom: 1px solid var(--color-border);
   }
   .trend-row:last-child { border-bottom: none; }
-
-  @media (max-width: 480px) {
-    .trend-row { grid-template-columns: 120px 1fr auto; gap: 8px; }
-  }
-
+  @media (max-width: 480px) { .trend-row { grid-template-columns: 120px 1fr auto; gap: 8px; } }
   .trend-current .trend-label { color: var(--color-text-strong); font-weight: 500; }
-
-  .trend-label {
-    font-size: 12px;
-    color: var(--color-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .trend-now {
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: var(--color-brand);
-    background: var(--color-brand-soft);
-    padding: 1px 5px;
-    border-radius: 2px;
-  }
-
+  .trend-label { font-size: 12px; color: var(--color-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+  .trend-now { font-size: 9px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--color-brand); background: var(--color-brand-soft); padding: 1px 5px; border-radius: 2px; }
   .trend-bar-wrap { min-width: 0; }
-  .trend-bar-track {
-    height: 6px;
-    background: var(--color-border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-  .trend-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.4s ease;
-    min-width: 2px;
-  }
+  .trend-bar-track { height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; }
+  .trend-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.4s ease; min-width: 2px; }
   .bar-success { background: var(--color-success); }
   .bar-warning { background: var(--color-warning); }
   .bar-danger  { background: var(--color-danger); }
   .bar-empty   { background: var(--color-border-2); width: 2px !important; }
-
-  .trend-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
-    min-width: 56px;
-  }
+  .trend-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; min-width: 56px; }
   .trend-pct   { font-size: 12px; font-weight: 600; }
   .trend-count { font-size: 10.5px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
 
-  /* text color overrides (Tailwind might not reach inside <style>) */
   :global(.text-success) { color: var(--color-success) !important; }
   :global(.text-warning) { color: var(--color-warning) !important; }
   :global(.text-danger)  { color: var(--color-danger) !important; }

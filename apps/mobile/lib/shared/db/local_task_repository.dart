@@ -1,11 +1,16 @@
 import 'dart:convert';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/task/task.dart';
-import 'app_database.dart';
+import 'app_database.dart' as db;
+
+// Drift row types (local aliases to avoid name collision with domain models)
+typedef _DbTask   = db.Task;
+typedef _DbPeriod = db.TaskPeriod;
 
 /// Converts between Drift rows and domain TaskWithPeriod objects
 class LocalTaskRepository {
-  final AppDatabase _db;
+  final db.AppDatabase _db;
 
   LocalTaskRepository(this._db);
 
@@ -13,7 +18,7 @@ class LocalTaskRepository {
 
   Future<void> saveTasksWithPeriods(List<TaskWithPeriod> items) async {
     for (final t in items) {
-      await _db.upsertTask(TasksCompanion.insert(
+      await _db.upsertTask(db.TasksCompanion.insert(
         id: t.id,
         userId: t.userId,
         title: t.title,
@@ -27,7 +32,7 @@ class LocalTaskRepository {
         updatedAt: t.updatedAt,
       ));
 
-      await _db.upsertPeriod(TaskPeriodsCompanion.insert(
+      await _db.upsertPeriod(db.TaskPeriodsCompanion.insert(
         id: t.period.id,
         taskId: t.period.taskId,
         userId: t.period.userId,
@@ -55,7 +60,6 @@ class LocalTaskRepository {
   Future<List<TaskWithPeriod>> getActiveTasks() async {
     final taskRows   = await _db.select(_db.tasks).get();
     final periodRows = await _db.getActivePeriods();
-
     return _join(taskRows, periodRows);
   }
 
@@ -77,7 +81,7 @@ class LocalTaskRepository {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  List<TaskWithPeriod> _join(List<TaskData> taskRows, List<TaskPeriodData> periodRows) {
+  List<TaskWithPeriod> _join(List<_DbTask> taskRows, List<_DbPeriod> periodRows) {
     final taskMap = {for (final t in taskRows) t.id: t};
     final result = <TaskWithPeriod>[];
 
@@ -145,5 +149,5 @@ class LocalTaskRepository {
 }
 
 final localTaskRepositoryProvider = Provider<LocalTaskRepository>(
-  (ref) => LocalTaskRepository(ref.watch(appDatabaseProvider)),
+  (ref) => LocalTaskRepository(ref.watch(db.appDatabaseProvider)),
 );

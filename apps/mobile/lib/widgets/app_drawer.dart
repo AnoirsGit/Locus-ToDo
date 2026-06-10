@@ -160,11 +160,11 @@ class AppDrawer extends ConsumerWidget {
                     context: context,
                   ),
                   _NavItem(
-                    icon: Icons.menu_book_outlined,
-                    selectedIcon: Icons.menu_book,
-                    label: 'Документация',
-                    active: isActive('/docs'),
-                    onTap: () => navigate('/docs'),
+                    icon: Icons.note_outlined,
+                    selectedIcon: Icons.note,
+                    label: 'Notes',
+                    active: isActive('/notes'),
+                    onTap: () => navigate('/notes'),
                     context: context,
                   ),
                   _NavItem(

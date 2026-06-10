@@ -2,6 +2,8 @@
   import { TaskFormFields } from '$entities/task'
   import type { TaskLevel } from '$entities/task'
   import { createTask } from '$features/create-task'
+  import { tagsApi } from '$shared/api/tags.api'
+  import { tagStore } from '$entities/tag'
 
   type Props = {
     defaultLevel?: TaskLevel
@@ -20,6 +22,7 @@
   let recurring     = $state(false)
   let daysOfWeek    = $state<number[]>([])
   let dayOfMonth    = $state('')
+  let tagIds        = $state<string[]>([])
 
   const computePeriodStart = (): string => {
     const now = new Date()
@@ -42,7 +45,7 @@
 
     const dom = dayOfMonth ? parseInt(dayOfMonth) : undefined
 
-    await createTask({
+    const item = await createTask({
       title: title.trim(),
       description: description.trim() || undefined,
       level,
@@ -59,14 +62,23 @@
         : undefined,
     })
 
+    if (tagIds.length > 0) {
+      tagsApi.setTaskTags(item.id, tagIds).then(() => tagStore.setTaskTagsLocal(item.id, tagIds)).catch(() => {})
+    }
+
     onSuccess?.()
   }
 </script>
 
-<form onsubmit={handleSubmit} class="flex flex-col">
+<form
+  onsubmit={handleSubmit}
+  onkeydown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && title.trim()) (e.currentTarget as HTMLFormElement).requestSubmit() }}
+  class="flex flex-col"
+>
   <TaskFormFields
     bind:title bind:description bind:level bind:scheduledTime
     bind:targetDate bind:deadlineMonth bind:recurring bind:daysOfWeek bind:dayOfMonth
+    bind:tagIds
   />
   <div class="modal-footer">
     <button type="button" onclick={onCancel} class="btn ghost">Отмена</button>

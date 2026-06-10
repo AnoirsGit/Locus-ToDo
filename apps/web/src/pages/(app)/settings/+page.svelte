@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ProfileForm } from '$features/update-profile'
+  import { TagsSettings } from '$features/manage-tags'
 </script>
 
 <div class="main-inner">
@@ -16,6 +17,14 @@
       <span class="section-meta">кто ты есть</span>
     </div>
     <ProfileForm />
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Tags</h2>
+      <span class="section-meta">labels for tasks</span>
+    </div>
+    <TagsSettings />
   </section>
 
   <section class="section">

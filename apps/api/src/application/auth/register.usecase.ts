@@ -9,12 +9,13 @@ export type RegisterInput = {
   timezone?: string
 }
 
-export type RegisterResult = { user: User; accessToken: string }
+export type RegisterResult = { user: User; accessToken: string; refreshToken: string }
 
 export const registerUseCase = async (
   users: IUserRepository,
   input: RegisterInput,
   signToken: (payload: object) => string,
+  createRefreshToken: (userId: string) => Promise<string>,
 ): Promise<RegisterResult> => {
   const existing = await users.findByEmail(input.email)
   if (existing) throw Object.assign(new Error('Email already in use'), { statusCode: 409 })
@@ -28,5 +29,6 @@ export const registerUseCase = async (
   })
 
   const accessToken = signToken({ id: user.id, email: user.email })
-  return { user, accessToken }
+  const refreshToken = await createRefreshToken(user.id)
+  return { user, accessToken, refreshToken }
 }

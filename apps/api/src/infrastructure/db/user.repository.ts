@@ -29,6 +29,22 @@ export const userRepository: IUserRepository = {
     return user
   },
 
+  async update(userId, patch) {
+    const entries = Object.entries(patch).filter(([, v]) => v !== undefined)
+    if (entries.length === 0) return this.findById(userId)
+
+    const setCols = entries.map(([k], i) => `${toSnake(k)} = $${i + 2}`).join(', ')
+    const values = [userId, ...entries.map(([, v]) => v)]
+
+    const [user] = await db.unsafe<User[]>(
+      `UPDATE users SET ${setCols}
+       WHERE id = $1
+       RETURNING id, email, name, timezone, avatar_url, created_at`,
+      values as string[],
+    )
+    return user ?? null
+  },
+
   async getSettings(userId) {
     const [row] = await db<UserSettings[]>`
       SELECT user_id, notification_offset_min, notify_overdue,

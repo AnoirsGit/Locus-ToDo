@@ -15,11 +15,13 @@ apps/api/src/
     auth/           # register, login
     period-utils.ts
   infrastructure/   # Adapters
-    db/             # postgres client, task.repository.ts, user.repository.ts
+    auth/           # refresh-token.service.ts (Redis-backed token lifecycle)
+    db/             # postgres client, task.repository.ts, user.repository.ts, note.repository.ts, tag.repository.ts
+    redis/          # client.ts (ioredis singleton)
     http/           # Fastify routes + authenticate plugin
-      routes/       # auth.routes.ts, tasks.routes.ts, task-periods.routes.ts
+      routes/       # auth.routes.ts, tasks.routes.ts, task-periods.routes.ts, notes.routes.ts, tags.routes.ts, stats.routes.ts
     scheduler/      # scheduler.ts (setInterval, daily job)
-  db/               # migrate.ts, seed.ts, migrations/001_initial.sql
+  db/               # migrate.ts, seed.ts, migrations/ (001–005)
   server.ts         # Entry point
 ```
 
@@ -36,21 +38,36 @@ Layer rule: dependencies point inward only. `domain` has no external deps.
 |--------|------|------|
 | POST | `/api/auth/register` | — |
 | POST | `/api/auth/login` | — |
+| POST | `/api/auth/refresh` | — |
+| POST | `/api/auth/logout` | — |
 | GET | `/api/auth/me` | ✓ |
 | GET | `/api/tasks` | ✓ |
 | POST | `/api/tasks` | ✓ |
 | PATCH | `/api/tasks/:id` | ✓ |
 | DELETE | `/api/tasks/:id` | ✓ |
+| GET | `/api/tasks/:id/subtasks` | ✓ |
 | PATCH | `/api/tasks/:id/periods/:periodId/toggle` | ✓ |
 | PATCH | `/api/tasks/:id/periods/:periodId/replan` | ✓ |
+| GET/POST/PATCH/DELETE | `/api/notes` | ✓ |
+| GET | `/api/stats` | ✓ |
+| GET/POST/PATCH/DELETE | `/api/tags` | ✓ |
+| GET | `/api/tags/task-assignments` | ✓ |
+| GET/PUT | `/api/tags/tasks/:taskId` | ✓ |
+| GET/PUT | `/api/tags/notes/:noteId` | ✓ |
 
 ---
 
 ## Authentication
 
-**Status: open ⚠️** — refresh token strategy not decided.
+**Status: implemented ✓**
 
-Current: JWT access token (15 min). Refresh: Redis vs PostgreSQL sessions table — TBD.
+Two tokens per session: JWT access token (15 min) + opaque refresh token (30 days, sliding).
+
+- Access token — short-lived JWT, sent as `Authorization: Bearer` on every request
+- Refresh token — 96-char hex, stored in Redis (`refresh_token:<token>` → userId). On use: old key deleted, new token issued with fresh 30-day TTL
+- Logout — `POST /api/auth/logout { refreshToken }` deletes the Redis key
+
+Key files: `infrastructure/auth/refresh-token.service.ts`, `infrastructure/redis/client.ts`, `infrastructure/http/routes/auth.routes.ts`
 
 ---
 
