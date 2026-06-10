@@ -43,7 +43,7 @@ class _FakeNotesApi extends NotesApi {
     String id, {
     String? content,
     bool? collapsed,
-    String? parentId,
+    Object? parentId,
     int? sortOrder,
   }) async {
     updates.add((id: id, content: content));
@@ -83,8 +83,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, 'Beta'), findsOneWidget);
 
-    // Delete it via its per-row trash icon.
-    await tester.tap(find.byIcon(Icons.delete_outline).at(1));
+    // Delete it via the row's actions sheet.
+    await tester.tap(find.byIcon(Icons.more_horiz).at(1));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Удалить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить'));
     await tester.pumpAndSettle();
 
     expect(api.deletes, ['b']);

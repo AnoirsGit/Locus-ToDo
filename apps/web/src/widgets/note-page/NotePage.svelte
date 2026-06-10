@@ -186,7 +186,6 @@
   }
 
   /* Board overflows horizontally */
-  :global(.note-board) ~ .notes-body,
   .notes-body:has(:global(.note-board)) {
     overflow-x: auto;
   }

@@ -45,13 +45,14 @@ const newNode = (type: NoteNodeType = 'bullet'): NoteNode => ({
   children: [],
 })
 
-const findParentId = (nodes: NoteNode[], targetId: string, parentId: string | null = null): string | null => {
+// Returns the parent id, null for root-level nodes, undefined when not found.
+const findParentId = (nodes: NoteNode[], targetId: string, parentId: string | null = null): string | null | undefined => {
   for (const n of nodes) {
     if (n.id === targetId) return parentId
     const found = findParentId(n.children, targetId, n.id)
     if (found !== undefined) return found
   }
-  return undefined as any
+  return undefined
 }
 
 // Build path from root to targetId (inclusive), returns [{id, content}]
@@ -98,6 +99,32 @@ const pendingCreates = new Map<string, Promise<unknown>>()
 const trackCreate = (id: string, promise: Promise<unknown>) => {
   pendingCreates.set(id, promise)
   promise.finally(() => pendingCreates.delete(id))
+}
+
+// Swap a node with its adjacent sibling and persist both sort orders.
+const moveSibling = (id: string, delta: -1 | 1) => {
+  const parentId = findParentId(state.nodes, id)
+  if (parentId === undefined) return
+  const siblings = parentId
+    ? findNodeById(state.nodes, parentId)?.children ?? []
+    : state.nodes
+  const idx = siblings.findIndex(n => n.id === id)
+  const target = idx + delta
+  if (idx < 0 || target < 0 || target >= siblings.length) return
+
+  const reordered = [...siblings]
+  ;[reordered[idx], reordered[target]] = [reordered[target], reordered[idx]]
+  if (parentId) {
+    state.nodes = updateNodeInTree(state.nodes, parentId, { children: reordered })
+  } else {
+    state.nodes = reordered
+  }
+
+  for (const i of [idx, target]) {
+    notesApi.update(reordered[i].id, { sortOrder: i * 10 }).catch(() => {
+      toastStore.error('Failed to move note')
+    })
+  }
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────────
@@ -202,6 +229,11 @@ export const noteStore = {
         toastStore.error('Failed to save note')
       })
     }
+    if (patch.url !== undefined) {
+      notesApi.update(id, { url: patch.url || null }).catch(() => {
+        toastStore.error('Failed to save note')
+      })
+    }
   },
 
   /** Insert a new sibling node directly after `afterId`. Returns the new node. */
@@ -252,6 +284,49 @@ export const noteStore = {
 
     return focusId
   },
+
+  // ── Row metadata (menu state) ────────────────────────────────────────────
+
+  /** Number of descendants, for the delete confirmation text. */
+  descendantCount(id: string): number {
+    const node = findNodeById(state.nodes, id)
+    return node ? collectSubtreeIds(node).length - 1 : 0
+  },
+
+  /** Position of the node among its siblings (for disabling menu items). */
+  siblingInfo(id: string): { index: number; count: number; isRoot: boolean } | null {
+    const parentId = findParentId(state.nodes, id)
+    if (parentId === undefined) return null
+    const siblings = parentId
+      ? findNodeById(state.nodes, parentId)?.children ?? []
+      : state.nodes
+    return {
+      index: siblings.findIndex(n => n.id === id),
+      count: siblings.length,
+      isRoot: parentId === null,
+    }
+  },
+
+  /** Add an empty child at the end of `parentId`, expanding it. Returns the new node. */
+  async addChild(parentId: string): Promise<NoteNode> {
+    const node = newNode()
+    const parent = findNodeById(state.nodes, parentId)
+    const sortOrder = (parent?.children.length ?? 0) * 10
+    state.nodes = updateNodeInTree(state.nodes, parentId, {
+      collapsed: false,
+      children: [...(parent?.children ?? []), node],
+    })
+    trackCreate(node.id, notesApi.create({ id: node.id, parentId, nodeType: node.type, content: '', sortOrder }).catch(() => {
+      toastStore.error('Failed to create note')
+      state.nodes = removeNodeFromTree(state.nodes, node.id)
+    }))
+    return node
+  },
+
+  // ── Reorder among siblings ───────────────────────────────────────────────
+
+  moveUp(id: string) { moveSibling(id, -1) },
+  moveDown(id: string) { moveSibling(id, 1) },
 
   // ── Indent / Unindent ────────────────────────────────────────────────────
 

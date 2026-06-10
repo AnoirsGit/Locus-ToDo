@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { NoteNode } from '$entities/note'
   import { noteStore } from '$entities/note'
+  import NoteRowMenu from './NoteRowMenu.svelte'
 
   type Props = {
     node: NoteNode
@@ -15,11 +16,9 @@
   const { node, depth, focusId, onFocusChange, onFocusMove, onSelectExtend, onSelect, onZoom }: Props = $props()
 
   let inputEl = $state<HTMLElement | null>(null)
-  let urlInputEl = $state<HTMLInputElement | null>(null)
-  let showUrlInput = $state(false)
+  let menuOpen = $state(false)
 
   const selected = $derived(noteStore.selectedIds.has(node.id))
-  const singleSelected = $derived(selected && noteStore.selectedIds.size === 1)
 
   $effect(() => {
     if (focusId === node.id && inputEl) {
@@ -120,9 +119,9 @@
     }
   }
 
-  const handleDeleteClick = (e: MouseEvent) => {
-    e.stopPropagation()
-    noteStore.remove(node.id).then(focusTarget => onFocusChange(focusTarget))
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault()
+    menuOpen = true
   }
 
   const hasChildren = $derived(node.children.length > 0)
@@ -132,8 +131,10 @@
 <div
   class="note-row"
   class:selected
+  class:menu-open={menuOpen}
   style:padding-left="{indentPx}px"
   onclick={handleRowClick}
+  oncontextmenu={handleContextMenu}
   role="treeitem"
   aria-selected={selected}
 >
@@ -178,18 +179,6 @@
           onfocus={() => onFocusChange(node.id)}
           bind:this={inputEl}
         />
-        <button class="note-url-toggle" onclick={() => showUrlInput = !showUrlInput} tabindex="-1">
-          {showUrlInput ? 'Hide URL' : 'Set URL'}
-        </button>
-        {#if showUrlInput}
-          <input
-            class="note-input note-url-input"
-            value={node.url ?? ''}
-            placeholder="https://..."
-            oninput={(e) => noteStore.update(node.id, { url: (e.target as HTMLInputElement).value })}
-            bind:this={urlInputEl}
-          />
-        {/if}
       </div>
 
     {:else if node.type === 'link'}
@@ -206,18 +195,6 @@
         />
         {#if node.url}
           <a href={node.url} target="_blank" rel="noopener" class="note-link-href">↗</a>
-        {/if}
-        <button class="note-url-toggle" onclick={() => showUrlInput = !showUrlInput} tabindex="-1">
-          {showUrlInput ? 'Hide URL' : 'Set URL'}
-        </button>
-        {#if showUrlInput}
-          <input
-            class="note-input note-url-input"
-            value={node.url ?? ''}
-            placeholder="https://..."
-            oninput={(e) => noteStore.update(node.id, { url: (e.target as HTMLInputElement).value })}
-            bind:this={urlInputEl}
-          />
         {/if}
       </div>
 
@@ -237,32 +214,22 @@
       />
     {/if}
 
-    <!-- Type selector (shown on focus, hidden when selected for toolbar clarity) -->
-    {#if focusId === node.id && !selected}
-      <select
-        class="note-type-select"
-        value={node.type}
-        onchange={(e) => noteStore.update(node.id, { type: (e.target as HTMLSelectElement).value as any })}
-        tabindex="-1"
-      >
-        <option value="text">Text</option>
-        <option value="heading1">H1</option>
-        <option value="heading2">H2</option>
-        <option value="bullet">Bullet</option>
-        <option value="image">Image</option>
-        <option value="link">Link</option>
-      </select>
-    {/if}
   </div>
 
-  <!-- Single-select inline delete -->
-  {#if singleSelected}
-    <button class="note-row-delete" onclick={handleDeleteClick} tabindex="-1" aria-label="Delete note">
-      <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-        <path d="M2 3h8M5 3V2h2v1M4.5 3v6M6 3v6M7.5 3v6M3 3l.5 7h5L9 3"
-          stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
+  <!-- Actions menu trigger (hover/focus revealed) -->
+  <button
+    class="note-row-menu-btn"
+    onclick={(e) => { e.stopPropagation(); menuOpen = !menuOpen }}
+    tabindex="-1"
+    aria-label="Note actions"
+  >
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+      <circle cx="3" cy="7" r="1.1"/><circle cx="7" cy="7" r="1.1"/><circle cx="11" cy="7" r="1.1"/>
+    </svg>
+  </button>
+
+  {#if menuOpen}
+    <NoteRowMenu {node} onClose={() => menuOpen = false} {onFocusChange} />
   {/if}
 </div>
 
@@ -296,7 +263,7 @@
     background: transparent;
   }
 
-  .note-row-delete {
+  .note-row-menu-btn {
     position: absolute;
     right: 6px;
     top: 50%;
@@ -310,13 +277,19 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-danger);
-    opacity: 0.7;
+    color: var(--color-muted);
+    opacity: 0;
     transition: opacity 100ms, background 100ms;
   }
 
-  .note-row-delete:hover {
+  .note-row:hover .note-row-menu-btn,
+  .note-row:focus-within .note-row-menu-btn,
+  .note-row.menu-open .note-row-menu-btn {
     opacity: 1;
-    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  }
+
+  .note-row-menu-btn:hover {
+    color: var(--color-text);
+    background: var(--color-surface-2);
   }
 </style>

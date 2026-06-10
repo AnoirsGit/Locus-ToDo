@@ -89,7 +89,36 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     return null;
   }
 
+  /// (found, parentId) — parentId is null for root-level nodes.
+  (bool, String?) _findParent(List<NoteNode> nodes, String id, [String? parent]) {
+    for (final n in nodes) {
+      if (n.id == id) return (true, parent);
+      final sub = _findParent(n.children, id, n.id);
+      if (sub.$1) return sub;
+    }
+    return (false, null);
+  }
+
+  List<NoteNode> _siblingsOf(String? parentId) =>
+      parentId == null ? _nodes : (_findNode(_nodes, parentId)?.children ?? []);
+
   // ── Computed views ────────────────────────────────────────────────────────
+
+  ({int index, int count, bool isRoot})? siblingInfo(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return null;
+    final siblings = _siblingsOf(parentId);
+    return (
+      index: siblings.indexWhere((n) => n.id == id),
+      count: siblings.length,
+      isRoot: parentId == null,
+    );
+  }
+
+  int descendantCount(String id) {
+    final node = _findNode(_nodes, id);
+    return node == null ? 0 : _subtreeIds(node).length - 1;
+  }
 
   List<NoteNode> visibleRoots(String? rootId) {
     if (rootId == null) return _nodes;
@@ -143,6 +172,110 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
           .ignore();
     } else {
       addChild(underRootId);
+    }
+  }
+
+  void addAfter(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+    final fresh = NoteNode(id: generateUuid(), content: '');
+
+    if (parentId == null) {
+      state = AsyncData([..._nodes]..insert(idx + 1, fresh));
+    } else {
+      state = AsyncData(_mapNodes(_nodes, parentId, (n) => NoteNode(
+            id: n.id,
+            content: n.content,
+            collapsed: n.collapsed,
+            children: [...n.children]..insert(idx + 1, fresh),
+          )));
+    }
+    _api.create(id: fresh.id, parentId: parentId, content: '', sortOrder: (idx + 1) * 10)
+        .ignore();
+  }
+
+  void indent(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+    if (idx < 1) return;
+
+    final node = siblings[idx];
+    final prev = siblings[idx - 1];
+    final sortOrder = prev.children.length * 10;
+
+    var nodes = _removeNode(_nodes, id);
+    nodes = _mapNodes(nodes, prev.id, (n) => NoteNode(
+          id: n.id,
+          content: n.content,
+          collapsed: false,
+          children: [...n.children, node],
+        ));
+    state = AsyncData(nodes);
+
+    _api.update(id, parentId: prev.id, sortOrder: sortOrder).catchError((_) {});
+  }
+
+  void unindent(String id) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found || parentId == null) return;
+    final (_, grandParentId) = _findParent(_nodes, parentId);
+    final node = _findNode(_nodes, id);
+    if (node == null) return;
+
+    var nodes = _removeNode(_nodes, id);
+    List<NoteNode> insertAfterParent(List<NoteNode> list) {
+      final i = list.indexWhere((n) => n.id == parentId);
+      if (i != -1) return [...list]..insert(i + 1, node);
+      return list
+          .map((n) => NoteNode(
+                id: n.id,
+                content: n.content,
+                collapsed: n.collapsed,
+                children: insertAfterParent(n.children),
+              ))
+          .toList();
+    }
+
+    nodes = insertAfterParent(nodes);
+    state = AsyncData(nodes);
+
+    final gpList = grandParentId == null ? nodes : (_findNode(nodes, grandParentId)?.children ?? []);
+    final parentIdx = gpList.indexWhere((n) => n.id == parentId);
+    _api.update(id, parentId: grandParentId, sortOrder: (parentIdx + 1) * 10).catchError((_) {});
+  }
+
+  void moveUp(String id) => _moveSibling(id, -1);
+  void moveDown(String id) => _moveSibling(id, 1);
+
+  void _moveSibling(String id, int delta) {
+    final (found, parentId) = _findParent(_nodes, id);
+    if (!found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+    final target = idx + delta;
+    if (idx < 0 || target < 0 || target >= siblings.length) return;
+
+    final reordered = [...siblings];
+    final tmp = reordered[idx];
+    reordered[idx] = reordered[target];
+    reordered[target] = tmp;
+
+    if (parentId == null) {
+      state = AsyncData(reordered);
+    } else {
+      state = AsyncData(_mapNodes(_nodes, parentId, (n) => NoteNode(
+            id: n.id,
+            content: n.content,
+            collapsed: n.collapsed,
+            children: reordered,
+          )));
+    }
+    for (final i in [idx, target]) {
+      _api.update(reordered[i].id, sortOrder: i * 10).catchError((_) {});
     }
   }
 
@@ -584,6 +717,106 @@ class _NoteRowState extends State<_NoteRow> {
     if (mounted) setState(() => _editing = false);
   }
 
+  void _showActions() {
+    final node = widget.node;
+    final notifier = widget.notifier;
+    final info = notifier.siblingInfo(node.id);
+    final descendants = notifier.descendantCount(node.id);
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetCtx) {
+        void close() => Navigator.pop(sheetCtx);
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.open_in_full, size: 20),
+                  title: const Text('Открыть как страницу'),
+                  onTap: () { close(); widget.onZoom(node.id); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.subdirectory_arrow_right, size: 20),
+                  title: const Text('Добавить вложенную'),
+                  onTap: () { close(); notifier.addChild(node.id); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.add, size: 20),
+                  title: const Text('Добавить ниже'),
+                  onTap: () { close(); notifier.addAfter(node.id); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.format_indent_increase, size: 20),
+                  title: const Text('Сдвинуть вправо'),
+                  enabled: info != null && info.index > 0,
+                  onTap: () { close(); notifier.indent(node.id); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.format_indent_decrease, size: 20),
+                  title: const Text('Сдвинуть влево'),
+                  enabled: info != null && !info.isRoot,
+                  onTap: () { close(); notifier.unindent(node.id); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.arrow_upward, size: 20),
+                  title: const Text('Переместить вверх'),
+                  enabled: info != null && info.index > 0,
+                  onTap: () { close(); notifier.moveUp(node.id); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.arrow_downward, size: 20),
+                  title: const Text('Переместить вниз'),
+                  enabled: info != null && info.index < info.count - 1,
+                  onTap: () { close(); notifier.moveDown(node.id); },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                  title: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    close();
+                    if (descendants > 0) {
+                      _confirmSubtreeDelete(descendants);
+                    } else {
+                      notifier.removeNote(node.id);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmSubtreeDelete(int descendants) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Удалить заметку?'),
+        content: Text('Будут удалены заметка и вложенные: $descendants шт.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              widget.notifier.removeNote(widget.node.id);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final node = widget.node;
@@ -671,23 +904,15 @@ class _NoteRowState extends State<_NoteRow> {
                             ),
                           ),
                   ),
-                  // Actions (only when not in selection mode)
-                  if (!isSelecting) ...[
+                  // Actions menu trigger (hidden in selection mode)
+                  if (!isSelecting)
                     GestureDetector(
-                      onTap: () => widget.notifier.addChild(node.id),
+                      onTap: _showActions,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                        child: Icon(Icons.add, size: 16, color: context.colorMuted),
+                        padding: const EdgeInsets.only(left: 6, right: 10, top: 8, bottom: 8),
+                        child: Icon(Icons.more_horiz, size: 18, color: context.colorMuted),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => widget.notifier.removeNote(node.id),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 2, right: 10, top: 8, bottom: 8),
-                        child: Icon(Icons.delete_outline, size: 16, color: context.colorMuted),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

@@ -76,17 +76,20 @@ class NotesApi {
     return NoteDto.fromJson(res.data!);
   }
 
+  // Sentinel so `parentId: null` (unindent to root) can be sent explicitly.
+  static const _absent = Object();
+
   Future<void> update(
     String id, {
     String? content,
     bool? collapsed,
-    String? parentId,
+    Object? parentId = _absent,
     int? sortOrder,
   }) async {
     final body = <String, dynamic>{};
     if (content != null) body['content'] = content;
     if (collapsed != null) body['collapsed'] = collapsed;
-    if (parentId != null) body['parentId'] = parentId;
+    if (!identical(parentId, _absent)) body['parentId'] = parentId as String?;
     if (sortOrder != null) body['sortOrder'] = sortOrder;
     await _client.patch<void>('/notes/$id', data: body);
   }
