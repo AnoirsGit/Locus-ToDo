@@ -1,5 +1,7 @@
 # feat/notes
 
+> v1 — shipped. Follow-up analysis & v2 plan: `current/notes-v2/` (delete bug, note-page routes, three-dots menu, mobile parity).
+
 ## Goal
 Notes section in LocusToDo web app — tree-structured notes with typed nodes,
 inline editing, two views: Outline (tree) and Board (columns).
