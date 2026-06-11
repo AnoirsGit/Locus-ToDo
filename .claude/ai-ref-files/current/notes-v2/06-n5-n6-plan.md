@@ -52,10 +52,13 @@
   shows a SnackBar with Undo; wired in actions sheet (leaf + subtree confirm) and selection bar.
 - [x] `tsc` (web) + `flutter analyze` clean
 
-### Phase E — Export Markdown / OPML (N6.4) — read-only endpoint
-- [ ] API: `GET /api/notes/export?format=md|opml` walks tree → text; route + usecase
-- [ ] Web: "Export" action (download .md/.opml) in notes page header
-- [ ] Typecheck clean; backend builds
+### Phase E — Export Markdown / OPML (N6.4) ✅ DONE
+- [x] **Client-side** generation from the loaded tree (`note-export.ts`: `toMarkdown`, `toOpml`,
+  `downloadText`) — no endpoint needed, same rationale as search. Deviation noted.
+- [x] Markdown: headings `#/##`, `- [ ]/[x]` todos, `[text](url)` links, `![]()` images, indented bullets.
+  OPML: nested `<outline text _type _url _done>`.
+- [x] Web: "Export ▾" menu in the notes header → downloads `.md` / `.opml` via Blob
+- [x] `tsc` (web) clean
 
 ### Phase F — Drag-and-drop reorder/reparent, web (N5.3) — no schema
 - [ ] Web: pointer-based DnD on `NoteRow` (drag handle); drop = reparent/reorder via `PATCH parentId/sortOrder`; visual drop indicator
