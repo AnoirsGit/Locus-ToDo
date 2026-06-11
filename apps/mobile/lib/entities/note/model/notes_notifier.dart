@@ -101,6 +101,25 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     return node == null ? 0 : _subtreeIds(node).length - 1;
   }
 
+  /// Case-insensitive content search over the whole tree, with breadcrumb paths.
+  List<({String id, String content, String path})> search(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    final results = <({String id, String content, String path})>[];
+    void walk(List<NoteNode> nodes, List<String> ancestors) {
+      for (final n in nodes) {
+        if (n.content.toLowerCase().contains(q)) {
+          results.add((id: n.id, content: n.content, path: ancestors.join(' › ')));
+        }
+        if (n.children.isNotEmpty) {
+          walk(n.children, [...ancestors, n.content.isEmpty ? 'Untitled' : n.content]);
+        }
+      }
+    }
+    walk(_nodes, const []);
+    return results;
+  }
+
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   void toggleCollapse(String id) {

@@ -315,6 +315,23 @@ export const noteStore = {
 
   // ── Row metadata (menu state) ────────────────────────────────────────────
 
+  /** Case-insensitive content search over the whole tree, with breadcrumb paths. */
+  search(query: string): Array<{ id: string; content: string; type: NoteNodeType; path: string }> {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    const results: Array<{ id: string; content: string; type: NoteNodeType; path: string }> = []
+    const walk = (nodes: NoteNode[], ancestors: string[]) => {
+      for (const n of nodes) {
+        if (n.content.toLowerCase().includes(q)) {
+          results.push({ id: n.id, content: n.content, type: n.type, path: ancestors.join(' › ') })
+        }
+        if (n.children.length) walk(n.children, [...ancestors, n.content || 'Untitled'])
+      }
+    }
+    walk(state.nodes, [])
+    return results
+  },
+
   /** Number of descendants, for the delete confirmation text. */
   descendantCount(id: string): number {
     const node = findNodeById(state.nodes, id)

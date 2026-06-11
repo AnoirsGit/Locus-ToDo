@@ -106,6 +106,9 @@
 
   const crumbs = $derived(noteStore.breadcrumbs)
   const selCount = $derived(noteStore.selectedIds.size)
+
+  let searchQuery = $state('')
+  const searchResults = $derived(noteStore.search(searchQuery))
 </script>
 
 <div class="note-tree-wrap">
@@ -146,6 +149,36 @@
     </div>
   {/if}
 
+  <!-- Search -->
+  <div class="note-search">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>
+    <input
+      class="note-search-input"
+      placeholder="Search notes…"
+      bind:value={searchQuery}
+    />
+    {#if searchQuery}
+      <button class="note-search-clear" onclick={() => searchQuery = ''} aria-label="Clear search">✕</button>
+    {/if}
+  </div>
+
+  {#if searchQuery.trim()}
+    <!-- Search results -->
+    <div class="note-search-results">
+      {#each searchResults as r (r.id)}
+        <button class="note-search-result" onclick={() => { goto(`/notes/${r.id}`); searchQuery = '' }}>
+          <span class="note-search-result-content">{r.content || 'Untitled'}</span>
+          {#if r.path}<span class="note-search-result-path">{r.path}</span>{/if}
+        </button>
+      {:else}
+        <div class="note-search-empty">No matches</div>
+      {/each}
+    </div>
+  {:else}
+
   <!-- Tag filter -->
   <NoteTagFilterBar />
 
@@ -181,6 +214,7 @@
       Add note
     </button>
   </div>
+  {/if}
 
 </div>
 
@@ -289,6 +323,81 @@
   }
 
   .note-sel-clear:hover { color: var(--color-text); }
+
+  /* ── Search ──────────────────────────────────────────────────────── */
+
+  .note-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-muted);
+  }
+
+  .note-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    color: var(--color-text);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .note-search-clear {
+    font-size: 11px;
+    color: var(--color-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+  }
+
+  .note-search-clear:hover { color: var(--color-text); }
+
+  .note-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .note-search-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    background: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-align: left;
+    transition: background 100ms;
+  }
+
+  .note-search-result:hover { background: var(--color-surface-2); }
+
+  .note-search-result-content {
+    font-size: 13px;
+    color: var(--color-text);
+  }
+
+  .note-search-result-path {
+    font-size: 11px;
+    color: var(--color-muted);
+  }
+
+  .note-search-empty {
+    padding: 16px 8px;
+    font-size: 13px;
+    color: var(--color-muted);
+    text-align: center;
+  }
 
   /* ── Empty state ─────────────────────────────────────────────────── */
 

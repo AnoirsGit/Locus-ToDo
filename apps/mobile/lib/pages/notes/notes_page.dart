@@ -31,6 +31,9 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   // Selection is per-page so it never leaks between stacked zoom pages.
   Set<String> _selectedIds = {};
 
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +42,12 @@ class _NotesPageState extends ConsumerState<NotesPage> {
       await tags.load();
       await tags.loadNoteAssignments();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   // Prune the tree to branches containing a tag-match, force-expanding along
@@ -159,8 +168,32 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                   onCrumb: (id) => context.go('/notes/$id'),
                 ),
 
-              // Tag filter (outline only)
-              if (_view == _NotesView.outline && tagState.tags.isNotEmpty)
+              // Search (outline only)
+              if (_view == _NotesView.outline)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Search notes…',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(() { _searchCtrl.clear(); _searchQuery = ''; }),
+                            )
+                          : null,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+
+              // Tag filter (outline only, hidden while searching)
+              if (_view == _NotesView.outline && _searchQuery.trim().isEmpty && tagState.tags.isNotEmpty)
                 _NoteTagFilterBar(tagState: tagState, ref: ref),
 
               // Multi-select toolbar (outline only)
@@ -177,23 +210,25 @@ class _NotesPageState extends ConsumerState<NotesPage> {
               Expanded(
                 child: _view == _NotesView.board
                     ? NotesBoard(rootId: rootId)
-                    : roots.isEmpty
-                        ? _emptyState(context,
-                            onAdd: () => notifier.addRoot(underRootId: rootId))
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(0, 4, 0, 80),
-                            itemCount: roots.length,
-                            itemBuilder: (ctx, i) => NoteRow(
-                              key: ValueKey(roots[i].id),
-                              node: roots[i],
-                              depth: 0,
-                              notifier: notifier,
-                              selectedIds: _selectedIds,
-                              onSelect: _toggleSelect,
-                              onLongPress: _startSelect,
-                              onZoom: (id) => context.push('/notes/$id'),
-                            ),
-                          ),
+                    : _searchQuery.trim().isNotEmpty
+                        ? _searchResults(context, notifier)
+                        : roots.isEmpty
+                            ? _emptyState(context,
+                                onAdd: () => notifier.addRoot(underRootId: rootId))
+                            : ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(0, 4, 0, 80),
+                                itemCount: roots.length,
+                                itemBuilder: (ctx, i) => NoteRow(
+                                  key: ValueKey(roots[i].id),
+                                  node: roots[i],
+                                  depth: 0,
+                                  notifier: notifier,
+                                  selectedIds: _selectedIds,
+                                  onSelect: _toggleSelect,
+                                  onLongPress: _startSelect,
+                                  onZoom: (id) => context.push('/notes/$id'),
+                                ),
+                              ),
               ),
             ],
           );
@@ -206,6 +241,38 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         elevation: 2,
         child: const Icon(Icons.add, size: 22),
       ),
+    );
+  }
+
+  Widget _searchResults(BuildContext context, NotesNotifier notifier) {
+    final results = notifier.search(_searchQuery);
+    if (results.isEmpty) {
+      return Center(
+        child: Text('No matches', style: TextStyle(color: context.colorMuted)),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 80),
+      itemCount: results.length,
+      itemBuilder: (ctx, i) {
+        final r = results[i];
+        return ListTile(
+          dense: true,
+          title: Text(
+            r.content.isEmpty ? S.untitled : r.content,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: r.path.isEmpty
+              ? null
+              : Text(r.path, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: context.colorMuted)),
+          onTap: () {
+            setState(() { _searchCtrl.clear(); _searchQuery = ''; });
+            context.push('/notes/${r.id}');
+          },
+        );
+      },
     );
   }
 

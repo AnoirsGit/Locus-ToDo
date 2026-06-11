@@ -28,11 +28,12 @@
 - [x] Mobile: note-tag state in `tag_store`; `NoteTagChips` + `showNoteTagPicker` (`note_tags.dart`); `NoteRow`→Consumer; picker tile in actions sheet; filter bar + prune in `notes_page`
 - [x] `tsc` (web+api) + `flutter analyze` clean
 
-### Phase B — Search (N5.2) — tiny backend
-- [ ] API: `GET /api/notes/search?q=` → `ILIKE` over content, return rows + breadcrumb path; usecase + repo method + route + zod
-- [ ] Web: search field above tree; results list with breadcrumb paths; click → zoom/focus
-- [ ] Mobile: search field in `notes_page`; same results UX
-- [ ] Typecheck + analyze clean; backend builds
+### Phase B — Search (N5.2) ✅ DONE
+- [x] **Client-side** search over the already-loaded tree (the API returns all notes, so
+  no endpoint needed — instant, offline-friendly). Deviation from plan noted with rationale.
+- [x] Web: `noteStore.search(q)` (content `includes`, breadcrumb path); search field + results list above the tree; click → zoom
+- [x] Mobile: `NotesNotifier.search(q)`; search `TextField` + results `ListView` in `notes_page`; tap → zoom
+- [x] `tsc` (web) + `flutter analyze` clean
 
 ### Phase C — Checkbox / todo nodes (N6.1) — migration 006 ⚠️ show SQL first
 - [ ] Write `006_notes_todo.sql`; **present SQL, get explicit OK, then run**
