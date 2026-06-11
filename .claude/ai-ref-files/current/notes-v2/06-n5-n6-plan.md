@@ -60,10 +60,12 @@
 - [x] Web: "Export ▾" menu in the notes header → downloads `.md` / `.opml` via Blob
 - [x] `tsc` (web) clean
 
-### Phase F — Drag-and-drop reorder/reparent, web (N5.3) — no schema
-- [ ] Web: pointer-based DnD on `NoteRow` (drag handle); drop = reparent/reorder via `PATCH parentId/sortOrder`; visual drop indicator
-- [ ] Keep move up/down as fallback
-- [ ] Typecheck clean
+### Phase F — Drag-and-drop reorder/reparent, web (N5.3) ✅ DONE (⚠️ needs browser QA)
+- [x] Native HTML5 DnD: `⠿` drag handle (draggable) on each row; row is the drop target
+- [x] `noteStore.dragId`/`setDrag` + `dropNode(dragId, targetId, before|after|child)` — top/bottom 25% = sibling, middle = child; renumbers siblings + sets parentId via PATCH; blocks self-descendant drops
+- [x] Drop indicator: inset top/bottom line (sibling) or highlight+ring (child)
+- [x] Move up/down kept as fallback; `tsc` (web) clean
+- [ ] **Browser QA** — DnD interaction can't be verified statically
 
 ### Phase G — Move to… dialog (N5.4) ✅ DONE
 - [x] Web: `noteStore.moveCandidates(excludeId)` (flattened, excludes own subtree) + `moveToParent(id, parentId|null)`;

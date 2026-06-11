@@ -212,6 +212,7 @@ type State = {
   loaded: boolean
   rootId: string | null
   selectedIds: Set<string>
+  dragId: string | null
 }
 
 const state = $state<State>({
@@ -219,6 +220,7 @@ const state = $state<State>({
   loaded: false,
   rootId: null,
   selectedIds: new Set(),
+  dragId: null,
 })
 
 export const noteStore = {
@@ -496,6 +498,50 @@ export const noteStore = {
     }
     walk(state.nodes, '')
     return out
+  },
+
+  // ── Drag and drop ──────────────────────────────────────────────────────────
+
+  get dragId() { return state.dragId },
+  setDrag(id: string | null) { state.dragId = id },
+
+  /** Drop `dragId` relative to `targetId`: as a child, or before/after as a sibling. */
+  dropNode(dragId: string, targetId: string, pos: 'before' | 'after' | 'child') {
+    if (dragId === targetId) return
+    const node = findNodeById(state.nodes, dragId)
+    if (!node) return
+    if (new Set(collectSubtreeIds(node)).has(targetId)) return // no self-descendant drop
+
+    if (pos === 'child') {
+      this.moveToParent(dragId, targetId)
+      return
+    }
+
+    const targetParentId = findParentId(state.nodes, targetId)
+    if (targetParentId === undefined) return
+
+    const removed = removeNodeFromTree(state.nodes, dragId)
+    const siblings = targetParentId
+      ? findNodeById(removed, targetParentId)?.children ?? removed
+      : removed
+    const tIdx = siblings.findIndex(n => n.id === targetId)
+    const insertIdx = pos === 'before' ? tIdx : tIdx + 1
+    const newSiblings = [...siblings]
+    newSiblings.splice(insertIdx, 0, node)
+
+    if (targetParentId) {
+      state.nodes = updateNodeInTree(removed, targetParentId, { children: newSiblings })
+    } else {
+      state.nodes = newSiblings
+    }
+
+    // Renumber the whole sibling list; set the moved node's parent too.
+    newSiblings.forEach((n, i) => {
+      const patch = n.id === dragId
+        ? { parentId: targetParentId, sortOrder: i * 10 }
+        : { sortOrder: i * 10 }
+      notesApi.update(n.id, patch).catch(() => toastStore.error('Failed to move note'))
+    })
   },
 
   /** Reparent a node to `newParentId` (null = root), appended last. */

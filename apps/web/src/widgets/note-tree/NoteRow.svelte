@@ -18,6 +18,7 @@
 
   let inputEl = $state<HTMLElement | null>(null)
   let menuOpen = $state(false)
+  let dropPos = $state<'before' | 'after' | 'child' | null>(null)
 
   const selected = $derived(noteStore.selectedIds.has(node.id))
 
@@ -132,6 +133,26 @@
     menuOpen = true
   }
 
+  // ── Drag and drop ───────────────────────────────────────────────────────────
+  const handleDragOver = (e: DragEvent) => {
+    const dragId = noteStore.dragId
+    if (!dragId || dragId === node.id) return
+    e.preventDefault()
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const y = e.clientY - rect.top
+    dropPos = y < rect.height * 0.25 ? 'before' : y > rect.height * 0.75 ? 'after' : 'child'
+  }
+
+  const handleDrop = (e: DragEvent) => {
+    const dragId = noteStore.dragId
+    if (dragId && dropPos) {
+      e.preventDefault()
+      noteStore.dropNode(dragId, node.id, dropPos)
+    }
+    dropPos = null
+    noteStore.setDrag(null)
+  }
+
   const hasChildren = $derived(node.children.length > 0)
   const indentPx = $derived(depth * 24)
   const tags = $derived(tagStore.getTagsForNote(node.id))
@@ -141,12 +162,28 @@
   class="note-row"
   class:selected
   class:menu-open={menuOpen}
+  class:drop-before={dropPos === 'before'}
+  class:drop-after={dropPos === 'after'}
+  class:drop-child={dropPos === 'child'}
   style:padding-left="{indentPx}px"
   onclick={handleRowClick}
   oncontextmenu={handleContextMenu}
+  ondragover={handleDragOver}
+  ondragleave={() => dropPos = null}
+  ondrop={handleDrop}
   role="treeitem"
   aria-selected={selected}
 >
+
+  <!-- Drag handle -->
+  <span
+    class="note-drag-handle"
+    draggable="true"
+    ondragstart={(e) => { noteStore.setDrag(node.id); e.dataTransfer?.setData('text/plain', node.id) }}
+    ondragend={() => { noteStore.setDrag(null); dropPos = null }}
+    aria-hidden="true"
+    title="Drag to move"
+  >⠿</span>
 
   <!-- Collapse toggle / bullet -->
   <button
@@ -291,6 +328,31 @@
 <style>
   .note-row {
     position: relative;
+  }
+
+  .note-drag-handle {
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--color-muted-2);
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 100ms;
+    user-select: none;
+  }
+
+  .note-row:hover .note-drag-handle { opacity: 1; }
+  .note-drag-handle:active { cursor: grabbing; }
+
+  .note-row.drop-before { box-shadow: inset 0 2px 0 var(--color-brand); }
+  .note-row.drop-after  { box-shadow: inset 0 -2px 0 var(--color-brand); }
+  .note-row.drop-child {
+    background: var(--color-brand-soft);
+    border-radius: var(--radius);
+    box-shadow: inset 0 0 0 1px var(--color-brand);
   }
 
   .note-tags {
