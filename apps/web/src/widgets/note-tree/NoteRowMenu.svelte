@@ -56,7 +56,9 @@
   }
 
   const saveUrl = () => {
-    noteStore.update(node.id, { url: urlValue.trim() || undefined })
+    // Pass the trimmed string (empty allowed) so clearing the field
+    // sends url=null — `update` ignores `undefined`, which would block clears.
+    noteStore.update(node.id, { url: urlValue.trim() })
     onClose()
   }
 
