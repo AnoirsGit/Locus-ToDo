@@ -35,6 +35,8 @@ class S {
   static String get tags => _ru ? 'Теги' : 'Tags';
   static String get clearFilter => _ru ? 'Сбросить фильтр' : 'Clear filter';
   static String get delete => _ru ? 'Удалить' : 'Delete';
+  static String get undo => _ru ? 'Отменить' : 'Undo';
+  static String get noteDeleted => _ru ? 'Заметка удалена' : 'Note deleted';
   static String get cancel => _ru ? 'Отмена' : 'Cancel';
   static String get save => _ru ? 'Сохранить' : 'Save';
   static String get deleteNoteQ => _ru ? 'Удалить заметку?' : 'Delete note?';

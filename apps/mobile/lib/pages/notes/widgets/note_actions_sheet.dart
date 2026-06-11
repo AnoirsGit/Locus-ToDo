@@ -104,7 +104,7 @@ void showNoteActionsSheet(
                     _confirmSubtreeDelete(context,
                         node: node, notifier: notifier, descendants: descendants);
                   } else {
-                    notifier.removeNote(node.id);
+                    showNoteUndoSnack(context, notifier.removeNoteWithUndo(node.id));
                   }
                 },
               ),
@@ -114,6 +114,20 @@ void showNoteActionsSheet(
       );
     },
   );
+}
+
+/// Show a "deleted — Undo" SnackBar; no-op when there's nothing to undo.
+void showNoteUndoSnack(BuildContext context, void Function()? undo) {
+  if (undo == null) return;
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(S.noteDeleted),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(label: S.undo, onPressed: undo),
+      ),
+    );
 }
 
 void _showTurnIntoSheet(
@@ -208,7 +222,7 @@ void _confirmSubtreeDelete(
         TextButton(
           onPressed: () {
             Navigator.pop(dialogCtx);
-            notifier.removeNote(node.id);
+            showNoteUndoSnack(context, notifier.removeNoteWithUndo(node.id));
           },
           style: TextButton.styleFrom(foregroundColor: Colors.red),
           child: Text(S.delete),

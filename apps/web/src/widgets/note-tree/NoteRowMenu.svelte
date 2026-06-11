@@ -77,7 +77,7 @@
       return
     }
     onClose()
-    noteStore.remove(node.id).then(focusTarget => onFocusChange(focusTarget))
+    noteStore.remove(node.id, { undo: true }).then(focusTarget => onFocusChange(focusTarget))
   }
 
   const types: Array<{ value: NoteNodeType; label: string }> = [

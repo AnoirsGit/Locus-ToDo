@@ -8,6 +8,7 @@ import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../app_shell.dart';
 import 'widgets/breadcrumb_bar.dart';
+import 'widgets/note_actions_sheet.dart';
 import 'widgets/note_board.dart';
 import 'widgets/note_row.dart';
 import 'widgets/note_tags.dart';
@@ -201,7 +202,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                 NotesSelectionBar(
                   count: _selectedIds.length,
                   onDelete: () {
-                    notifier.deleteMultiple(_selectedIds);
+                    showNoteUndoSnack(context, notifier.deleteMultipleWithUndo(_selectedIds));
                     _clearSelection();
                   },
                   onClear: _clearSelection,

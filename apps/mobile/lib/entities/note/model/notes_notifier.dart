@@ -363,6 +363,97 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
       _api.delete(id).catchError((_) {});
     }
   }
+
+  // ── Undo for deletes ────────────────────────────────────────────────────────
+
+  ({NoteNode node, String? parentId, int index})? _capture(String id) {
+    final node = _findNode(_nodes, id);
+    final (found, parentId) = _findParent(_nodes, id);
+    if (node == null || !found) return null;
+    final siblings = _siblingsOf(parentId);
+    return (node: node, parentId: parentId, index: siblings.indexWhere((n) => n.id == id));
+  }
+
+  void _restore(List<({NoteNode node, String? parentId, int index})> entries) {
+    var nodes = _nodes;
+    for (final e in entries) {
+      if (e.parentId == null) {
+        final arr = [...nodes];
+        arr.insert(e.index.clamp(0, arr.length), e.node);
+        nodes = arr;
+      } else {
+        nodes = _mapNodes(nodes, e.parentId!, (n) {
+          final ch = [...n.children];
+          ch.insert(e.index.clamp(0, ch.length), e.node);
+          return n.copyWith(children: ch);
+        });
+      }
+    }
+    state = AsyncData(nodes);
+
+    final creates = <({String id, String? parentId, String nodeType, String content, String? url, int sortOrder})>[];
+    void collect(NoteNode node, String? parentId, int sortOrder) {
+      creates.add((
+        id: node.id, parentId: parentId, nodeType: node.type.api,
+        content: node.content, url: node.url, sortOrder: sortOrder,
+      ));
+      for (var i = 0; i < node.children.length; i++) {
+        collect(node.children[i], node.id, i * 10);
+      }
+    }
+    for (final e in entries) {
+      collect(e.node, e.parentId, e.index * 10);
+    }
+    () async {
+      for (final c in creates) {
+        await _api.create(
+          id: c.id, parentId: c.parentId, nodeType: c.nodeType,
+          content: c.content, url: c.url, sortOrder: c.sortOrder,
+        );
+      }
+    }()
+        .catchError((_) {});
+  }
+
+  /// Delete a note and return an undo callback (null if capture failed).
+  void Function()? removeNoteWithUndo(String id) {
+    final entry = _capture(id);
+    _cancelDebounce(id);
+    state = AsyncData(_removeNode(_nodes, id));
+    _api.delete(id).catchError((_) {});
+    if (entry == null) return null;
+    return () => _restore([entry]);
+  }
+
+  /// Delete a selection and return an undo callback (null if nothing captured).
+  void Function()? deleteMultipleWithUndo(Set<String> ids) {
+    bool hasSelectedAncestor(String id) {
+      var (_, p) = _findParent(_nodes, id);
+      while (p != null) {
+        if (ids.contains(p)) return true;
+        p = _findParent(_nodes, p).$2;
+      }
+      return false;
+    }
+
+    final entries = ids
+        .where((id) => !hasSelectedAncestor(id))
+        .map(_capture)
+        .whereType<({NoteNode node, String? parentId, int index})>()
+        .toList();
+
+    var nodes = _nodes;
+    for (final id in ids) {
+      _cancelDebounce(id);
+      nodes = _removeNode(nodes, id);
+    }
+    state = AsyncData(nodes);
+    for (final id in ids) {
+      _api.delete(id).catchError((_) {});
+    }
+    if (entries.isEmpty) return null;
+    return () => _restore(entries);
+  }
 }
 
 final notesProvider = AsyncNotifierProvider<NotesNotifier, List<NoteNode>>(

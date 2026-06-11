@@ -155,6 +155,56 @@ const moveSibling = (id: string, delta: -1 | 1) => {
   }
 }
 
+// ─── Undo for deletes ────────────────────────────────────────────────────────
+
+type DeletedEntry = { node: NoteNode; parentId: string | null; index: number }
+
+// Snapshot a node's subtree + its position, before it is removed.
+const captureForUndo = (id: string): DeletedEntry | null => {
+  const node = findNodeById(state.nodes, id)
+  const parentId = findParentId(state.nodes, id)
+  if (!node || parentId === undefined) return null
+  const siblings = parentId
+    ? findNodeById(state.nodes, parentId)?.children ?? state.nodes
+    : state.nodes
+  return { node, parentId, index: siblings.findIndex(n => n.id === id) }
+}
+
+const hasSelectedAncestor = (id: string, selected: Set<string>): boolean => {
+  let p = findParentId(state.nodes, id)
+  while (p !== undefined && p !== null) {
+    if (selected.has(p)) return true
+    p = findParentId(state.nodes, p)
+  }
+  return false
+}
+
+const collectRecreates = (node: NoteNode, parentId: string | null, sortOrder: number, acc: CreatePayload[]) => {
+  acc.push({ id: node.id, parentId, nodeType: node.type, content: node.content, url: node.url ?? null, sortOrder })
+  node.children.forEach((c, i) => collectRecreates(c, node.id, i * 10, acc))
+}
+
+// Re-insert captured subtrees locally and re-create them server-side
+// (parent-first; original ids are free again after the cascade delete).
+const restoreEntries = (entries: DeletedEntry[]) => {
+  for (const e of entries) {
+    if (e.parentId === null) {
+      const arr = [...state.nodes]
+      arr.splice(Math.min(e.index, arr.length), 0, e.node)
+      state.nodes = arr
+    } else {
+      const parent = findNodeById(state.nodes, e.parentId)
+      const children = [...(parent?.children ?? [])]
+      children.splice(Math.min(e.index, children.length), 0, e.node)
+      state.nodes = updateNodeInTree(state.nodes, e.parentId, { children })
+    }
+  }
+  const acc: CreatePayload[] = []
+  for (const e of entries) collectRecreates(e.node, e.parentId, e.index * 10, acc)
+  ;(async () => { for (const p of acc) await notesApi.create(p) })()
+    .catch(() => toastStore.error('Failed to restore note'))
+}
+
 // ─── Store ─────────────────────────────────────────────────────────────────
 
 type State = {
@@ -215,6 +265,14 @@ export const noteStore = {
   async deleteSelected() {
     const ids = [...state.selectedIds]
     if (!ids.length) return
+    // Capture disjoint subtree roots (a selected child of a selected node is
+    // restored with its ancestor) before removing anything.
+    const selected = new Set(ids)
+    const entries = ids
+      .filter(id => !hasSelectedAncestor(id, selected))
+      .map(captureForUndo)
+      .filter((e): e is DeletedEntry => e !== null)
+
     state.selectedIds = new Set()
     let nodes = state.nodes
     for (const id of ids) {
@@ -226,6 +284,11 @@ export const noteStore = {
       await pendingCreates.get(id)
       await notesApi.delete(id).catch(() => {})
     }))
+
+    if (entries.length) {
+      const label = entries.length > 1 ? `${entries.length} notes deleted` : 'Note deleted'
+      toastStore.withAction(label, { label: 'Undo', run: () => restoreEntries(entries) })
+    }
   },
 
   // ── Init ─────────────────────────────────────────────────────────────────
@@ -297,13 +360,22 @@ export const noteStore = {
     return node
   },
 
-  /** Remove node. Returns the id of the node that should receive focus next. */
-  async remove(id: string): Promise<string | null> {
+  /**
+   * Remove node. Returns the id of the node that should receive focus next.
+   * Pass `{ undo: true }` (explicit deletes) to offer an Undo toast; keyboard
+   * backspace-merge skips it to avoid noise.
+   */
+  async remove(id: string, opts?: { undo?: boolean }): Promise<string | null> {
+    const entry = opts?.undo ? captureForUndo(id) : null
     const flat = flattenTree(state.nodes)
     const idx = flat.findIndex(f => f.node.id === id)
     const focusId = idx > 0 ? flat[idx - 1].node.id : null
     cancelContentDebounce(state.nodes, id)
     state.nodes = removeNodeFromTree(state.nodes, id)
+
+    if (entry) {
+      toastStore.withAction('Note deleted', { label: 'Undo', run: () => restoreEntries([entry]) })
+    }
 
     const pending = pendingCreates.get(id)
     const doDelete = () => notesApi.delete(id).catch(() => {

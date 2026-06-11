@@ -44,10 +44,13 @@
 - [x] `tsc` (web+api) + `flutter analyze` clean
 - [ ] **Apply migration on live DB** (pending stack up) — `done` column must exist before `done`/`todo` round-trips work
 
-### Phase D — Undo delete (N6.3) — no schema
-- [ ] Web: capture deleted subtree; toast with "Undo" → re-create parent-first (original ids); applies to single + multi delete
-- [ ] Mobile: same via SnackBar action
-- [ ] Typecheck + analyze clean
+### Phase D — Undo delete (N6.3) ✅ DONE
+- [x] Web: `toastStore.withAction` (new) + `<Toasts>` action button; `captureForUndo`/`restoreEntries`
+  re-create parent-first with original ids. `remove(id, {undo})` (menu delete) + `deleteSelected`
+  (disjoint roots). Keyboard backspace-merge intentionally skips the toast.
+- [x] Mobile: `removeNoteWithUndo`/`deleteMultipleWithUndo` return an undo closure; `showNoteUndoSnack`
+  shows a SnackBar with Undo; wired in actions sheet (leaf + subtree confirm) and selection bar.
+- [x] `tsc` (web) + `flutter analyze` clean
 
 ### Phase E — Export Markdown / OPML (N6.4) — read-only endpoint
 - [ ] API: `GET /api/notes/export?format=md|opml` walks tree → text; route + usecase
