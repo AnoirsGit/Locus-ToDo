@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db } from './client.js'
 
-export type NoteNodeType = 'text' | 'heading1' | 'heading2' | 'bullet' | 'image' | 'link'
+export type NoteNodeType = 'text' | 'heading1' | 'heading2' | 'bullet' | 'image' | 'link' | 'todo'
 
 export type NoteRow = {
   id: string
@@ -12,13 +12,14 @@ export type NoteRow = {
   url: string | null
   sortOrder: number
   collapsed: boolean
+  done: boolean
   createdAt: string
   updatedAt: string
 }
 
 export type NoteTree = NoteRow & { children: NoteTree[] }
 
-const RETURNING = `id, user_id, parent_id, node_type, content, url, sort_order, collapsed, created_at, updated_at`
+const RETURNING = `id, user_id, parent_id, node_type, content, url, sort_order, collapsed, done, created_at, updated_at`
 
 const buildTree = (rows: NoteRow[], parentId: string | null): NoteTree[] =>
   rows
@@ -65,6 +66,7 @@ export const noteRepository = {
     url: string | null
     sortOrder: number
     collapsed: boolean
+    done: boolean
     parentId: string | null
   }>): Promise<NoteRow | null> {
     const rows = await db<NoteRow[]>`
@@ -74,6 +76,7 @@ export const noteRepository = {
         url        = ${patch.url !== undefined      ? patch.url        : db`url`},
         sort_order = COALESCE(${patch.sortOrder ?? null}, sort_order),
         collapsed  = COALESCE(${patch.collapsed ?? null}, collapsed),
+        done       = COALESCE(${patch.done      ?? null}, done),
         parent_id  = ${patch.parentId !== undefined ? patch.parentId  : db`parent_id`},
         updated_at = now()
       WHERE id = ${id} AND user_id = ${userId}

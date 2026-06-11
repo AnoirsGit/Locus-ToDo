@@ -126,6 +126,7 @@ void _showTurnIntoSheet(
     (NoteNodeType.heading1, S.typeHeading1, Icons.title),
     (NoteNodeType.heading2, S.typeHeading2, Icons.text_fields),
     (NoteNodeType.bullet, S.typeBullet, Icons.circle, ),
+    (NoteNodeType.todo, S.typeTodo, Icons.check_box_outlined),
     (NoteNodeType.image, S.typeImage, Icons.image_outlined),
     (NoteNodeType.link, S.typeLink, Icons.link),
   ];

@@ -190,6 +190,28 @@
         />
       </div>
 
+    {:else if node.type === 'todo'}
+      <div class="note-todo-wrap">
+        <input
+          type="checkbox"
+          class="note-todo-check"
+          checked={node.done ?? false}
+          onclick={(e) => e.stopPropagation()}
+          onchange={(e) => noteStore.update(node.id, { done: (e.target as HTMLInputElement).checked })}
+        />
+        <input
+          class="note-input note-todo-label"
+          class:done={node.done}
+          value={node.content}
+          placeholder="To-do…"
+          oninput={(e) => noteStore.update(node.id, { content: (e.target as HTMLInputElement).value })}
+          onkeydown={handleKeydown}
+          onselect={handleTextSelect}
+          onfocus={() => onFocusChange(node.id)}
+          bind:this={inputEl}
+        />
+      </div>
+
     {:else if node.type === 'link'}
       <div class="note-link-wrap">
         <input
@@ -276,6 +298,25 @@
     flex-wrap: wrap;
     gap: 4px;
     padding: 1px 0 3px;
+  }
+
+  .note-todo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .note-todo-check {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--color-brand);
+  }
+
+  .note-todo-label.done {
+    text-decoration: line-through;
+    color: var(--color-muted);
   }
 
   .note-row.selected {

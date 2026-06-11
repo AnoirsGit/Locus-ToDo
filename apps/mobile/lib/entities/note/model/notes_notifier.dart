@@ -325,6 +325,11 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     _api.update(id, nodeType: type.api).catchError((_) {});
   }
 
+  void toggleDone(String id, bool done) {
+    state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(done: done)));
+    _api.update(id, done: done).catchError((_) {});
+  }
+
   void updateUrl(String id, String? url) {
     final normalized = (url == null || url.trim().isEmpty) ? null : url.trim();
     state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(url: normalized)));

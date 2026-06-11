@@ -93,13 +93,20 @@ class _NoteRowState extends ConsumerState<NoteRow> {
 
   TextStyle _contentStyle(BuildContext context) {
     final base = TextStyle(fontSize: 14, color: context.colorText, fontFamily: 'Inter');
-    return switch (widget.node.type) {
+    final styled = switch (widget.node.type) {
       NoteNodeType.heading1 => base.copyWith(
           fontSize: 18, fontWeight: FontWeight.w700, color: context.colorTextStrong),
       NoteNodeType.heading2 => base.copyWith(
           fontSize: 16, fontWeight: FontWeight.w600, color: context.colorTextStrong),
       _ => base,
     };
+    if (widget.node.type == NoteNodeType.todo && widget.node.done) {
+      return styled.copyWith(
+        decoration: TextDecoration.lineThrough,
+        color: context.colorMuted,
+      );
+    }
+    return styled;
   }
 
   Future<void> _openUrl() async {
@@ -237,6 +244,19 @@ class _NoteRowState extends ConsumerState<NoteRow> {
                     ),
                   ),
                   const SizedBox(width: 6),
+                  // Checkbox for todo nodes
+                  if (node.type == NoteNodeType.todo)
+                    SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: Checkbox(
+                        value: node.done,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onChanged: (v) => widget.notifier.toggleDone(node.id, v ?? false),
+                      ),
+                    ),
+                  if (node.type == NoteNodeType.todo) const SizedBox(width: 4),
                   // Content
                   Expanded(
                     child: Column(

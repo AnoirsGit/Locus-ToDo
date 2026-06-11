@@ -262,6 +262,11 @@ export const noteStore = {
         toastStore.error('Failed to save note')
       })
     }
+    if (patch.done !== undefined) {
+      notesApi.update(id, { done: patch.done }).catch(() => {
+        toastStore.error('Failed to save note')
+      })
+    }
   },
 
   /** Insert a new sibling node directly after `afterId`. Returns the new node. */

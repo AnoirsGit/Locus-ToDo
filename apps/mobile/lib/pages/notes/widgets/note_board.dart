@@ -48,6 +48,7 @@ class _NotesBoardState extends ConsumerState<NotesBoard> {
         NoteNodeType.heading1 => 'H1',
         NoteNodeType.heading2 => 'H2',
         NoteNodeType.bullet => '·',
+        NoteNodeType.todo => '☑',
         NoteNodeType.image => 'Img',
         NoteNodeType.link => '↗',
       };

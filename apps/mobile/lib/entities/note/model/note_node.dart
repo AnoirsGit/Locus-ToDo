@@ -7,7 +7,8 @@ enum NoteNodeType {
   heading2,
   bullet,
   image,
-  link;
+  link,
+  todo;
 
   static NoteNodeType fromApi(String value) =>
       NoteNodeType.values.asNameMap()[value] ?? NoteNodeType.text;
@@ -21,6 +22,7 @@ class NoteNode {
   final String content;
   final String? url;
   final bool collapsed;
+  final bool done;
   final List<NoteNode> children;
 
   const NoteNode({
@@ -29,6 +31,7 @@ class NoteNode {
     this.content = '',
     this.url,
     this.collapsed = false,
+    this.done = false,
     this.children = const [],
   });
 
@@ -39,6 +42,7 @@ class NoteNode {
     String? content,
     Object? url = _absent,
     bool? collapsed,
+    bool? done,
     List<NoteNode>? children,
   }) =>
       NoteNode(
@@ -47,6 +51,7 @@ class NoteNode {
         content: content ?? this.content,
         url: identical(url, _absent) ? this.url : url as String?,
         collapsed: collapsed ?? this.collapsed,
+        done: done ?? this.done,
         children: children ?? this.children,
       );
 
@@ -56,6 +61,7 @@ class NoteNode {
         content: dto.content,
         url: dto.url,
         collapsed: dto.collapsed,
+        done: dto.done,
         children: dto.children.map(NoteNode.fromDto).toList(),
       );
 }

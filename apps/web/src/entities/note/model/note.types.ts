@@ -1,4 +1,4 @@
-export type NoteNodeType = 'text' | 'heading1' | 'heading2' | 'bullet' | 'image' | 'link'
+export type NoteNodeType = 'text' | 'heading1' | 'heading2' | 'bullet' | 'image' | 'link' | 'todo'
 
 export type NoteNode = {
   id: string
@@ -7,4 +7,5 @@ export type NoteNode = {
   url?: string          // image src or link href
   children: NoteNode[]
   collapsed?: boolean
+  done?: boolean        // checked state for `todo` nodes
 }

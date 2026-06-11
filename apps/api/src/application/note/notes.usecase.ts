@@ -30,6 +30,7 @@ export const updateNote = async (
     url: string | null
     sortOrder: number
     collapsed: boolean
+    done: boolean
     parentId: string | null
   }>,
 ): Promise<NoteRow> => {

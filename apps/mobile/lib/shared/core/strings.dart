@@ -46,6 +46,7 @@ class S {
   static String get typeHeading1 => _ru ? 'Заголовок 1' : 'Heading 1';
   static String get typeHeading2 => _ru ? 'Заголовок 2' : 'Heading 2';
   static String get typeBullet => _ru ? 'Пункт' : 'Bullet';
+  static String get typeTodo => _ru ? 'Задача' : 'To-do';
   static String get typeImage => _ru ? 'Изображение' : 'Image';
   static String get typeLink => _ru ? 'Ссылка' : 'Link';
 

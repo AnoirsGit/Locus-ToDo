@@ -85,6 +85,7 @@
     { value: 'heading1', label: 'Heading 1' },
     { value: 'heading2', label: 'Heading 2' },
     { value: 'bullet', label: 'Bullet' },
+    { value: 'todo', label: 'To-do' },
     { value: 'image', label: 'Image' },
     { value: 'link', label: 'Link' },
   ]

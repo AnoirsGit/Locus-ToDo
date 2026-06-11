@@ -35,13 +35,14 @@
 - [x] Mobile: `NotesNotifier.search(q)`; search `TextField` + results `ListView` in `notes_page`; tap → zoom
 - [x] `tsc` (web) + `flutter analyze` clean
 
-### Phase C — Checkbox / todo nodes (N6.1) — migration 006 ⚠️ show SQL first
-- [ ] Write `006_notes_todo.sql`; **present SQL, get explicit OK, then run**
-- [ ] API: add `done` to `NoteRow`/RETURNING/create/update; add `'todo'` to `nodeTypeSchema`
-- [ ] Shared/web types: `'todo'` node type + `done` field; API DTO mapping
-- [ ] Web: render `todo` as checkbox + label; toggle persists `done`; "Turn into → Todo" in menu
-- [ ] Mobile: `NoteNodeType.todo`, `done` on `NoteNode`/DTO/copyWith; checkbox render + toggle; "Turn into → Todo" in sheet
-- [ ] Typecheck + analyze clean
+### Phase C — Checkbox / todo nodes (N6.1) — migration 006 ✅ DONE (⚠️ migration not yet applied to a live DB)
+- [x] `006_notes_todo.sql` written (user-approved): `ADD COLUMN done BOOLEAN NOT NULL DEFAULT false`
+- [x] API: `done` in `NoteRow`/RETURNING/update; `'todo'` in `nodeTypeSchema`; `done` in update zod + usecase patch
+- [x] Web types/DTO: `'todo'` + `done`; `dtoToNode`/`update` map `done`; store persists `done`
+- [x] Web: `todo` renders as checkbox + strikethrough label; "Turn into → To-do" in menu
+- [x] Mobile: `NoteNodeType.todo` + `done` on `NoteNode`/DTO/copyWith; `toggleDone`; checkbox + strikethrough; "Turn into → To-do" in sheet; board label `☑`
+- [x] `tsc` (web+api) + `flutter analyze` clean
+- [ ] **Apply migration on live DB** (pending stack up) — `done` column must exist before `done`/`todo` round-trips work
 
 ### Phase D — Undo delete (N6.3) — no schema
 - [ ] Web: capture deleted subtree; toast with "Undo" → re-create parent-first (original ids); applies to single + multi delete

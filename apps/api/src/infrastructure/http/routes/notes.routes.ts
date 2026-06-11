@@ -5,7 +5,7 @@ import { listNotes, createNote, updateNote, deleteNote } from '../../../applicat
 
 const uid = (req: any): string => (req.user as { id: string }).id
 
-const nodeTypeSchema = z.enum(['text', 'heading1', 'heading2', 'bullet', 'image', 'link'])
+const nodeTypeSchema = z.enum(['text', 'heading1', 'heading2', 'bullet', 'image', 'link', 'todo'])
 
 const createSchema = z.object({
   id:        z.string().uuid().optional(),
@@ -22,6 +22,7 @@ const updateSchema = z.object({
   url:       z.string().url().nullable().optional(),
   sortOrder: z.number().int().optional(),
   collapsed: z.boolean().optional(),
+  done:      z.boolean().optional(),
   parentId:  z.string().uuid().nullable().optional(),
 })
 

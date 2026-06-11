@@ -26,6 +26,7 @@ class NoteDto {
   final String content;
   final String? url;
   final bool collapsed;
+  final bool done;
   final int sortOrder;
   final List<NoteDto> children;
 
@@ -36,6 +37,7 @@ class NoteDto {
     required this.content,
     this.url,
     required this.collapsed,
+    this.done = false,
     required this.sortOrder,
     required this.children,
   });
@@ -47,6 +49,7 @@ class NoteDto {
         content: j['content'] as String? ?? '',
         url: j['url'] as String?,
         collapsed: j['collapsed'] as bool? ?? false,
+        done: j['done'] as bool? ?? false,
         sortOrder: j['sortOrder'] as int? ?? 0,
         children: (j['children'] as List<dynamic>? ?? [])
             .map((c) => NoteDto.fromJson(c as Map<String, dynamic>))
@@ -94,6 +97,7 @@ class NotesApi {
     String? nodeType,
     String? content,
     bool? collapsed,
+    bool? done,
     Object? parentId = _absent,
     Object? url = _absent,
     int? sortOrder,
@@ -102,6 +106,7 @@ class NotesApi {
     if (nodeType != null) body['nodeType'] = nodeType;
     if (content != null) body['content'] = content;
     if (collapsed != null) body['collapsed'] = collapsed;
+    if (done != null) body['done'] = done;
     if (!identical(parentId, _absent)) body['parentId'] = parentId as String?;
     if (!identical(url, _absent)) body['url'] = url as String?;
     if (sortOrder != null) body['sortOrder'] = sortOrder;
