@@ -1,16 +1,20 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/api/notes_api.dart';
+import '../../../shared/api/offline_notes_api.dart';
+import '../../../shared/sync/notes_sync_worker.dart';
 import 'note_node.dart';
 
 class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
-  late NotesApi _api;
+  late OfflineNotesApi _api;
   final Map<String, Timer> _debounceTimers = {};
 
   @override
   Future<List<NoteNode>> build() async {
-    _api = ref.read(notesApiProvider);
+    _api = ref.read(offlineNotesApiProvider);
     final dtos = await _api.list();
+    // Push any mutations queued while offline now that we may be back online.
+    ref.read(notesSyncWorkerProvider).flush();
     return dtos.map(NoteNode.fromDto).toList();
   }
 

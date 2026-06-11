@@ -11,6 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:locus_mobile/pages/notes/notes_page.dart';
 import 'package:locus_mobile/shared/api/api_client.dart';
 import 'package:locus_mobile/shared/api/notes_api.dart';
+import 'package:locus_mobile/shared/api/offline_notes_api.dart';
+import 'package:locus_mobile/shared/db/app_database.dart';
+import 'package:locus_mobile/shared/sync/notes_sync_worker.dart';
 
 class _FakeNotesApi extends NotesApi {
   _FakeNotesApi(this.notes) : super(ApiClient(Dio()));
@@ -48,6 +51,7 @@ class _FakeNotesApi extends NotesApi {
     String? nodeType,
     String? content,
     bool? collapsed,
+    bool? done,
     Object? parentId,
     Object? url,
     int? sortOrder,
@@ -56,9 +60,39 @@ class _FakeNotesApi extends NotesApi {
   }
 
   @override
+  Future<void> patchRaw(String id, Map<String, dynamic> body) async {
+    updates.add((id: id, content: body['content'] as String?));
+  }
+
+  @override
   Future<void> delete(String id) async {
     deletes.add(id);
   }
+}
+
+/// In-memory NoteLocalStore so the widget test never touches Drift.
+class _MemoryNoteStore implements NoteLocalStore {
+  @override
+  Future<void> cacheTree(List<NoteDto> tree) async {}
+  @override
+  Future<List<NoteDto>> loadTree() async => const [];
+  @override
+  Future<void> upsertFromDto(NoteDto n) async {}
+  @override
+  Future<void> upsertCreate(Map<String, dynamic> body) async {}
+  @override
+  Future<void> applyUpdate(String id, Map<String, dynamic> body) async {}
+  @override
+  Future<void> deleteLocal(String id) async {}
+  @override
+  Future<void> enqueue(String op, String noteId, Map<String, dynamic>? payload) async {}
+}
+
+/// No-op sync worker so build()'s flush never opens Drift.
+class _NoOpSyncWorker extends NotesSyncWorker {
+  _NoOpSyncWorker(super.db, super.api);
+  @override
+  Future<void> flush() async {}
 }
 
 NoteDto _note(String id, String content) => NoteDto(
@@ -79,7 +113,11 @@ void main() {
     ]);
 
     await tester.pumpWidget(ProviderScope(
-      overrides: [notesApiProvider.overrideWithValue(api)],
+      overrides: [
+        notesApiProvider.overrideWithValue(api),
+        offlineNotesApiProvider.overrideWithValue(OfflineNotesApi(api, _MemoryNoteStore())),
+        notesSyncWorkerProvider.overrideWithValue(_NoOpSyncWorker(AppDatabase(), api)),
+      ],
       child: const MaterialApp(home: NotesPage()),
     ));
     await tester.pumpAndSettle();

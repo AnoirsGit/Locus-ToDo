@@ -73,11 +73,18 @@
 - [x] Mobile: same notifier methods; `_MoveToSheet` (search + list + Root) from the actions sheet
 - [x] `tsc` (web) + `flutter analyze` clean
 
-### Phase H — Offline notes, mobile (N6.2) — heaviest, last
-- [ ] Drift `notes` table + DAO in `app_database.dart`
-- [ ] `LocalNoteRepository` + outbox entries; wire into `NotesNotifier` (read-local-first, enqueue mutations)
-- [ ] Reuse `SyncWorker` to flush note outbox; last-write-wins per field
-- [ ] `flutter analyze` clean; offline create/edit/delete survive restart + sync
+### Phase H — Offline notes, mobile (N6.2) ✅ DONE (⚠️ device QA pending)
+- [x] Drift `Notes` + `NotesOutbox` tables + queries in `app_database.dart`; schemaVersion 2 + onUpgrade migration; `build_runner` regenerated `app_database.g.dart`
+- [x] `LocalNoteRepository` (cache tree, rebuild tree, upsert/applyUpdate/delete, outbox enqueue) behind a `NoteLocalStore` interface (so tests inject in-memory)
+- [x] `OfflineNotesApi` (same surface as `NotesApi`): network-first with local cache + outbox fallback; `NotesApi.createRaw`/`patchRaw` for replay
+- [x] `NotesSyncWorker.flush()` replays the outbox with backoff; `NotesNotifier` reads `offlineNotesApiProvider` and flushes on build — internals unchanged, last-write-wins per field
+- [x] `flutter analyze` clean (0 errors); regression test `notes_delete_test` updated for the offline path and **passes**
+- [ ] **Device QA** — airplane-mode create/edit/delete survive restart + sync on reconnect (needs a device + live API)
+
+## Status: A B C D E F G H all implemented. Remaining = live verification only.
+- Apply migration 006 on a live DB; bring up the stack.
+- Live QA: tags/search/checkbox/undo/move-to (functional), drag-drop (browser), offline (device).
+- Note: mobile `app_database.g.dart` is gitignored — run `flutter pub run build_runner build` after pull.
 
 ## Verification (all phases)
 Static: web `tsc`, `flutter analyze`, API `tsc`/build. Live QA needs Docker stack up

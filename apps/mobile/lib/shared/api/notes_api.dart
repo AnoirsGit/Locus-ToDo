@@ -114,6 +114,15 @@ class NotesApi {
   }
 
   Future<void> delete(String id) => _client.delete<void>('/notes/$id');
+
+  // Raw passthroughs used by the offline outbox replay (body already built).
+  Future<void> createRaw(Map<String, dynamic> body) async {
+    await _client.post<Map<String, dynamic>>('/notes', data: body);
+  }
+
+  Future<void> patchRaw(String id, Map<String, dynamic> body) async {
+    await _client.patch<void>('/notes/$id', data: body);
+  }
 }
 
 final notesApiProvider = Provider((ref) => NotesApi(ref.watch(apiClientProvider)));
