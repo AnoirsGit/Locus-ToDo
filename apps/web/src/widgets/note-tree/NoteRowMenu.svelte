@@ -66,6 +66,7 @@
   const unindent = () => { noteStore.unindent(node.id); onClose(); onFocusChange(node.id) }
   const moveUp = () => { noteStore.moveUp(node.id); onClose() }
   const moveDown = () => { noteStore.moveDown(node.id); onClose() }
+  const duplicate = () => { noteStore.duplicate(node.id); onClose() }
 
   const handleDelete = () => {
     if (descendants > 0 && !confirmDelete) {
@@ -132,6 +133,7 @@
   </button>
   <button class="note-menu-item" role="menuitem" disabled={!info || info.index < 1} onclick={moveUp}>Move up</button>
   <button class="note-menu-item" role="menuitem" disabled={!info || info.index >= info.count - 1} onclick={moveDown}>Move down</button>
+  <button class="note-menu-item" role="menuitem" onclick={duplicate}>Duplicate</button>
 
   <div class="note-menu-sep"></div>
 

@@ -229,6 +229,68 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     }
   }
 
+  /// Deep-copy a subtree with fresh UUIDs, inserting it right after the source.
+  void duplicate(String id) {
+    final source = _findNode(_nodes, id);
+    final (found, parentId) = _findParent(_nodes, id);
+    if (source == null || !found) return;
+    final siblings = _siblingsOf(parentId);
+    final idx = siblings.indexWhere((n) => n.id == id);
+
+    // Collected parent-first so each child POSTs after its new parent exists.
+    final creates = <({String id, String? parentId, String nodeType, String content, String? url, int sortOrder})>[];
+
+    NoteNode cloneSubtree(NoteNode node, String? parent, int sortOrder) {
+      final newId = generateUuid();
+      creates.add((
+        id: newId,
+        parentId: parent,
+        nodeType: node.type.api,
+        content: node.content,
+        url: node.url,
+        sortOrder: sortOrder,
+      ));
+      final children = <NoteNode>[];
+      for (var i = 0; i < node.children.length; i++) {
+        children.add(cloneSubtree(node.children[i], newId, i * 10));
+      }
+      return NoteNode(
+        id: newId,
+        type: node.type,
+        content: node.content,
+        url: node.url,
+        collapsed: node.collapsed,
+        children: children,
+      );
+    }
+
+    final clone = cloneSubtree(source, parentId, (idx + 1) * 10);
+
+    if (parentId == null) {
+      state = AsyncData([..._nodes]..insert(idx + 1, clone));
+    } else {
+      state = AsyncData(_mapNodes(_nodes, parentId, (n) => n.copyWith(
+            children: [...n.children]..insert(idx + 1, clone),
+          )));
+    }
+
+    () async {
+      for (final c in creates) {
+        await _api.create(
+          id: c.id,
+          parentId: c.parentId,
+          nodeType: c.nodeType,
+          content: c.content,
+          url: c.url,
+          sortOrder: c.sortOrder,
+        );
+      }
+    }()
+        .catchError((_) {
+      state = AsyncData(_removeNode(_nodes, clone.id));
+    });
+  }
+
   void updateContent(String id, String content) {
     state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(content: content)));
 

@@ -22,7 +22,7 @@ Spec: `02-note-pages-routing.md`
 Spec: `03-actions-menu.md`
 - [x] Web: `NoteRowMenu.svelte` popover (hover trigger + right-click); type dropdown, inline trash, Set-URL toggles removed; `noteStore.update` now persists `url` (was local-only before)
 - [x] Mobile: bottom sheet; per-row +/trash icons removed
-- [x] Store methods both platforms: `addChild` (web), `moveUp/moveDown`, `siblingInfo`, descendant count; `duplicate` **skipped** (nice-to-have per spec, can be a follow-up)
+- [x] Store methods both platforms: `addChild` (web), `moveUp/moveDown`, `siblingInfo`, descendant count, `duplicate` (deep-copy w/ fresh UUIDs, parent-first creates)
 - [x] Delete confirm wired here (web: inline confirm in menu; mobile: dialog) — Cause E closed
 
 ## Phase N4 — Mobile parity — `feat/notes-mobile-parity` ✅ implemented (commit eb6ab21)
@@ -35,12 +35,12 @@ Spec: `04-mobile-parity.md`
 
 ## Outstanding from N1–N4 (deferred nice-to-haves + manual QA)
 
-These are the only items from phases N1–N4 not yet done. All were optional/nice-to-have in their specs, except live QA.
+The three deferred nice-to-haves are now done. Only live QA remains (needs a running app).
 
-- [ ] **`duplicate` node action** (N3, `03-actions-menu.md` #8) — spec marked nice-to-have; not implemented on either platform.
-- [ ] **`Ctrl+.` to open the menu** (N3, web) — spec marked optional; not implemented.
-- [ ] **Swipe gestures** (N4, `04-mobile-parity.md` step 4) — swipe-right indent / swipe-left outdent; spec marked nice-to-have; not implemented (menu covers it).
-- [ ] **Live / manual QA** — static checks all pass, but these need a running app (DB+API were down):
+- [x] **`duplicate` node action** (N3, `03-actions-menu.md` #8) — deep-copy subtree with fresh UUIDs, parent-first creates, inserted after source. Web (`noteStore.duplicate` + menu item) + mobile (`NotesNotifier.duplicate` + sheet item, `S.duplicate`).
+- [x] **`Ctrl+.` to open the menu** (N3, web) — `Ctrl/Cmd+.` on the focused row opens `NoteRowMenu` (handled in `NoteRow` keydown).
+- [x] **Swipe gestures** (N4, `04-mobile-parity.md` step 4) — `onHorizontalDragEnd` on the row: swipe-right indent / swipe-left outdent (velocity > 250), disabled while editing/selecting.
+- [ ] **Live / manual QA** — static checks all pass (web `tsc` clean, `flutter analyze` clean for touched files), but these need a running app (DB+API were down):
   - Web: select-all text → Delete removes node; type-then-delete shows no "Note not found"; Enter→Backspace leaves no ghost.
   - Web: reload on a zoomed `/notes/[id]` restores it; back walks up; stale id redirects.
   - Mobile: same delete-in-edit + routing checks on device.

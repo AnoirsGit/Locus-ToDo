@@ -81,6 +81,11 @@ void showNoteActionsSheet(
                 enabled: info != null && info.index < info.count - 1,
                 onTap: () { close(); notifier.moveDown(node.id); },
               ),
+              ListTile(
+                leading: const Icon(Icons.copy_all_outlined, size: 20),
+                title: Text(S.duplicate),
+                onTap: () { close(); notifier.duplicate(node.id); },
+              ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.delete_outline, size: 20, color: Colors.red),

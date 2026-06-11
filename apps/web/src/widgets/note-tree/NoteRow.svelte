@@ -51,6 +51,13 @@
   }
 
   const handleKeydown = (e: KeyboardEvent) => {
+    // Ctrl/Cmd+. opens the row actions menu (Workflowy muscle memory).
+    if (e.key === '.' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      menuOpen = true
+      return
+    }
+
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       const dir = e.key === 'ArrowUp' ? 'up' : 'down'
       if (e.shiftKey) {

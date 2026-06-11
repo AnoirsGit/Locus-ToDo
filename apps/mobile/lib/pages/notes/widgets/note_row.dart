@@ -173,7 +173,19 @@ class _NoteRowState extends State<NoteRow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AnimatedContainer(
+        GestureDetector(
+          // Swipe right = indent, swipe left = outdent (the menu mirrors these).
+          // Disabled while editing or selecting so it can't fight text/selection.
+          onHorizontalDragEnd: (details) {
+            if (_editing || isSelecting) return;
+            final v = details.primaryVelocity ?? 0;
+            if (v > 250) {
+              widget.notifier.indent(node.id);
+            } else if (v < -250) {
+              widget.notifier.unindent(node.id);
+            }
+          },
+          child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           color: isSelected ? context.colorBrandSoft : Colors.transparent,
           child: InkWell(
@@ -259,6 +271,7 @@ class _NoteRowState extends State<NoteRow> {
                 ],
               ),
             ),
+          ),
           ),
         ),
         if (!node.collapsed && hasChildren)

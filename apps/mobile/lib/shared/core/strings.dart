@@ -31,6 +31,7 @@ class S {
   static String get outdent => _ru ? 'Сдвинуть влево' : 'Outdent';
   static String get moveUp => _ru ? 'Переместить вверх' : 'Move up';
   static String get moveDown => _ru ? 'Переместить вниз' : 'Move down';
+  static String get duplicate => _ru ? 'Дублировать' : 'Duplicate';
   static String get delete => _ru ? 'Удалить' : 'Delete';
   static String get cancel => _ru ? 'Отмена' : 'Cancel';
   static String get save => _ru ? 'Сохранить' : 'Save';

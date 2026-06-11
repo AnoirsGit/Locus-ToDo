@@ -80,6 +80,34 @@ const debounce = (key: string, fn: () => void, ms = 600) => {
 const collectSubtreeIds = (node: NoteNode): string[] =>
   [node.id, ...node.children.flatMap(collectSubtreeIds)]
 
+// Create payload for persisting a cloned node (parent-first order).
+type CreatePayload = {
+  id: string
+  parentId: string | null
+  nodeType: NoteNodeType
+  content: string
+  url: string | null
+  sortOrder: number
+}
+
+// Deep-clone a subtree with fresh UUIDs. Returns the new tree plus a flat,
+// parent-first list of create payloads so children always POST after their parent.
+const cloneSubtree = (node: NoteNode, parentId: string | null, sortOrder: number): { clone: NoteNode; creates: CreatePayload[] } => {
+  const id = crypto.randomUUID()
+  const creates: CreatePayload[] = [
+    { id, parentId, nodeType: node.type, content: node.content, url: node.url ?? null, sortOrder },
+  ]
+  const children = node.children.map((child, i) => {
+    const sub = cloneSubtree(child, id, i * 10)
+    creates.push(...sub.creates)
+    return sub.clone
+  })
+  return {
+    clone: { id, type: node.type, content: node.content, url: node.url, collapsed: node.collapsed, children },
+    creates,
+  }
+}
+
 // Cancel pending content saves for the node and all its descendants,
 // otherwise a debounced PATCH can fire after the DELETE and 404.
 const cancelContentDebounce = (nodes: NoteNode[], id: string) => {
@@ -327,6 +355,36 @@ export const noteStore = {
 
   moveUp(id: string) { moveSibling(id, -1) },
   moveDown(id: string) { moveSibling(id, 1) },
+
+  /** Deep-copy a subtree with fresh UUIDs, inserting it right after the source. */
+  async duplicate(id: string): Promise<NoteNode | null> {
+    const source = findNodeById(state.nodes, id)
+    const parentId = findParentId(state.nodes, id)
+    if (!source || parentId === undefined) return null
+
+    const siblings = parentId
+      ? findNodeById(state.nodes, parentId)?.children ?? state.nodes
+      : state.nodes
+    const idx = siblings.findIndex(n => n.id === id)
+    const { clone, creates } = cloneSubtree(source, parentId, (idx + 1) * 10)
+
+    const insert = (nodes: NoteNode[]): NoteNode[] => {
+      const i = nodes.findIndex(n => n.id === id)
+      if (i !== -1) return [...nodes.slice(0, i + 1), clone, ...nodes.slice(i + 1)]
+      return nodes.map(n => ({ ...n, children: insert(n.children) }))
+    }
+    state.nodes = insert(state.nodes)
+
+    // Parent-first sequential creates so each child's FK parent already exists.
+    trackCreate(clone.id, (async () => {
+      for (const payload of creates) await notesApi.create(payload)
+    })().catch(() => {
+      toastStore.error('Failed to duplicate note')
+      state.nodes = removeNodeFromTree(state.nodes, clone.id)
+    }))
+
+    return clone
+  },
 
   // ── Indent / Unindent ────────────────────────────────────────────────────
 
