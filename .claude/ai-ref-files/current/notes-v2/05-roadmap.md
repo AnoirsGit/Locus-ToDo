@@ -12,26 +12,26 @@ Spec: `01-delete-bug.md`
 - [ ] Subtree delete confirm ("Delete note and N nested notes?") — **deferred to N3** (lands with the three-dots menu)
 - [ ] Run the verification checklist in `01-delete-bug.md` — `pnpm typecheck` + `flutter analyze` pass; Cause A proven by regression widget test `apps/mobile/test/notes_delete_test.dart` (fails on pre-fix code, passes with fix); web manual UI checks still pending
 
-## Phase N2 — Note pages routing — `feat/notes-routes`
+## Phase N2 — Note pages routing — `feat/notes-routes` ✅ implemented (commit dc19091)
 Spec: `02-note-pages-routing.md`
-- [ ] Web: `notes/[id]/+page.svelte` + shared `NotePage` widget; zoom/breadcrumbs via `goto`; back button; deep-link guard
-- [ ] Mobile: `/notes/:id` GoRoute (inside ShellRoute, `startsWith` tab matching); `context.push` zoom; AppBar back; rootId out of provider into route param
-- [ ] Verify: reload on a zoomed page restores it; system back walks up; stale id redirects
+- [x] Web: `notes/[id]/+page.svelte` + shared `NotePage` widget; zoom/breadcrumbs via `goto`; back button; deep-link guard
+- [x] Mobile: `/notes/:id` GoRoute (inside ShellRoute, `startsWith` tab matching); `context.push` zoom; AppBar back; rootId out of provider into route param (selection is now per-page local state, `NotesUiState` provider removed)
+- [ ] Verify: reload on a zoomed page restores it; system back walks up; stale id redirects — **manual check pending**
 
-## Phase N3 — Three-dots actions menu — `feat/notes-actions-menu`
+## Phase N3 — Three-dots actions menu — `feat/notes-actions-menu` ✅ implemented (commit 9be4bc0)
 Spec: `03-actions-menu.md`
-- [ ] Web: `NoteRowMenu.svelte` popover (hover/focus trigger, right-click); remove type dropdown, inline trash, Set-URL toggles
-- [ ] Mobile: bottom sheet; remove per-row +/trash icons
-- [ ] Store methods both platforms: `addChild` (web), `moveUp/moveDown`, descendant count; `duplicate` if time allows
-- [ ] Delete confirm wired here if not done in N1
+- [x] Web: `NoteRowMenu.svelte` popover (hover trigger + right-click); type dropdown, inline trash, Set-URL toggles removed; `noteStore.update` now persists `url` (was local-only before)
+- [x] Mobile: bottom sheet; per-row +/trash icons removed
+- [x] Store methods both platforms: `addChild` (web), `moveUp/moveDown`, `siblingInfo`, descendant count; `duplicate` **skipped** (nice-to-have per spec, can be a follow-up)
+- [x] Delete confirm wired here (web: inline confirm in menu; mobile: dialog) — Cause E closed
 
-## Phase N4 — Mobile parity — `feat/notes-mobile-parity`
+## Phase N4 — Mobile parity — `feat/notes-mobile-parity` ✅ implemented (commit eb6ab21)
 Spec: `04-mobile-parity.md`
-- [ ] File split per FSD (entities/note, pages/notes/widgets)
-- [ ] DTO + model carry `nodeType`/`url`; per-type rendering (h1/h2/bullet/link/image)
-- [ ] Indent/outdent/addAfter/move ported to `NotesNotifier`; Enter = add sibling
-- [ ] Board view + Outline/Board toggle
-- [ ] Notes strings localized (ru/en)
+- [x] File split per FSD (`entities/note/model/`, `pages/notes/widgets/`)
+- [x] DTO + model carry `nodeType`/`url` (immutable `NoteNode` + `copyWith`); per-type rendering (h1/h2/bullet/link/image, `url_launcher` added)
+- [x] Indent/outdent/addAfter/move ported to `NotesNotifier` (landed in N3); Enter = add sibling
+- [x] Board view + Outline/Board toggle (AppBar icon)
+- [x] Notes strings localized ru/en (`shared/core/strings.dart`, system locale; placed in `shared/core/` because a `lib/` path segment trips `avoid_relative_lib_imports`)
 
 ## Phase N5 — Competitive quick wins (each needs a go-ahead)
 - [ ] **Note tags UI** — backend + `TagPicker` already exist; add tag chips/picker to note rows (web + mobile), filter notes by tag
