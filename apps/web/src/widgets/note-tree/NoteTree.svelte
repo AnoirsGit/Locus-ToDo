@@ -1,12 +1,29 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import { noteStore } from '$entities/note'
+  import type { NoteNode } from '$entities/note'
+  import { tagStore, NoteTagFilterBar } from '$entities/tag'
   import NoteRow from './NoteRow.svelte'
 
   let focusId = $state<string | null>(null)
   let anchorId = $state<string | null>(null) // range selection anchor
 
-  $effect(() => { noteStore.load() })
+  $effect(() => {
+    noteStore.load()
+    tagStore.load()
+    tagStore.loadNoteAssignments()
+  })
+
+  // When a tag filter is active, prune the tree to branches that contain a
+  // match (matching node or an ancestor of one), force-expanding along the way.
+  const pruneByTag = (nodes: NoteNode[]): NoteNode[] =>
+    nodes
+      .map(n => ({ ...n, collapsed: false, children: pruneByTag(n.children) }))
+      .filter(n => tagStore.noteMatchesFilter(n.id) || n.children.length > 0)
+
+  const visibleRoots = $derived(
+    tagStore.isFilteringNotes ? pruneByTag(noteStore.rootNodes) : noteStore.rootNodes
+  )
 
   const handleFocusChange = (id: string | null) => {
     focusId = id
@@ -129,9 +146,12 @@
     </div>
   {/if}
 
+  <!-- Tag filter -->
+  <NoteTagFilterBar />
+
   <!-- Note tree -->
   <div class="note-tree" role="tree">
-    {#each noteStore.rootNodes as node (node.id)}
+    {#each visibleRoots as node (node.id)}
       <NoteRow
         {node}
         depth={0}
@@ -144,7 +164,7 @@
       />
     {/each}
 
-    {#if noteStore.loaded && noteStore.rootNodes.length === 0}
+    {#if noteStore.loaded && visibleRoots.length === 0}
       <div class="note-empty">
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" opacity="0.35">
           <rect x="5" y="4" width="22" height="24" rx="3" stroke="currentColor" stroke-width="1.5"/>

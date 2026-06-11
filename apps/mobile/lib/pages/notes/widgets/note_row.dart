@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../entities/note/model/note_node.dart';
 import '../../../entities/note/model/notes_notifier.dart';
 import '../../../shared/core/strings.dart';
+import '../../../shared/providers/tag_store.dart';
 import '../../../shared/theme/theme.dart';
 import 'note_actions_sheet.dart';
+import 'note_tags.dart';
 
-class NoteRow extends StatefulWidget {
+class NoteRow extends ConsumerStatefulWidget {
   final NoteNode node;
   final int depth;
   final NotesNotifier notifier;
@@ -27,10 +30,10 @@ class NoteRow extends StatefulWidget {
   });
 
   @override
-  State<NoteRow> createState() => _NoteRowState();
+  ConsumerState<NoteRow> createState() => _NoteRowState();
 }
 
-class _NoteRowState extends State<NoteRow> {
+class _NoteRowState extends ConsumerState<NoteRow> {
   late final TextEditingController _ctrl;
   late final FocusNode _focusNode;
   bool _editing = false;
@@ -169,6 +172,7 @@ class _NoteRowState extends State<NoteRow> {
     final indent = widget.depth * 20.0;
     final isSelected = widget.selectedIds.contains(node.id);
     final isSelecting = widget.selectedIds.isNotEmpty;
+    final tags = ref.watch(tagStoreProvider).getTagsForNote(node.id);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,30 +239,38 @@ class _NoteRowState extends State<NoteRow> {
                   const SizedBox(width: 6),
                   // Content
                   Expanded(
-                    child: _editing
-                        ? TextField(
-                            controller: _ctrl,
-                            focusNode: _focusNode,
-                            style: _contentStyle(context),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(vertical: 8),
-                            ),
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _commitAndAddSibling(),
-                            onTapOutside: (_) => _commit(),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 9),
-                            child: _displayContent(context),
-                          ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _editing
+                            ? TextField(
+                                controller: _ctrl,
+                                focusNode: _focusNode,
+                                style: _contentStyle(context),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _commitAndAddSibling(),
+                                onTapOutside: (_) => _commit(),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                child: _displayContent(context),
+                              ),
+                        if (tags.isNotEmpty) NoteTagChips(tags: tags),
+                      ],
+                    ),
                   ),
                   // Actions menu trigger (hidden in selection mode)
                   if (!isSelecting)
                     GestureDetector(
                       onTap: () => showNoteActionsSheet(
                         context,
+                        ref: ref,
                         node: node,
                         notifier: widget.notifier,
                         onZoom: widget.onZoom,

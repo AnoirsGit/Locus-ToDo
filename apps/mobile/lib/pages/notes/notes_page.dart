@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../entities/note/model/note_node.dart';
 import '../../entities/note/model/notes_notifier.dart';
 import '../../shared/core/strings.dart';
+import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../app_shell.dart';
 import 'widgets/breadcrumb_bar.dart';
 import 'widgets/note_board.dart';
 import 'widgets/note_row.dart';
+import 'widgets/note_tags.dart';
 import 'widgets/selection_bar.dart';
 
 enum _NotesView { outline, board }
@@ -28,6 +31,23 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   // Selection is per-page so it never leaks between stacked zoom pages.
   Set<String> _selectedIds = {};
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      final tags = ref.read(tagStoreProvider.notifier);
+      await tags.load();
+      await tags.loadNoteAssignments();
+    });
+  }
+
+  // Prune the tree to branches containing a tag-match, force-expanding along
+  // the way (mirrors the web outline filter).
+  List<NoteNode> _pruneByTag(List<NoteNode> nodes, TagStoreState tagState) => nodes
+      .map((n) => n.copyWith(collapsed: false, children: _pruneByTag(n.children, tagState)))
+      .where((n) => tagState.noteMatchesFilter(n.id) || n.children.isNotEmpty)
+      .toList();
+
   void _startSelect(String id) => setState(() => _selectedIds = {id});
 
   void _toggleSelect(String id) {
@@ -42,6 +62,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(notesProvider);
     final notifier = ref.read(notesProvider.notifier);
+    final tagState = ref.watch(tagStoreProvider);
     final rootId = widget.rootId;
     final isZoomed = rootId != null;
     final crumbs = state.hasValue
@@ -103,7 +124,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                 ? _NotesView.board
                 : _NotesView.outline),
           ),
-          IconButton(icon: const Icon(Icons.menu), onPressed: AppShell.openDrawer),
+          const IconButton(icon: Icon(Icons.menu), onPressed: AppShell.openDrawer),
           const SizedBox(width: 4),
         ],
       ),
@@ -123,7 +144,10 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           ),
         ),
         data: (allNodes) {
-          final roots = notifier.visibleRoots(rootId);
+          var roots = notifier.visibleRoots(rootId);
+          if (tagState.isFilteringNotes) {
+            roots = _pruneByTag(roots, tagState);
+          }
 
           return Column(
             children: [
@@ -134,6 +158,10 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                   onHome: () => context.go('/notes'),
                   onCrumb: (id) => context.go('/notes/$id'),
                 ),
+
+              // Tag filter (outline only)
+              if (_view == _NotesView.outline && tagState.tags.isNotEmpty)
+                _NoteTagFilterBar(tagState: tagState, ref: ref),
 
               // Multi-select toolbar (outline only)
               if (_view == _NotesView.outline && _selectedIds.isNotEmpty)
@@ -201,6 +229,62 @@ class _NotesPageState extends ConsumerState<NotesPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _NoteTagFilterBar extends StatelessWidget {
+  final TagStoreState tagState;
+  final WidgetRef ref;
+
+  const _NoteTagFilterBar({required this.tagState, required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    final notifier = ref.read(tagStoreProvider.notifier);
+    return SizedBox(
+      height: 38,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        children: [
+          for (final tag in tagState.tags)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: () {
+                final active = tagState.noteFilterTagIds.contains(tag.id);
+                final color = noteTagColor(context, tag);
+                return GestureDetector(
+                  onTap: () => notifier.toggleNoteFilterTag(tag.id),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: active ? color.withAlpha(35) : context.colorSurface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: active ? color.withAlpha(160) : context.colorBorder,
+                        width: active ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      tag.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                        color: active ? color : context.colorMuted,
+                      ),
+                    ),
+                  ),
+                );
+              }(),
+            ),
+          if (tagState.isFilteringNotes)
+            TextButton(
+              onPressed: notifier.clearNoteFilter,
+              child: Text(S.clearFilter, style: const TextStyle(fontSize: 12)),
+            ),
+        ],
+      ),
     );
   }
 }

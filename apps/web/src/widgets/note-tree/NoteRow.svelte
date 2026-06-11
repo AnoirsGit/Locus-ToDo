@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { NoteNode } from '$entities/note'
   import { noteStore } from '$entities/note'
+  import { tagStore, TagChip } from '$entities/tag'
   import NoteRowMenu from './NoteRowMenu.svelte'
 
   type Props = {
@@ -133,6 +134,7 @@
 
   const hasChildren = $derived(node.children.length > 0)
   const indentPx = $derived(depth * 24)
+  const tags = $derived(tagStore.getTagsForNote(node.id))
 </script>
 
 <div
@@ -221,6 +223,14 @@
       />
     {/if}
 
+    {#if tags.length > 0}
+      <div class="note-tags">
+        {#each tags as tag (tag.id)}
+          <TagChip {tag} />
+        {/each}
+      </div>
+    {/if}
+
   </div>
 
   <!-- Actions menu trigger (hover/focus revealed) -->
@@ -259,6 +269,13 @@
 <style>
   .note-row {
     position: relative;
+  }
+
+  .note-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 1px 0 3px;
   }
 
   .note-row.selected {

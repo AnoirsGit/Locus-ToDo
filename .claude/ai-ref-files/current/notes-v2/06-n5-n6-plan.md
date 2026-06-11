@@ -20,12 +20,13 @@
 
 ## Phases (value-dense + low-risk first, schema isolated, heaviest last)
 
-### Phase A — Notes tags UI (N5.1) — no schema
-- [ ] Web `noteTagStore` (`entities/tag` or note-scoped): load `GET /api/tags/notes/:id` lazily, `setNoteTags` on change, note-tag filter set
-- [ ] Web: tag chips on note rows (reuse `TagChip`); `TagPicker` entry in `NoteRowMenu`
-- [ ] Web: `TagFilterBar` (note variant) above the tree; filter visible nodes by tag (keep ancestors of matches)
-- [ ] Mobile: note-tag map in `NotesNotifier` or a small provider; chips in `NoteRow`; picker tile in actions sheet; filter control in `notes_page`
-- [ ] `pnpm --filter web typecheck` + `flutter analyze` clean
+### Phase A — Notes tags UI (N5.1) — no schema ✅ DONE
+- [x] Backend: bulk `GET /api/tags/note-assignments` (mirrors task-assignments) — repo+usecase+route
+- [x] Web `tagStore` note state: `loadNoteAssignments`, `getTagsForNote`, `setNoteTags`, note filter set + `noteMatchesFilter`
+- [x] Web: tag chips on note rows (`TagChip`); `TagPicker` "Tags ▸" section in `NoteRowMenu`
+- [x] Web: `NoteTagFilterBar` above the tree; `pruneByTag` keeps matching branches + ancestors, force-expands
+- [x] Mobile: note-tag state in `tag_store`; `NoteTagChips` + `showNoteTagPicker` (`note_tags.dart`); `NoteRow`→Consumer; picker tile in actions sheet; filter bar + prune in `notes_page`
+- [x] `tsc` (web+api) + `flutter analyze` clean
 
 ### Phase B — Search (N5.2) — tiny backend
 - [ ] API: `GET /api/notes/search?q=` → `ILIKE` over content, return rows + breadcrumb path; usecase + repo method + route + zod

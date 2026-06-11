@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../entities/note/model/note_node.dart';
 import '../../../entities/note/model/notes_notifier.dart';
 import '../../../shared/core/strings.dart';
+import 'note_tags.dart';
 
 void showNoteActionsSheet(
   BuildContext context, {
+  required WidgetRef ref,
   required NoteNode node,
   required NotesNotifier notifier,
   required void Function(String id) onZoom,
@@ -85,6 +88,11 @@ void showNoteActionsSheet(
                 leading: const Icon(Icons.copy_all_outlined, size: 20),
                 title: Text(S.duplicate),
                 onTap: () { close(); notifier.duplicate(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.label_outline, size: 20),
+                title: Text(S.tags),
+                onTap: () { close(); showNoteTagPicker(context, ref, node.id); },
               ),
               const Divider(height: 1),
               ListTile(

@@ -25,4 +25,12 @@ export const tagsApi = {
 
   setTaskTags: (taskId: string, tagIds: string[]) =>
     api.put<void>(`/tags/tasks/${taskId}`, { tagIds }),
+
+  getAllNoteAssignments: () =>
+    api.get<{ noteId: string; tags: TagDto[] }[]>('/tags/note-assignments'),
+
+  getNoteTags: (noteId: string) => api.get<TagDto[]>(`/tags/notes/${noteId}`),
+
+  setNoteTags: (noteId: string, tagIds: string[]) =>
+    api.put<void>(`/tags/notes/${noteId}`, { tagIds }),
 }

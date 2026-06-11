@@ -25,6 +25,7 @@ export const deleteTag = async (id: string, userId: string): Promise<void> => {
 }
 
 export const getAllTaskTagsForUser = (userId: string) => tagRepository.getAllTaskTagsForUser(userId)
+export const getAllNoteTagsForUser = (userId: string) => tagRepository.getAllNoteTagsForUser(userId)
 export const getTaskTags  = (taskId: string)  => tagRepository.getTaskTags(taskId)
 export const setTaskTags  = (taskId: string, tagIds: string[]) => tagRepository.setTaskTags(taskId, tagIds)
 export const getNoteTags  = (noteId: string)  => tagRepository.getNoteTags(noteId)

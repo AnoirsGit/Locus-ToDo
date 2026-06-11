@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation'
   import type { NoteNode, NoteNodeType } from '$entities/note'
   import { noteStore } from '$entities/note'
+  import { tagStore, TagPicker } from '$entities/tag'
 
   type Props = {
     node: NoteNode
@@ -16,7 +17,9 @@
   // svelte-ignore state_referenced_locally -- menu remounts per open; initial snapshot is intended
   let urlValue = $state(node.url ?? '')
   let confirmDelete = $state(false)
+  let showTags = $state(false)
 
+  const noteTagIds = $derived(tagStore.tagIdsForNote(node.id))
   const info = $derived(noteStore.siblingInfo(node.id))
   const descendants = $derived(noteStore.descendantCount(node.id))
   const hasUrlField = $derived(node.type === 'image' || node.type === 'link')
@@ -135,6 +138,18 @@
   <button class="note-menu-item" role="menuitem" disabled={!info || info.index >= info.count - 1} onclick={moveDown}>Move down</button>
   <button class="note-menu-item" role="menuitem" onclick={duplicate}>Duplicate</button>
 
+  <button class="note-menu-item" role="menuitem" onclick={() => showTags = !showTags}>
+    Tags <span class="note-menu-caret">{showTags ? '▾' : '▸'}</span>
+  </button>
+  {#if showTags}
+    <div class="note-menu-tags">
+      <TagPicker
+        selectedIds={noteTagIds}
+        onChange={(ids) => tagStore.setNoteTags(node.id, ids)}
+      />
+    </div>
+  {/if}
+
   <div class="note-menu-sep"></div>
 
   <button class="note-menu-item danger" role="menuitem" onclick={handleDelete}>
@@ -200,6 +215,10 @@
     flex-direction: column;
     border-left: 2px solid var(--color-border);
     margin-left: 10px;
+  }
+
+  .note-menu-tags {
+    padding: 4px 8px 6px;
   }
 
   .note-menu-sub-item.active {

@@ -31,6 +31,20 @@ class TaskTagAssignment {
       );
 }
 
+class NoteTagAssignment {
+  final String noteId;
+  final List<TagDto> tags;
+
+  const NoteTagAssignment({required this.noteId, required this.tags});
+
+  factory NoteTagAssignment.fromJson(Map<String, dynamic> j) => NoteTagAssignment(
+        noteId: j['noteId'] as String,
+        tags: (j['tags'] as List<dynamic>)
+            .map((t) => TagDto.fromJson(t as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 
 class TagsApi {
@@ -60,6 +74,17 @@ class TagsApi {
 
   Future<void> setTaskTags(String taskId, List<String> tagIds) async {
     await _client.put<void>('/tags/tasks/$taskId', data: {'tagIds': tagIds});
+  }
+
+  Future<List<NoteTagAssignment>> getAllNoteAssignments() async {
+    final res = await _client.get<List<dynamic>>('/tags/note-assignments');
+    return (res.data ?? [])
+        .map((e) => NoteTagAssignment.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> setNoteTags(String noteId, List<String> tagIds) async {
+    await _client.put<void>('/tags/notes/$noteId', data: {'tagIds': tagIds});
   }
 
   Future<TagDto> create(String name, {String? color}) async {
