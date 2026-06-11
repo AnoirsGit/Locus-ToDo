@@ -190,7 +190,12 @@
     {/if}
     {#if isHorizonView || currentView === 'backlog'}
       <div class="tag-filter-wrap">
-        <TagFilterBar />
+        <TagFilterBar
+          activeIds={tagStore.filterTagIds}
+          isFiltering={tagStore.isFiltering}
+          onToggle={(id) => tagStore.toggleFilterTag(id)}
+          onClear={() => tagStore.clearFilter()}
+        />
       </div>
     {/if}
     {@render children()}

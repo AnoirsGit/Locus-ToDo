@@ -1,48 +1,126 @@
-import { tagsApi } from '$shared/api/tags.api'
+import { tagsApi, type TagEntityKind } from '$shared/api/tags.api'
 import { toastStore } from '$shared/lib/toast.svelte'
 import type { Tag } from './tag.types'
+
+type Kind = TagEntityKind
 
 type State = {
   tags: Tag[]
   loaded: boolean
-  taskTagsMap: Record<string, string[]>  // taskId → tagIds
-  taskTagsLoaded: boolean
-  filterTagIds: Set<string>
-  noteTagsMap: Record<string, string[]>   // noteId → tagIds
-  noteTagsLoaded: boolean
-  noteFilterTagIds: Set<string>
+  assignments: Record<Kind, Record<string, string[]>>   // kind → entityId → tagIds
+  assignmentsLoaded: Record<Kind, boolean>
+  filters: Record<Kind, Set<string>>
 }
 
 const state = $state<State>({
-  tags: [], loaded: false,
-  taskTagsMap: {}, taskTagsLoaded: false, filterTagIds: new Set(),
-  noteTagsMap: {}, noteTagsLoaded: false, noteFilterTagIds: new Set(),
+  tags: [],
+  loaded: false,
+  assignments: { tasks: {}, notes: {} },
+  assignmentsLoaded: { tasks: false, notes: false },
+  filters: { tasks: new Set(), notes: new Set() },
 })
+
+// ─── Generic core (shared by task + note tag handling) ───────────────────────
+
+const loadAssignments = async (kind: Kind) => {
+  if (state.assignmentsLoaded[kind]) return
+  try {
+    const rows = await tagsApi.getAllAssignments(kind)
+    const map: Record<string, string[]> = {}
+    for (const { id, tags } of rows) {
+      map[id] = tags.map(t => t.id)
+      for (const t of tags) {
+        if (!state.tags.find(x => x.id === t.id)) {
+          state.tags = [...state.tags, { id: t.id, name: t.name, color: t.color }]
+        }
+      }
+    }
+    state.assignments = { ...state.assignments, [kind]: map }
+    state.assignmentsLoaded = { ...state.assignmentsLoaded, [kind]: true }
+  } catch {
+    // non-critical — tags just won't show
+  }
+}
+
+const getTagsFor = (kind: Kind, id: string): Tag[] => {
+  const ids = state.assignments[kind][id] ?? []
+  return state.tags.filter(t => ids.includes(t.id))
+}
+
+const tagIdsFor = (kind: Kind, id: string): string[] => state.assignments[kind][id] ?? []
+
+const setLocal = (kind: Kind, id: string, tagIds: string[]) => {
+  state.assignments = {
+    ...state.assignments,
+    [kind]: { ...state.assignments[kind], [id]: tagIds },
+  }
+}
+
+const toggleFilter = (kind: Kind, id: string) => {
+  const next = new Set(state.filters[kind])
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  state.filters = { ...state.filters, [kind]: next }
+}
+
+const clearFilterFor = (kind: Kind) => {
+  state.filters = { ...state.filters, [kind]: new Set() }
+}
+
+/** Does an entity satisfy the active filter for its kind (AND semantics)? */
+const matchesFilter = (kind: Kind, id: string): boolean => {
+  const active = state.filters[kind]
+  if (active.size === 0) return true
+  const tags = state.assignments[kind][id] ?? []
+  return [...active].every(fid => tags.includes(fid))
+}
+
+// ─── Store ───────────────────────────────────────────────────────────────────
 
 export const tagStore = {
   get tags() { return state.tags },
   get loaded() { return state.loaded },
-  get filterTagIds() { return state.filterTagIds },
-  get isFiltering() { return state.filterTagIds.size > 0 },
 
-  toggleFilterTag(id: string) {
-    const next = new Set(state.filterTagIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    state.filterTagIds = next
-  },
+  // ── Tasks ───────────────────────────────────────────────────────────────────
 
-  clearFilter() {
-    state.filterTagIds = new Set()
-  },
+  get filterTagIds() { return state.filters.tasks },
+  get isFiltering() { return state.filters.tasks.size > 0 },
+
+  toggleFilterTag(id: string) { toggleFilter('tasks', id) },
+  clearFilter() { clearFilterFor('tasks') },
 
   filterTasks<T extends { id: string }>(tasks: T[]): T[] {
-    if (state.filterTagIds.size === 0) return tasks
-    return tasks.filter(t => {
-      const taskTags = state.taskTagsMap[t.id] ?? []
-      return [...state.filterTagIds].every(fid => taskTags.includes(fid))
+    if (state.filters.tasks.size === 0) return tasks
+    return tasks.filter(t => matchesFilter('tasks', t.id))
+  },
+
+  loadTaskAssignments() { return loadAssignments('tasks') },
+  getTagsForTask(taskId: string): Tag[] { return getTagsFor('tasks', taskId) },
+  setTaskTagsLocal(taskId: string, tagIds: string[]) { setLocal('tasks', taskId, tagIds) },
+
+  // ── Notes ─────────────────────────────────────────────────────────────────
+
+  get noteFilterTagIds() { return state.filters.notes },
+  get isFilteringNotes() { return state.filters.notes.size > 0 },
+
+  toggleNoteFilterTag(id: string) { toggleFilter('notes', id) },
+  clearNoteFilter() { clearFilterFor('notes') },
+
+  loadNoteAssignments() { return loadAssignments('notes') },
+  getTagsForNote(noteId: string): Tag[] { return getTagsFor('notes', noteId) },
+  tagIdsForNote(noteId: string): string[] { return tagIdsFor('notes', noteId) },
+
+  /** Persist a note's tag set (optimistic local update + PUT). */
+  setNoteTags(noteId: string, tagIds: string[]) {
+    setLocal('notes', noteId, tagIds)
+    tagsApi.setNoteTags(noteId, tagIds).catch(() => {
+      toastStore.error('Failed to save note tags')
     })
   },
+
+  noteMatchesFilter(noteId: string): boolean { return matchesFilter('notes', noteId) },
+
+  // ── Catalog CRUD ────────────────────────────────────────────────────────────
 
   async load() {
     if (state.loaded) return
@@ -53,96 +131,6 @@ export const tagStore = {
     } catch {
       toastStore.error('Failed to load tags')
     }
-  },
-
-  async loadTaskAssignments() {
-    if (state.taskTagsLoaded) return
-    try {
-      const assignments = await tagsApi.getAllTaskAssignments()
-      const map: Record<string, string[]> = {}
-      for (const { taskId, tags } of assignments) {
-        map[taskId] = tags.map(t => t.id)
-        // also ensure tags are in the tag list
-        for (const t of tags) {
-          if (!state.tags.find(x => x.id === t.id)) {
-            state.tags = [...state.tags, { id: t.id, name: t.name, color: t.color }]
-          }
-        }
-      }
-      state.taskTagsMap = map
-      state.taskTagsLoaded = true
-    } catch {
-      // non-critical — tags just won't show on cards
-    }
-  },
-
-  getTagsForTask(taskId: string): Tag[] {
-    const ids = state.taskTagsMap[taskId] ?? []
-    return state.tags.filter(t => ids.includes(t.id))
-  },
-
-  setTaskTagsLocal(taskId: string, tagIds: string[]) {
-    state.taskTagsMap = { ...state.taskTagsMap, [taskId]: tagIds }
-  },
-
-  // ── Notes ──────────────────────────────────────────────────────────────────
-
-  get noteFilterTagIds() { return state.noteFilterTagIds },
-  get isFilteringNotes() { return state.noteFilterTagIds.size > 0 },
-
-  toggleNoteFilterTag(id: string) {
-    const next = new Set(state.noteFilterTagIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    state.noteFilterTagIds = next
-  },
-
-  clearNoteFilter() {
-    state.noteFilterTagIds = new Set()
-  },
-
-  async loadNoteAssignments() {
-    if (state.noteTagsLoaded) return
-    try {
-      const assignments = await tagsApi.getAllNoteAssignments()
-      const map: Record<string, string[]> = {}
-      for (const { noteId, tags } of assignments) {
-        map[noteId] = tags.map(t => t.id)
-        for (const t of tags) {
-          if (!state.tags.find(x => x.id === t.id)) {
-            state.tags = [...state.tags, { id: t.id, name: t.name, color: t.color }]
-          }
-        }
-      }
-      state.noteTagsMap = map
-      state.noteTagsLoaded = true
-    } catch {
-      // non-critical — tags just won't show on rows
-    }
-  },
-
-  getTagsForNote(noteId: string): Tag[] {
-    const ids = state.noteTagsMap[noteId] ?? []
-    return state.tags.filter(t => ids.includes(t.id))
-  },
-
-  tagIdsForNote(noteId: string): string[] {
-    return state.noteTagsMap[noteId] ?? []
-  },
-
-  /** Persist a note's tag set (optimistic local update + PUT). */
-  setNoteTags(noteId: string, tagIds: string[]) {
-    state.noteTagsMap = { ...state.noteTagsMap, [noteId]: tagIds }
-    tagsApi.setNoteTags(noteId, tagIds).catch(() => {
-      toastStore.error('Failed to save note tags')
-    })
-  },
-
-  /** Does a note (or any node in its subtree-ids) match the active note filter? */
-  noteMatchesFilter(noteId: string): boolean {
-    if (state.noteFilterTagIds.size === 0) return true
-    const noteTags = state.noteTagsMap[noteId] ?? []
-    return [...state.noteFilterTagIds].every(fid => noteTags.includes(fid))
   },
 
   async create(name: string, color?: string | null): Promise<Tag> {
@@ -163,21 +151,19 @@ export const tagStore = {
 
   async delete(id: string) {
     state.tags = state.tags.filter(t => t.id !== id)
-    // remove from task assignments cache
-    const newMap: Record<string, string[]> = {}
-    for (const [taskId, ids] of Object.entries(state.taskTagsMap)) {
-      const filtered = ids.filter(i => i !== id)
-      if (filtered.length) newMap[taskId] = filtered
+    // Drop the tag from every kind's assignment cache + active filter.
+    const strip = (m: Record<string, string[]>) => {
+      const out: Record<string, string[]> = {}
+      for (const [entityId, ids] of Object.entries(m)) {
+        const filtered = ids.filter(i => i !== id)
+        if (filtered.length) out[entityId] = filtered
+      }
+      return out
     }
-    state.taskTagsMap = newMap
-    const newNoteMap: Record<string, string[]> = {}
-    for (const [noteId, ids] of Object.entries(state.noteTagsMap)) {
-      const filtered = ids.filter(i => i !== id)
-      if (filtered.length) newNoteMap[noteId] = filtered
-    }
-    state.noteTagsMap = newNoteMap
-    const nextFilter = new Set(state.noteFilterTagIds); nextFilter.delete(id)
-    state.noteFilterTagIds = nextFilter
+    state.assignments = { tasks: strip(state.assignments.tasks), notes: strip(state.assignments.notes) }
+    const tasks = new Set(state.filters.tasks); tasks.delete(id)
+    const notes = new Set(state.filters.notes); notes.delete(id)
+    state.filters = { tasks, notes }
     tagsApi.delete(id).catch(() => {
       toastStore.error('Failed to delete tag')
     })

@@ -7,6 +7,15 @@ export type TagDto = {
   color: string | null
 }
 
+/** Entities that can carry tags. Maps directly to the URL path segment. */
+export type TagEntityKind = 'tasks' | 'notes'
+
+// Bulk-assignment endpoints use a singular path segment.
+const assignmentsPath = (kind: TagEntityKind) =>
+  kind === 'tasks' ? '/tags/task-assignments' : '/tags/note-assignments'
+
+type RawAssignment = { taskId?: string; noteId?: string; tags: TagDto[] }
+
 export const tagsApi = {
   list: () => api.get<TagDto[]>('/tags'),
 
@@ -18,19 +27,24 @@ export const tagsApi = {
 
   delete: (id: string) => api.delete<void>(`/tags/${id}`),
 
-  getAllTaskAssignments: () =>
-    api.get<{ taskId: string; tags: TagDto[] }[]>('/tags/task-assignments'),
+  // ── Assignments (generic over entity kind) ──────────────────────────────────
 
-  getTaskTags: (taskId: string) => api.get<TagDto[]>(`/tags/tasks/${taskId}`),
+  /** All entity→tags pairs for the user, normalized to `{ id, tags }`. */
+  getAllAssignments: (kind: TagEntityKind) =>
+    api.get<RawAssignment[]>(assignmentsPath(kind)).then(rows =>
+      rows.map(r => ({ id: (r.taskId ?? r.noteId)!, tags: r.tags })),
+    ),
 
-  setTaskTags: (taskId: string, tagIds: string[]) =>
-    api.put<void>(`/tags/tasks/${taskId}`, { tagIds }),
+  getEntityTags: (kind: TagEntityKind, id: string) =>
+    api.get<TagDto[]>(`/tags/${kind}/${id}`),
 
-  getAllNoteAssignments: () =>
-    api.get<{ noteId: string; tags: TagDto[] }[]>('/tags/note-assignments'),
+  setEntityTags: (kind: TagEntityKind, id: string, tagIds: string[]) =>
+    api.put<void>(`/tags/${kind}/${id}`, { tagIds }),
 
-  getNoteTags: (noteId: string) => api.get<TagDto[]>(`/tags/notes/${noteId}`),
+  // ── Named wrappers (kept for existing external callers) ─────────────────────
 
-  setNoteTags: (noteId: string, tagIds: string[]) =>
-    api.put<void>(`/tags/notes/${noteId}`, { tagIds }),
+  getTaskTags: (taskId: string) => tagsApi.getEntityTags('tasks', taskId),
+  setTaskTags: (taskId: string, tagIds: string[]) => tagsApi.setEntityTags('tasks', taskId, tagIds),
+  getNoteTags: (noteId: string) => tagsApi.getEntityTags('notes', noteId),
+  setNoteTags: (noteId: string, tagIds: string[]) => tagsApi.setEntityTags('notes', noteId, tagIds),
 }

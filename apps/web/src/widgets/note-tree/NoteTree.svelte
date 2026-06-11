@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation'
   import { noteStore } from '$entities/note'
   import type { NoteNode } from '$entities/note'
-  import { tagStore, NoteTagFilterBar } from '$entities/tag'
+  import { tagStore, TagFilterBar } from '$entities/tag'
   import NoteRow from './NoteRow.svelte'
 
   let focusId = $state<string | null>(null)
@@ -180,7 +180,12 @@
   {:else}
 
   <!-- Tag filter -->
-  <NoteTagFilterBar />
+  <TagFilterBar
+    activeIds={tagStore.noteFilterTagIds}
+    isFiltering={tagStore.isFilteringNotes}
+    onToggle={(id) => tagStore.toggleNoteFilterTag(id)}
+    onClear={() => tagStore.clearNoteFilter()}
+  />
 
   <!-- Note tree -->
   <div class="note-tree" role="tree">
