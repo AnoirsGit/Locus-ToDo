@@ -22,16 +22,22 @@ String generateUuid() {
 class NoteDto {
   final String id;
   final String? parentId;
+  final String nodeType;
   final String content;
+  final String? url;
   final bool collapsed;
+  final bool done;
   final int sortOrder;
   final List<NoteDto> children;
 
   const NoteDto({
     required this.id,
     this.parentId,
+    this.nodeType = 'text',
     required this.content,
+    this.url,
     required this.collapsed,
+    this.done = false,
     required this.sortOrder,
     required this.children,
   });
@@ -39,8 +45,11 @@ class NoteDto {
   factory NoteDto.fromJson(Map<String, dynamic> j) => NoteDto(
         id: j['id'] as String,
         parentId: j['parentId'] as String?,
+        nodeType: j['nodeType'] as String? ?? 'text',
         content: j['content'] as String? ?? '',
+        url: j['url'] as String?,
         collapsed: j['collapsed'] as bool? ?? false,
+        done: j['done'] as bool? ?? false,
         sortOrder: j['sortOrder'] as int? ?? 0,
         children: (j['children'] as List<dynamic>? ?? [])
             .map((c) => NoteDto.fromJson(c as Map<String, dynamic>))
@@ -64,34 +73,56 @@ class NotesApi {
   Future<NoteDto> create({
     required String id,
     String? parentId,
+    String nodeType = 'text',
     required String content,
+    String? url,
     required int sortOrder,
   }) async {
     final res = await _client.post<Map<String, dynamic>>('/notes', data: {
       'id': id,
       'parentId': parentId,
+      'nodeType': nodeType,
       'content': content,
+      if (url != null) 'url': url,
       'sortOrder': sortOrder,
     });
     return NoteDto.fromJson(res.data!);
   }
 
+  // Sentinel so nullable fields (parentId, url) can be set to null explicitly.
+  static const _absent = Object();
+
   Future<void> update(
     String id, {
+    String? nodeType,
     String? content,
     bool? collapsed,
-    String? parentId,
+    bool? done,
+    Object? parentId = _absent,
+    Object? url = _absent,
     int? sortOrder,
   }) async {
     final body = <String, dynamic>{};
+    if (nodeType != null) body['nodeType'] = nodeType;
     if (content != null) body['content'] = content;
     if (collapsed != null) body['collapsed'] = collapsed;
-    if (parentId != null) body['parentId'] = parentId;
+    if (done != null) body['done'] = done;
+    if (!identical(parentId, _absent)) body['parentId'] = parentId as String?;
+    if (!identical(url, _absent)) body['url'] = url as String?;
     if (sortOrder != null) body['sortOrder'] = sortOrder;
     await _client.patch<void>('/notes/$id', data: body);
   }
 
   Future<void> delete(String id) => _client.delete<void>('/notes/$id');
+
+  // Raw passthroughs used by the offline outbox replay (body already built).
+  Future<void> createRaw(Map<String, dynamic> body) async {
+    await _client.post<Map<String, dynamic>>('/notes', data: body);
+  }
+
+  Future<void> patchRaw(String id, Map<String, dynamic> body) async {
+    await _client.patch<void>('/notes/$id', data: body);
+  }
 }
 
 final notesApiProvider = Provider((ref) => NotesApi(ref.watch(apiClientProvider)));

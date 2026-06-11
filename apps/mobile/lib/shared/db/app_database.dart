@@ -46,6 +46,36 @@ class TaskPeriods extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+// Notes: local mirror of the notes tree for offline reads.
+class Notes extends Table {
+  TextColumn get id         => text()();
+  TextColumn get parentId   => text().nullable()();
+  TextColumn get nodeType   => text().withDefault(const Constant('bullet'))();
+  TextColumn get content    => text().withDefault(const Constant(''))();
+  TextColumn get url        => text().nullable()();
+  IntColumn  get sortOrder  => integer().withDefault(const Constant(0))();
+  BoolColumn get collapsed  => boolean().withDefault(const Constant(false))();
+  BoolColumn get done       => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+// Notes outbox: pending create/update/delete operations to sync with server.
+class NotesOutbox extends Table {
+  TextColumn get id          => text()();             // outbox entry UUID
+  TextColumn get op          => text()();             // create|update|delete
+  TextColumn get noteId      => text()();
+  TextColumn get payloadJson => text().nullable()();  // JSON of create/update fields
+  DateTimeColumn get createdAt   => dateTime()();
+  IntColumn  get attempts    => integer().withDefault(const Constant(0))();
+  DateTimeColumn get nextRetryAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 // Outbox: pending toggle operations to sync with server
 class SyncOutbox extends Table {
   TextColumn get id        => text()();               // UUID
@@ -62,12 +92,62 @@ class SyncOutbox extends Table {
 
 // ── Database ─────────────────────────────────────────────────────────────────
 
-@DriftDatabase(tables: [Tasks, TaskPeriods, SyncOutbox])
+@DriftDatabase(tables: [Tasks, TaskPeriods, SyncOutbox, Notes, NotesOutbox])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(notes);
+            await m.createTable(notesOutbox);
+          }
+        },
+      );
+
+  // ── Notes queries ───────────────────────────────────────────────────────────
+
+  Future<void> upsertNote(NotesCompanion note) =>
+      into(notes).insertOnConflictUpdate(note);
+
+  Future<List<Note>> getAllNotes() => select(notes).get();
+
+  Future<void> deleteNoteLocal(String id) =>
+      (delete(notes)..where((n) => n.id.equals(id))).go();
+
+  Future<void> clearNotes() => delete(notes).go();
+
+  Future<void> replaceAllNotes(List<NotesCompanion> rows) =>
+      transaction(() async {
+        await delete(notes).go();
+        for (final row in rows) {
+          await into(notes).insert(row);
+        }
+      });
+
+  // ── Notes outbox queries ──────────────────────────────────────────────────────
+
+  Future<void> enqueueNoteOp(NotesOutboxCompanion entry) =>
+      into(notesOutbox).insert(entry);
+
+  Future<List<NotesOutboxData>> getPendingNoteOutbox() =>
+      (select(notesOutbox)
+            ..where((o) => o.nextRetryAt.isSmallerOrEqualValue(DateTime.now()))
+            ..orderBy([(o) => OrderingTerm.asc(o.createdAt)]))
+          .get();
+
+  Future<void> removeNoteOutbox(String id) =>
+      (delete(notesOutbox)..where((o) => o.id.equals(id))).go();
+
+  Future<void> incrementNoteOutboxAttempt(String id, int attempts, DateTime nextRetry) =>
+      (update(notesOutbox)..where((o) => o.id.equals(id))).write(
+        NotesOutboxCompanion(attempts: Value(attempts), nextRetryAt: Value(nextRetry)),
+      );
 
   // ── Task queries ──────────────────────────────────────────────────────────
 

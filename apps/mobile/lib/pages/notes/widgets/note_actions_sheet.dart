@@ -1,0 +1,325 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../entities/note/model/note_node.dart';
+import '../../../entities/note/model/notes_notifier.dart';
+import '../../../shared/core/strings.dart';
+import 'note_tags.dart';
+
+void showNoteActionsSheet(
+  BuildContext context, {
+  required WidgetRef ref,
+  required NoteNode node,
+  required NotesNotifier notifier,
+  required void Function(String id) onZoom,
+}) {
+  final info = notifier.siblingInfo(node.id);
+  final descendants = notifier.descendantCount(node.id);
+  final hasUrlField =
+      node.type == NoteNodeType.image || node.type == NoteNodeType.link;
+
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetCtx) {
+      void close() => Navigator.pop(sheetCtx);
+      return SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.open_in_full, size: 20),
+                title: Text(S.openAsPage),
+                onTap: () { close(); onZoom(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.subdirectory_arrow_right, size: 20),
+                title: Text(S.addChild),
+                onTap: () { close(); notifier.addChild(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add, size: 20),
+                title: Text(S.addBelow),
+                onTap: () { close(); notifier.addAfter(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz, size: 20),
+                title: Text(S.turnInto),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: () {
+                  close();
+                  _showTurnIntoSheet(context, node: node, notifier: notifier);
+                },
+              ),
+              if (hasUrlField)
+                ListTile(
+                  leading: const Icon(Icons.link, size: 20),
+                  title: Text(S.setUrl),
+                  onTap: () {
+                    close();
+                    _showSetUrlDialog(context, node: node, notifier: notifier);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.format_indent_increase, size: 20),
+                title: Text(S.indent),
+                enabled: info != null && info.index > 0,
+                onTap: () { close(); notifier.indent(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.format_indent_decrease, size: 20),
+                title: Text(S.outdent),
+                enabled: info != null && !info.isRoot,
+                onTap: () { close(); notifier.unindent(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.arrow_upward, size: 20),
+                title: Text(S.moveUp),
+                enabled: info != null && info.index > 0,
+                onTap: () { close(); notifier.moveUp(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.arrow_downward, size: 20),
+                title: Text(S.moveDown),
+                enabled: info != null && info.index < info.count - 1,
+                onTap: () { close(); notifier.moveDown(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy_all_outlined, size: 20),
+                title: Text(S.duplicate),
+                onTap: () { close(); notifier.duplicate(node.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outline, size: 20),
+                title: Text(S.moveTo),
+                onTap: () { close(); _showMoveToSheet(context, node: node, notifier: notifier); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.label_outline, size: 20),
+                title: Text(S.tags),
+                onTap: () { close(); showNoteTagPicker(context, ref, node.id); },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                title: Text(S.delete, style: const TextStyle(color: Colors.red)),
+                onTap: () {
+                  close();
+                  if (descendants > 0) {
+                    _confirmSubtreeDelete(context,
+                        node: node, notifier: notifier, descendants: descendants);
+                  } else {
+                    showNoteUndoSnack(context, notifier.removeNoteWithUndo(node.id));
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Show a "deleted — Undo" SnackBar; no-op when there's nothing to undo.
+void showNoteUndoSnack(BuildContext context, void Function()? undo) {
+  if (undo == null) return;
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(S.noteDeleted),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(label: S.undo, onPressed: undo),
+      ),
+    );
+}
+
+void _showMoveToSheet(
+  BuildContext context, {
+  required NoteNode node,
+  required NotesNotifier notifier,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetCtx) => _MoveToSheet(node: node, notifier: notifier),
+  );
+}
+
+class _MoveToSheet extends StatefulWidget {
+  final NoteNode node;
+  final NotesNotifier notifier;
+
+  const _MoveToSheet({required this.node, required this.notifier});
+
+  @override
+  State<_MoveToSheet> createState() => _MoveToSheetState();
+}
+
+class _MoveToSheetState extends State<_MoveToSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _query.trim().toLowerCase();
+    final candidates = widget.notifier
+        .moveCandidates(widget.node.id)
+        .where((c) => c.label.toLowerCase().contains(q))
+        .toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16, right: 16, top: 4,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(S.moveTo, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          TextField(
+            autofocus: true,
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: '${S.search}…',
+              prefixIcon: const Icon(Icons.search, size: 18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.north, size: 18),
+                  title: Text(S.root),
+                  onTap: () {
+                    widget.notifier.moveToParent(widget.node.id, null);
+                    Navigator.pop(context);
+                  },
+                ),
+                for (final c in candidates)
+                  ListTile(
+                    dense: true,
+                    title: Text(c.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onTap: () {
+                      widget.notifier.moveToParent(widget.node.id, c.id);
+                      Navigator.pop(context);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showTurnIntoSheet(
+  BuildContext context, {
+  required NoteNode node,
+  required NotesNotifier notifier,
+}) {
+  final types = [
+    (NoteNodeType.text, S.typeText, Icons.notes),
+    (NoteNodeType.heading1, S.typeHeading1, Icons.title),
+    (NoteNodeType.heading2, S.typeHeading2, Icons.text_fields),
+    (NoteNodeType.bullet, S.typeBullet, Icons.circle, ),
+    (NoteNodeType.todo, S.typeTodo, Icons.check_box_outlined),
+    (NoteNodeType.image, S.typeImage, Icons.image_outlined),
+    (NoteNodeType.link, S.typeLink, Icons.link),
+  ];
+
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetCtx) => SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (type, label, icon) in types)
+              ListTile(
+                leading: Icon(icon, size: 20),
+                title: Text(label),
+                selected: node.type == type,
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  notifier.updateType(node.id, type);
+                },
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _showSetUrlDialog(
+  BuildContext context, {
+  required NoteNode node,
+  required NotesNotifier notifier,
+}) {
+  final ctrl = TextEditingController(text: node.url ?? '');
+  showDialog<void>(
+    context: context,
+    builder: (dialogCtx) => AlertDialog(
+      title: Text(S.setUrl),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        keyboardType: TextInputType.url,
+        decoration: const InputDecoration(hintText: 'https://...'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx),
+          child: Text(S.cancel),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogCtx);
+            notifier.updateUrl(node.id, ctrl.text);
+          },
+          child: Text(S.save),
+        ),
+      ],
+    ),
+  );
+}
+
+void _confirmSubtreeDelete(
+  BuildContext context, {
+  required NoteNode node,
+  required NotesNotifier notifier,
+  required int descendants,
+}) {
+  showDialog<void>(
+    context: context,
+    builder: (dialogCtx) => AlertDialog(
+      title: Text(S.deleteNoteQ),
+      content: Text(S.deleteSubtree(descendants)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx),
+          child: Text(S.cancel),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogCtx);
+            showNoteUndoSnack(context, notifier.removeNoteWithUndo(node.id));
+          },
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          child: Text(S.delete),
+        ),
+      ],
+    ),
+  );
+}

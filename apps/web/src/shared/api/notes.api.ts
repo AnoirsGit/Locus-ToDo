@@ -12,6 +12,7 @@ export type NoteDto = {
   url: string | null
   sortOrder: number
   collapsed: boolean
+  done: boolean
   createdAt: string
   updatedAt: string
   children: NoteDto[]
@@ -25,6 +26,7 @@ export const dtoToNode = (dto: NoteDto): NoteNode => ({
   content:   dto.content,
   url:       dto.url ?? undefined,
   collapsed: dto.collapsed,
+  done:      dto.done,
   children:  dto.children.map(dtoToNode),
 })
 
@@ -48,6 +50,7 @@ export const notesApi = {
     url:       string | null
     sortOrder: number
     collapsed: boolean
+    done:      boolean
     parentId:  string | null
   }>) => api.patch<NoteDto>(`/notes/${id}`, patch),
 

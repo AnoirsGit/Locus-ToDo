@@ -63,6 +63,24 @@ export const tagRepository = {
     return Array.from(map.entries()).map(([taskId, tags]) => ({ taskId, tags }))
   },
 
+  async getAllNoteTagsForUser(userId: string): Promise<{ noteId: string; tags: Tag[] }[]> {
+    const rows = await db<{ noteId: string; id: string; name: string; color: string | null }[]>`
+      SELECT nt.note_id, t.id, t.name, t.color
+      FROM note_tags nt
+      JOIN tags t ON t.id = nt.tag_id
+      JOIN notes n ON n.id = nt.note_id
+      WHERE n.user_id = ${userId}
+      ORDER BY nt.note_id, t.name
+    `
+    const map = new Map<string, Tag[]>()
+    for (const r of rows) {
+      const list = map.get(r.noteId) ?? []
+      list.push({ id: r.id, userId, name: r.name, color: r.color })
+      map.set(r.noteId, list)
+    }
+    return Array.from(map.entries()).map(([noteId, tags]) => ({ noteId, tags }))
+  },
+
   // ── Junction: tasks ───────────────────────────────────────────────────────
 
   async getTaskTags(taskId: string): Promise<Tag[]> {

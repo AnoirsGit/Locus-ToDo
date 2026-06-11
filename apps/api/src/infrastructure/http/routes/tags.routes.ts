@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { authenticate } from '../plugins/authenticate.js'
 import {
   listTags, createTag, updateTag, deleteTag,
-  getAllTaskTagsForUser,
+  getAllTaskTagsForUser, getAllNoteTagsForUser,
   getTaskTags, setTaskTags, getNoteTags, setNoteTags,
 } from '../../../application/tag/tags.usecase.js'
 
@@ -77,6 +77,9 @@ export const tagsRoutes: FastifyPluginAsync = async (fastify) => {
     await setTaskTags(taskId, tagIds)
     return reply.status(204).send()
   })
+
+  // GET /api/tags/note-assignments — all note-tag pairs for the authenticated user
+  fastify.get('/note-assignments', async (req) => getAllNoteTagsForUser(uid(req)))
 
   // GET /api/tags/notes/:noteId
   fastify.get('/notes/:noteId', async (req) => {

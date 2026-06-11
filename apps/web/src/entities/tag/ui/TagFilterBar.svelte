@@ -1,24 +1,32 @@
 <script lang="ts">
   import { tagStore } from '../model/tag.store.svelte'
+
+  type Props = {
+    activeIds: Set<string>
+    isFiltering: boolean
+    onToggle: (id: string) => void
+    onClear: () => void
+  }
+  const { activeIds, isFiltering, onToggle, onClear }: Props = $props()
 </script>
 
 {#if tagStore.tags.length > 0}
   <div class="tag-filter-bar">
     {#each tagStore.tags as tag (tag.id)}
-      {@const active = tagStore.filterTagIds.has(tag.id)}
+      {@const active = activeIds.has(tag.id)}
       <button
         class="tag-filter-pill"
         class:active
         style:--pill-color={tag.color ?? 'var(--color-muted)'}
-        onclick={() => tagStore.toggleFilterTag(tag.id)}
+        onclick={() => onToggle(tag.id)}
       >
         <span class="tag-filter-dot"></span>
         {tag.name}
       </button>
     {/each}
 
-    {#if tagStore.isFiltering}
-      <button class="tag-filter-clear" onclick={() => tagStore.clearFilter()}>
+    {#if isFiltering}
+      <button class="tag-filter-clear" onclick={onClear}>
         Clear filter
       </button>
     {/if}

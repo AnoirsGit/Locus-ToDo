@@ -1,11 +1,29 @@
 <script lang="ts">
+  import { goto } from '$app/navigation'
   import { noteStore } from '$entities/note'
+  import type { NoteNode } from '$entities/note'
+  import { tagStore, TagFilterBar } from '$entities/tag'
   import NoteRow from './NoteRow.svelte'
 
   let focusId = $state<string | null>(null)
   let anchorId = $state<string | null>(null) // range selection anchor
 
-  $effect(() => { noteStore.load() })
+  $effect(() => {
+    noteStore.load()
+    tagStore.load()
+    tagStore.loadNoteAssignments()
+  })
+
+  // When a tag filter is active, prune the tree to branches that contain a
+  // match (matching node or an ancestor of one), force-expanding along the way.
+  const pruneByTag = (nodes: NoteNode[]): NoteNode[] =>
+    nodes
+      .map(n => ({ ...n, collapsed: false, children: pruneByTag(n.children) }))
+      .filter(n => tagStore.noteMatchesFilter(n.id) || n.children.length > 0)
+
+  const visibleRoots = $derived(
+    tagStore.isFilteringNotes ? pruneByTag(noteStore.rootNodes) : noteStore.rootNodes
+  )
 
   const handleFocusChange = (id: string | null) => {
     focusId = id
@@ -88,6 +106,9 @@
 
   const crumbs = $derived(noteStore.breadcrumbs)
   const selCount = $derived(noteStore.selectedIds.size)
+
+  let searchQuery = $state('')
+  const searchResults = $derived(noteStore.search(searchQuery))
 </script>
 
 <div class="note-tree-wrap">
@@ -95,7 +116,7 @@
   <!-- Breadcrumb navigation -->
   {#if noteStore.rootId}
     <nav class="note-breadcrumb">
-      <button class="note-crumb note-crumb-home" onclick={() => noteStore.setRoot(null)}>
+      <button class="note-crumb note-crumb-home" onclick={() => goto('/notes')}>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M1 6L6 1.5L11 6V11H7.5V8H4.5V11H1V6Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
         </svg>
@@ -104,7 +125,7 @@
       {#each crumbs as crumb, i}
         <span class="note-crumb-sep">›</span>
         {#if i < crumbs.length - 1}
-          <button class="note-crumb" onclick={() => noteStore.setRoot(crumb.id)}>
+          <button class="note-crumb" onclick={() => goto(`/notes/${crumb.id}`)}>
             {crumb.content || 'Untitled'}
           </button>
         {:else}
@@ -128,9 +149,47 @@
     </div>
   {/if}
 
+  <!-- Search -->
+  <div class="note-search">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>
+    <input
+      class="note-search-input"
+      placeholder="Search notes…"
+      bind:value={searchQuery}
+    />
+    {#if searchQuery}
+      <button class="note-search-clear" onclick={() => searchQuery = ''} aria-label="Clear search">✕</button>
+    {/if}
+  </div>
+
+  {#if searchQuery.trim()}
+    <!-- Search results -->
+    <div class="note-search-results">
+      {#each searchResults as r (r.id)}
+        <button class="note-search-result" onclick={() => { goto(`/notes/${r.id}`); searchQuery = '' }}>
+          <span class="note-search-result-content">{r.content || 'Untitled'}</span>
+          {#if r.path}<span class="note-search-result-path">{r.path}</span>{/if}
+        </button>
+      {:else}
+        <div class="note-search-empty">No matches</div>
+      {/each}
+    </div>
+  {:else}
+
+  <!-- Tag filter -->
+  <TagFilterBar
+    activeIds={tagStore.noteFilterTagIds}
+    isFiltering={tagStore.isFilteringNotes}
+    onToggle={(id) => tagStore.toggleNoteFilterTag(id)}
+    onClear={() => tagStore.clearNoteFilter()}
+  />
+
   <!-- Note tree -->
   <div class="note-tree" role="tree">
-    {#each noteStore.rootNodes as node (node.id)}
+    {#each visibleRoots as node (node.id)}
       <NoteRow
         {node}
         depth={0}
@@ -139,11 +198,11 @@
         onFocusMove={handleFocusMove}
         onSelectExtend={handleSelectExtend}
         onSelect={handleSelect}
-        onZoom={(id) => noteStore.setRoot(id)}
+        onZoom={(id) => goto(`/notes/${id}`)}
       />
     {/each}
 
-    {#if noteStore.loaded && noteStore.rootNodes.length === 0}
+    {#if noteStore.loaded && visibleRoots.length === 0}
       <div class="note-empty">
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" opacity="0.35">
           <rect x="5" y="4" width="22" height="24" rx="3" stroke="currentColor" stroke-width="1.5"/>
@@ -160,6 +219,7 @@
       Add note
     </button>
   </div>
+  {/if}
 
 </div>
 
@@ -268,6 +328,81 @@
   }
 
   .note-sel-clear:hover { color: var(--color-text); }
+
+  /* ── Search ──────────────────────────────────────────────────────── */
+
+  .note-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-muted);
+  }
+
+  .note-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    color: var(--color-text);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .note-search-clear {
+    font-size: 11px;
+    color: var(--color-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+  }
+
+  .note-search-clear:hover { color: var(--color-text); }
+
+  .note-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .note-search-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    background: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-align: left;
+    transition: background 100ms;
+  }
+
+  .note-search-result:hover { background: var(--color-surface-2); }
+
+  .note-search-result-content {
+    font-size: 13px;
+    color: var(--color-text);
+  }
+
+  .note-search-result-path {
+    font-size: 11px;
+    color: var(--color-muted);
+  }
+
+  .note-search-empty {
+    padding: 16px 8px;
+    font-size: 13px;
+    color: var(--color-muted);
+    text-align: center;
+  }
 
   /* ── Empty state ─────────────────────────────────────────────────── */
 

@@ -39,6 +39,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/archive',  builder: (_, __) => const TasksPage(view: 'archive')),
           GoRoute(path: '/stats',    builder: (_, __) => const StatsPage()),
           GoRoute(path: '/notes',    builder: (_, __) => const NotesPage()),
+          GoRoute(
+            path: '/notes/:id',
+            builder: (_, state) => NotesPage(rootId: state.pathParameters['id']),
+          ),
           GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
         ],
       ),

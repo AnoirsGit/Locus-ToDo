@@ -1311,6 +1311,12 @@
   color: inherit;
 }
 .toast-close:hover { opacity: 1; }
+.toast-action {
+  flex-shrink: 0; border: none; background: transparent; cursor: pointer;
+  font-weight: 600; font-size: 12px; color: inherit; padding: 2px 6px;
+  border-radius: 4px; text-decoration: underline; opacity: 0.9;
+}
+.toast-action:hover { opacity: 1; background: rgba(0,0,0,0.06); }
 
 /* ══════════════════════════════════════════════
    NOTES — outline + board
