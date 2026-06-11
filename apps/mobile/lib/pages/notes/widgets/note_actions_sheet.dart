@@ -90,6 +90,11 @@ void showNoteActionsSheet(
                 onTap: () { close(); notifier.duplicate(node.id); },
               ),
               ListTile(
+                leading: const Icon(Icons.drive_file_move_outline, size: 20),
+                title: Text(S.moveTo),
+                onTap: () { close(); _showMoveToSheet(context, node: node, notifier: notifier); },
+              ),
+              ListTile(
                 leading: const Icon(Icons.label_outline, size: 20),
                 title: Text(S.tags),
                 onTap: () { close(); showNoteTagPicker(context, ref, node.id); },
@@ -128,6 +133,93 @@ void showNoteUndoSnack(BuildContext context, void Function()? undo) {
         action: SnackBarAction(label: S.undo, onPressed: undo),
       ),
     );
+}
+
+void _showMoveToSheet(
+  BuildContext context, {
+  required NoteNode node,
+  required NotesNotifier notifier,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetCtx) => _MoveToSheet(node: node, notifier: notifier),
+  );
+}
+
+class _MoveToSheet extends StatefulWidget {
+  final NoteNode node;
+  final NotesNotifier notifier;
+
+  const _MoveToSheet({required this.node, required this.notifier});
+
+  @override
+  State<_MoveToSheet> createState() => _MoveToSheetState();
+}
+
+class _MoveToSheetState extends State<_MoveToSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _query.trim().toLowerCase();
+    final candidates = widget.notifier
+        .moveCandidates(widget.node.id)
+        .where((c) => c.label.toLowerCase().contains(q))
+        .toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16, right: 16, top: 4,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(S.moveTo, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          TextField(
+            autofocus: true,
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: '${S.search}…',
+              prefixIcon: const Icon(Icons.search, size: 18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.north, size: 18),
+                  title: Text(S.root),
+                  onTap: () {
+                    widget.notifier.moveToParent(widget.node.id, null);
+                    Navigator.pop(context);
+                  },
+                ),
+                for (final c in candidates)
+                  ListTile(
+                    dense: true,
+                    title: Text(c.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onTap: () {
+                      widget.notifier.moveToParent(widget.node.id, c.id);
+                      Navigator.pop(context);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 void _showTurnIntoSheet(

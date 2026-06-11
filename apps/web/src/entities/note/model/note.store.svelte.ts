@@ -480,6 +480,49 @@ export const noteStore = {
     return clone
   },
 
+  // ── Move to another parent (Move to… dialog) ─────────────────────────────
+
+  /** Flattened move targets, excluding the node's own subtree. */
+  moveCandidates(excludeId: string): Array<{ id: string; label: string }> {
+    const node = findNodeById(state.nodes, excludeId)
+    const exclude = new Set(node ? collectSubtreeIds(node) : [excludeId])
+    const out: Array<{ id: string; label: string }> = []
+    const walk = (nodes: NoteNode[], prefix: string) => {
+      for (const n of nodes) {
+        if (exclude.has(n.id)) continue
+        out.push({ id: n.id, label: prefix + (n.content || 'Untitled') })
+        walk(n.children, prefix + '· ')
+      }
+    }
+    walk(state.nodes, '')
+    return out
+  },
+
+  /** Reparent a node to `newParentId` (null = root), appended last. */
+  moveToParent(id: string, newParentId: string | null) {
+    const node = findNodeById(state.nodes, id)
+    if (!node) return
+    const exclude = new Set(collectSubtreeIds(node))
+    if (newParentId && exclude.has(newParentId)) return
+
+    const removed = removeNodeFromTree(state.nodes, id)
+    let sortOrder: number
+    if (newParentId === null) {
+      sortOrder = removed.length * 10
+      state.nodes = [...removed, node]
+    } else {
+      const parent = findNodeById(removed, newParentId)
+      sortOrder = (parent?.children.length ?? 0) * 10
+      state.nodes = updateNodeInTree(removed, newParentId, {
+        collapsed: false,
+        children: [...(parent?.children ?? []), node],
+      })
+    }
+    notesApi.update(id, { parentId: newParentId, sortOrder }).catch(() => {
+      toastStore.error('Failed to move note')
+    })
+  },
+
   // ── Indent / Unindent ────────────────────────────────────────────────────
 
   indent(id: string) {

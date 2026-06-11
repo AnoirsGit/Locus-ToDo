@@ -225,6 +225,45 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
   void moveUp(String id) => _moveSibling(id, -1);
   void moveDown(String id) => _moveSibling(id, 1);
 
+  /// Flattened move targets, excluding the node's own subtree.
+  List<({String id, String label})> moveCandidates(String excludeId) {
+    final node = _findNode(_nodes, excludeId);
+    final exclude = node == null ? {excludeId} : _subtreeIds(node).toSet();
+    final out = <({String id, String label})>[];
+    void walk(List<NoteNode> nodes, String prefix) {
+      for (final n in nodes) {
+        if (exclude.contains(n.id)) continue;
+        out.add((id: n.id, label: prefix + (n.content.isEmpty ? 'Untitled' : n.content)));
+        walk(n.children, '$prefix· ');
+      }
+    }
+    walk(_nodes, '');
+    return out;
+  }
+
+  /// Reparent a node to [newParentId] (null = root), appended last.
+  void moveToParent(String id, String? newParentId) {
+    final node = _findNode(_nodes, id);
+    if (node == null) return;
+    final exclude = _subtreeIds(node).toSet();
+    if (newParentId != null && exclude.contains(newParentId)) return;
+
+    final removed = _removeNode(_nodes, id);
+    int sortOrder;
+    if (newParentId == null) {
+      sortOrder = removed.length * 10;
+      state = AsyncData([...removed, node]);
+    } else {
+      final parent = _findNode(removed, newParentId);
+      sortOrder = (parent?.children.length ?? 0) * 10;
+      state = AsyncData(_mapNodes(removed, newParentId, (n) => n.copyWith(
+            collapsed: false,
+            children: [...n.children, node],
+          )));
+    }
+    _api.update(id, parentId: newParentId, sortOrder: sortOrder).catchError((_) {});
+  }
+
   void _moveSibling(String id, int delta) {
     final (found, parentId) = _findParent(_nodes, id);
     if (!found) return;

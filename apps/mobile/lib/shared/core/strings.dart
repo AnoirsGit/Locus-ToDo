@@ -31,6 +31,9 @@ class S {
   static String get outdent => _ru ? 'Сдвинуть влево' : 'Outdent';
   static String get moveUp => _ru ? 'Переместить вверх' : 'Move up';
   static String get moveDown => _ru ? 'Переместить вниз' : 'Move down';
+  static String get moveTo => _ru ? 'Переместить в…' : 'Move to…';
+  static String get root => _ru ? 'Корень' : 'Root';
+  static String get search => _ru ? 'Поиск' : 'Search';
   static String get duplicate => _ru ? 'Дублировать' : 'Duplicate';
   static String get tags => _ru ? 'Теги' : 'Tags';
   static String get clearFilter => _ru ? 'Сбросить фильтр' : 'Clear filter';

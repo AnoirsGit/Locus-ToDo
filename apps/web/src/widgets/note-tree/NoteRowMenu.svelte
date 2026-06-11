@@ -18,6 +18,20 @@
   let urlValue = $state(node.url ?? '')
   let confirmDelete = $state(false)
   let showTags = $state(false)
+  let showMove = $state(false)
+  let moveQuery = $state('')
+
+  const moveCandidates = $derived(
+    showMove
+      ? noteStore.moveCandidates(node.id).filter(c =>
+          c.label.toLowerCase().includes(moveQuery.trim().toLowerCase()))
+      : []
+  )
+
+  const moveTo = (parentId: string | null) => {
+    noteStore.moveToParent(node.id, parentId)
+    onClose()
+  }
 
   const noteTagIds = $derived(tagStore.tagIdsForNote(node.id))
   const info = $derived(noteStore.siblingInfo(node.id))
@@ -139,6 +153,22 @@
   <button class="note-menu-item" role="menuitem" disabled={!info || info.index >= info.count - 1} onclick={moveDown}>Move down</button>
   <button class="note-menu-item" role="menuitem" onclick={duplicate}>Duplicate</button>
 
+  <button class="note-menu-item" role="menuitem" onclick={() => showMove = !showMove}>
+    Move to <span class="note-menu-caret">{showMove ? '▾' : '▸'}</span>
+  </button>
+  {#if showMove}
+    <div class="note-menu-move">
+      <!-- svelte-ignore a11y_autofocus -->
+      <input class="note-menu-url-input" placeholder="Find note…" bind:value={moveQuery} autofocus />
+      <div class="note-menu-move-list">
+        <button class="note-menu-item note-menu-sub-item" onclick={() => moveTo(null)}>↑ Root</button>
+        {#each moveCandidates as c (c.id)}
+          <button class="note-menu-item note-menu-sub-item" onclick={() => moveTo(c.id)}>{c.label}</button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <button class="note-menu-item" role="menuitem" onclick={() => showTags = !showTags}>
     Tags <span class="note-menu-caret">{showTags ? '▾' : '▸'}</span>
   </button>
@@ -220,6 +250,26 @@
 
   .note-menu-tags {
     padding: 4px 8px 6px;
+  }
+
+  .note-menu-move {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 8px 6px;
+  }
+
+  .note-menu-move-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .note-menu-move-list .note-menu-sub-item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .note-menu-sub-item.active {

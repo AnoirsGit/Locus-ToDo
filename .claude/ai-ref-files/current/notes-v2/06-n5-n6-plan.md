@@ -65,10 +65,11 @@
 - [ ] Keep move up/down as fallback
 - [ ] Typecheck clean
 
-### Phase G — Move to… dialog (N5.4) — no schema
-- [ ] Web: dialog with fuzzy node search; pick target → reparent (`indent`-style PATCH); exclude self/descendants
-- [ ] Mobile: same as a full-screen/sheet picker
-- [ ] Typecheck + analyze clean
+### Phase G — Move to… dialog (N5.4) ✅ DONE
+- [x] Web: `noteStore.moveCandidates(excludeId)` (flattened, excludes own subtree) + `moveToParent(id, parentId|null)`;
+  "Move to ▸" section in `NoteRowMenu` with a find-filter + Root option
+- [x] Mobile: same notifier methods; `_MoveToSheet` (search + list + Root) from the actions sheet
+- [x] `tsc` (web) + `flutter analyze` clean
 
 ### Phase H — Offline notes, mobile (N6.2) — heaviest, last
 - [ ] Drift `notes` table + DAO in `app_database.dart`
