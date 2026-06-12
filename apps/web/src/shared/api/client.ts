@@ -51,7 +51,10 @@ const tryRefresh = async (): Promise<string | null> => {
 
 const doFetch = (path: string, options: RequestOptions, token: string | null) => {
   const { method = 'GET', body, headers = {} } = options
-  const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json', ...headers }
+  // No Content-Type on body-less requests: Fastify rejects an empty
+  // 'application/json' body with 400 (FST_ERR_CTP_EMPTY_JSON_BODY)
+  const reqHeaders: Record<string, string> = { ...headers }
+  if (body !== undefined) reqHeaders['Content-Type'] = 'application/json'
   if (token) reqHeaders['Authorization'] = `Bearer ${token}`
   return fetch(`${BASE_URL}${path}`, {
     method,
