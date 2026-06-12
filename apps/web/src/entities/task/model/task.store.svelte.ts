@@ -63,6 +63,11 @@ const remove = (periodId: string) => {
   state.items = state.items.filter((t) => t.period.id !== periodId)
 }
 
+/** Drop every period entry of a task (hard delete destroys all its periods). */
+const removeByTaskId = (taskId: string) => {
+  state.items = state.items.filter((t) => t.id !== taskId)
+}
+
 const getForDate = (date: string): TaskWithPeriod[] =>
   state.items.filter(
     (t) =>
@@ -82,4 +87,5 @@ export const taskStore = {
   upsert,
   updatePeriod,
   remove,
+  removeByTaskId,
 }

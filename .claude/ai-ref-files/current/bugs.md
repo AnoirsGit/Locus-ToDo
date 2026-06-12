@@ -24,8 +24,8 @@ disagree at night.
 `tasksApi.remove` and `tasksApi.replan` exist in `entities/task/api/tasks.api.ts` but
 are referenced by **zero UI components**. Mobile has both (confirm dialog + replan in
 `TaskFormSheet`). Web users literally cannot delete a task.
-- [ ] Delete button (danger) in `EditTaskForm` footer + confirm dialog; handle the 409 ("task has archived periods") with a clear message — API contract: hard delete blocked then
-- [ ] Replan action in `EditTaskForm` for backlog tasks (web parity with mobile `_replan`): pick new period, POST `/tasks/:id/replan`, store update
+- [x] Delete button (danger) in `EditTaskForm` footer + inline confirm; 409 → localized "task has archived periods" message; `taskStore.removeByTaskId` drops all period entries
+- [x] Replan action in `EditTaskForm` for backlog tasks (parity with mobile `_replan`): current period of the task's level, POST `/tasks/:id/replan`, old period → archived locally + new period upserted
 
 ### B3. Stale data: nothing ever refetches
 Scheduler transitions run hourly server-side (`node-cron`, `0 * * * *`); clients load
