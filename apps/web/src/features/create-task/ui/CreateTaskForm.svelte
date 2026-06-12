@@ -4,6 +4,7 @@
   import { createTask } from '$features/create-task'
   import { tagsApi } from '$shared/api/tags.api'
   import { tagStore } from '$entities/tag'
+  import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
 
   type Props = {
     defaultLevel?: TaskLevel
@@ -26,17 +27,10 @@
 
   const computePeriodStart = (): string => {
     const now = new Date()
-    const fmt = (d: Date) => d.toISOString().split('T')[0]
-    if (level === 'day') return defaultPeriodStart ?? fmt(now)
-    if (level === 'week') {
-      const dow = now.getDay()
-      const diff = dow === 0 ? -6 : 1 - dow
-      const mon = new Date(now)
-      mon.setDate(now.getDate() + diff)
-      return fmt(mon)
-    }
-    if (level === 'month') return fmt(new Date(now.getFullYear(), now.getMonth(), 1))
-    return `${now.getFullYear()}-01-01`
+    if (level === 'day') return defaultPeriodStart ?? toLocalISO(now)
+    if (level === 'week') return weekStartISO(now)
+    if (level === 'month') return monthStartISO(now)
+    return yearStartISO(now)
   }
 
   const handleSubmit = async (e: SubmitEvent) => {

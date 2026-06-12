@@ -2,6 +2,7 @@
   import { taskStore, TaskCard } from '$entities/task'
   import { tagStore } from '$entities/tag'
   import { i18n } from '$shared/lib/i18n'
+  import { weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import type { TaskView, TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
   import { TaskModal } from '$widgets/task-modal'
@@ -29,19 +30,10 @@
 
   const openCreate = () => {
     const now = new Date()
-    const fmt = (d: Date) => d.toISOString().split('T')[0]
-    let periodStart: string
-    if (defaultLevel === 'week') {
-      const dow = now.getDay()
-      const diff = dow === 0 ? -6 : 1 - dow
-      const monday = new Date(now)
-      monday.setDate(now.getDate() + diff)
-      periodStart = fmt(monday)
-    } else if (defaultLevel === 'month') {
-      periodStart = fmt(new Date(now.getFullYear(), now.getMonth(), 1))
-    } else {
-      periodStart = `${now.getFullYear()}-01-01`
-    }
+    const periodStart =
+      defaultLevel === 'week'  ? weekStartISO(now)  :
+      defaultLevel === 'month' ? monthStartISO(now) :
+      yearStartISO(now)
     modal = { mode: 'create', defaultLevel, defaultPeriodStart: periodStart }
   }
 

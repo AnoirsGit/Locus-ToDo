@@ -3,6 +3,7 @@
   import type { TaskWithPeriod } from '$entities/task';
   import { DAY_NAMES_SHORT } from '$entities/task';
   import { tagStore } from '$entities/tag';
+  import { toLocalISO } from '$shared/lib/date';
 
   let { 
     day, 
@@ -25,7 +26,7 @@
   let quickCreateActive = $state(false);
   let quickTitle = $state('');
   
-  const dateKey = day.toISOString().split('T')[0];
+  const dateKey = $derived(toLocalISO(day));
 
   async function submitQuickCreate() {
     const t = quickTitle.trim();

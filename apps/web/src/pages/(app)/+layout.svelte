@@ -7,6 +7,8 @@
   import { userStore } from '$entities/user'
   import { tagStore, TagFilterBar } from '$entities/tag'
   import { authApi } from '$shared/api/auth.api'
+  import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
+  import { clock } from '$shared/lib/clock.svelte'
   import type { TaskView } from '$entities/task'
   import type { Snippet } from 'svelte'
   import { page } from '$app/stores'
@@ -49,23 +51,39 @@
     }
   })
 
-  const toISO = (d: Date) => d.toISOString().split('T')[0]
+  const REFETCH_THROTTLE_MS = 60_000
+  let lastLoadAt = 0
 
-  const getMondayOfWeek = (d: Date) => {
-    const r = new Date(d)
-    const day = r.getUTCDay()
-    r.setUTCDate(r.getUTCDate() - (day === 0 ? 6 : day - 1))
-    return toISO(r)
+  const loadAll = async () => {
+    lastLoadAt = Date.now()
+    clock.refresh()
+    const now = new Date()
+    const weekStart  = weekStartISO(now)
+    const monthStart = monthStartISO(now)
+    const yearStart  = yearStartISO(now)
+
+    // Load day tasks for today + next 9 days (10 days total)
+    const dayDates = Array.from({ length: 10 }, (_, i) => {
+      const d = new Date(now)
+      d.setDate(d.getDate() + i)
+      return toLocalISO(d)
+    })
+
+    const [dayResults, week, month, year, backlog, archive] = await Promise.all([
+      Promise.all(dayDates.map(date => tasksApi.getByPeriod({ periodType: 'day', periodStart: date }))),
+      tasksApi.getByPeriod({ periodType: 'week',  periodStart: weekStart }),
+      tasksApi.getByPeriod({ periodType: 'month', periodStart: monthStart }),
+      tasksApi.getByPeriod({ periodType: 'year',  periodStart: yearStart }),
+      tasksApi.getBacklog(),
+      tasksApi.getArchive(),
+    ])
+
+    taskStore.setItems([...dayResults.flat(), ...week, ...month, ...year, ...backlog, ...archive])
   }
 
-  const getMonthStart = (d: Date) =>
-    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`
-
-  const getYearStart = (d: Date) => `${d.getUTCFullYear()}-01-01`
-
-  onMount(async () => {
+  const bootstrap = async () => {
     taskStore.setLoading(true)
-    
+
     // Initialize locale
     const savedLocale = localStorage.getItem('lang')
     if (savedLocale === 'ru' || savedLocale === 'en') {
@@ -87,28 +105,7 @@
       const user = await authApi.me()
       userStore.set(user)
 
-      const now = new Date()
-      const weekStart  = getMondayOfWeek(now)
-      const monthStart = getMonthStart(now)
-      const yearStart  = getYearStart(now)
-
-      // Load day tasks for today + next 9 days (10 days total)
-      const dayDates = Array.from({ length: 10 }, (_, i) => {
-        const d = new Date(now)
-        d.setUTCDate(d.getUTCDate() + i)
-        return toISO(d)
-      })
-
-      const [dayResults, week, month, year, backlog, archive] = await Promise.all([
-        Promise.all(dayDates.map(date => tasksApi.getByPeriod({ periodType: 'day', periodStart: date }))),
-        tasksApi.getByPeriod({ periodType: 'week',  periodStart: weekStart }),
-        tasksApi.getByPeriod({ periodType: 'month', periodStart: monthStart }),
-        tasksApi.getByPeriod({ periodType: 'year',  periodStart: yearStart }),
-        tasksApi.getBacklog(),
-        tasksApi.getArchive(),
-      ])
-
-      taskStore.setItems([...dayResults.flat(), ...week, ...month, ...year, ...backlog, ...archive])
+      await loadAll()
       tagStore.load()
       tagStore.loadTaskAssignments()
     } catch (err) {
@@ -117,6 +114,21 @@
     } finally {
       taskStore.setLoading(false)
     }
+  }
+
+  // Stale-data guard: scheduler transitions run hourly server-side and "today"
+  // rolls over at midnight — refetch when the tab becomes visible again.
+  const onVisibilityChange = () => {
+    if (document.visibilityState !== 'visible') return
+    if (Date.now() - lastLoadAt < REFETCH_THROTTLE_MS) return
+    if (!localStorage.getItem('access_token')) return
+    loadAll().catch((err) => console.error('[layout] background refetch error', err))
+  }
+
+  onMount(() => {
+    void bootstrap()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 </script>
 
