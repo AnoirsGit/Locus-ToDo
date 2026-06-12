@@ -24,8 +24,8 @@ disagree at night.
 `tasksApi.remove` and `tasksApi.replan` exist in `entities/task/api/tasks.api.ts` but
 are referenced by **zero UI components**. Mobile has both (confirm dialog + replan in
 `TaskFormSheet`). Web users literally cannot delete a task.
-- [ ] Delete button (danger) in `EditTaskForm` footer + confirm dialog; handle the 409 ("task has archived periods") with a clear message — API contract: hard delete blocked then
-- [ ] Replan action in `EditTaskForm` for backlog tasks (web parity with mobile `_replan`): pick new period, POST `/tasks/:id/replan`, store update
+- [x] Delete button (danger) in `EditTaskForm` footer + inline confirm; 409 → localized "task has archived periods" message; `taskStore.removeByTaskId` drops all period entries
+- [x] Replan action in `EditTaskForm` for backlog tasks (parity with mobile `_replan`): current period of the task's level, POST `/tasks/:id/replan`, old period → archived locally + new period upserted
 
 ### B3. Stale data: nothing ever refetches
 Scheduler transitions run hourly server-side (`node-cron`, `0 * * * *`); clients load
@@ -73,8 +73,8 @@ Static checks pass (web `tsc` clean, `flutter analyze` clean); these need a runn
 
 ## Verification (Prove It)
 
-- [ ] B1: set system TZ to UTC+5, local time 00:30 — web today page, sidebar counts, kanban highlight and stats all show the new local day; mobile agrees
-- [ ] B3: leave tab open through an hour boundary with a due transition → UI updates on refocus
-- [ ] B2: delete a task with archived periods → friendly 409 message; without → gone after reload
+- [x] B1: verified live via Playwright `timezoneId: 'Etc/GMT+12'` (local date ≠ UTC date at run time) — today header "11 ИЮН", day fetches start `periodStart=2026-06-11`, kanban highlights `data-date="2026-06-11"`, stats `?today=2026-06-11`. Mobile-agrees check pending (B4 merge).
+- [x] B3: dispatching `visibilitychange` inside the 60 s throttle → 0 requests; after 62 s → full 15-request refetch burst (10 day + week/month/year/backlog/archive)
+- [x] B2: archived task delete → 409 + localized inline message (screenshot); fresh task delete → 204, gone after reload; backlog replan → 200, card left backlog (3→2). Found+fixed along the way: web client sent `Content-Type: application/json` on body-less DELETEs → Fastify 400 `FST_ERR_CTP_EMPTY_JSON_BODY` — **no web DELETE ever reached the API before** (subtask delete included)
 - [ ] B4: kill API, toggle a task on mobile → toast appears, outbox badge increments; restart API → badge clears
-- [ ] `pnpm typecheck` + `flutter analyze` clean on every branch
+- [ ] `pnpm typecheck` + `flutter analyze` clean on every branch (web branches: typecheck clean ✓)

@@ -3,6 +3,9 @@
   import type { TaskWithPeriod, TaskLevel } from '$entities/task'
   import { tagsApi } from '$shared/api/tags.api'
   import { tagStore } from '$entities/tag'
+  import { ApiError } from '$shared/api/client'
+  import { i18n } from '$shared/lib/i18n'
+  import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import { onMount } from 'svelte'
 
   type Props = { task: TaskWithPeriod; onClose?: () => void }
@@ -20,6 +23,54 @@
 
   let subtasks = $state<TaskWithPeriod[]>([])
   let tagIds = $state<string[]>([])
+
+  // Danger zone: delete (any task) + replan (backlog only)
+  let confirming  = $state<'delete' | 'replan' | null>(null)
+  let dangerBusy  = $state(false)
+  let deleteError = $state<string | null>(null)
+
+  const isBacklog = task.period.status === 'backlog'
+
+  const replanPeriodStart = (): string => {
+    const now = new Date()
+    if (task.level === 'day') return toLocalISO(now)
+    if (task.level === 'week') return weekStartISO(now)
+    if (task.level === 'month') return monthStartISO(now)
+    return yearStartISO(now)
+  }
+
+  const handleDelete = async () => {
+    dangerBusy = true
+    deleteError = null
+    try {
+      await tasksApi.remove(task.id)
+      taskStore.removeByTaskId(task.id)
+      onClose?.()
+    } catch (e) {
+      // API contract: 409 when the task has archived periods (hard delete blocked)
+      deleteError = e instanceof ApiError && e.status === 409
+        ? i18n.t('action.delete_blocked')
+        : e instanceof Error ? e.message : String(e)
+      confirming = null
+    } finally {
+      dangerBusy = false
+    }
+  }
+
+  const handleReplan = async () => {
+    dangerBusy = true
+    try {
+      const saved = await tasksApi.replan(task.id, { periodStart: replanPeriodStart() })
+      // Old backlog period is archived as a failure server-side; mirror locally
+      taskStore.updatePeriod(task.period.id, { status: 'archived' })
+      taskStore.upsert(saved)
+      onClose?.()
+    } catch {
+      confirming = null // API client already showed the error toast
+    } finally {
+      dangerBusy = false
+    }
+  }
 
   onMount(async () => {
     try {
@@ -133,8 +184,32 @@
     onToggleSubtask={handleToggleSubtask}
     onDeleteSubtask={handleDeleteSubtask}
   />
+  {#if deleteError}
+    <p class="px-1 pt-2 text-sm" style="color: var(--color-danger)">{deleteError}</p>
+  {/if}
+
   <div class="modal-footer">
-    <button type="button" onclick={onClose} class="btn ghost">Отмена</button>
-    <button type="submit" disabled={!title.trim()} class="btn primary">Сохранить</button>
+    <div class="flex items-center gap-2 mr-auto">
+      {#if confirming === 'delete'}
+        <span class="text-sm text-muted">{i18n.t('action.delete_confirm')}</span>
+        <button type="button" class="btn ghost sm" style="color: var(--color-danger)" disabled={dangerBusy} onclick={handleDelete}>
+          {i18n.t('action.delete')}
+        </button>
+        <button type="button" class="btn ghost sm" onclick={() => { confirming = null }}>{i18n.t('action.cancel')}</button>
+      {:else if confirming === 'replan'}
+        <span class="text-sm text-muted">{i18n.t('action.replan_confirm')} ({replanPeriodStart()})</span>
+        <button type="button" class="btn ghost sm" disabled={dangerBusy} onclick={handleReplan}>{i18n.t('action.replan')}</button>
+        <button type="button" class="btn ghost sm" onclick={() => { confirming = null }}>{i18n.t('action.cancel')}</button>
+      {:else}
+        <button type="button" class="btn ghost sm" style="color: var(--color-danger)" onclick={() => { confirming = 'delete'; deleteError = null }}>
+          {i18n.t('action.delete')}
+        </button>
+        {#if isBacklog}
+          <button type="button" class="btn ghost sm" onclick={() => { confirming = 'replan' }}>{i18n.t('action.replan')}</button>
+        {/if}
+      {/if}
+    </div>
+    <button type="button" onclick={onClose} class="btn ghost">{i18n.t('action.cancel')}</button>
+    <button type="submit" disabled={!title.trim()} class="btn primary">{i18n.t('action.save')}</button>
   </div>
 </form>
