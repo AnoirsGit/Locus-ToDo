@@ -2,6 +2,7 @@
   import type { TaskView } from '$entities/task'
   import { taskStore } from '$entities/task'
   import { i18n } from '$shared/lib/i18n'
+  import { clock } from '$shared/lib/clock.svelte'
   import { userStore } from '$entities/user'
   import { authApi } from '$shared/api/auth.api'
   import { goto } from '$app/navigation'
@@ -16,7 +17,7 @@
   const { currentView, isOpen = false, onClose }: Props = $props()
 
   // Task counts per view
-  const today = new Date().toISOString().split('T')[0]
+  const today = $derived(clock.today)
   const counts = $derived({
     day:     taskStore.getForDate(today).filter(t => t.period.status !== 'archived' && t.period.status !== 'backlog').length,
     week:    taskStore.items.filter(t => t.level === 'week'  && ['todo','done','overdue'].includes(t.period.status)).length,

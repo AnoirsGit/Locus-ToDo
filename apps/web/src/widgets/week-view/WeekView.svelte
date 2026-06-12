@@ -7,6 +7,8 @@
   import { createTask } from '$features/create-task'
   import { TaskModal } from '$widgets/task-modal'
   import { i18n } from '$shared/lib/i18n'
+  import { clock } from '$shared/lib/clock.svelte'
+  import { toLocalISO } from '$shared/lib/date'
 
   import WeekHeader from './ui/WeekHeader.svelte'
   import TaskSection from './ui/TaskSection.svelte'
@@ -21,11 +23,11 @@
   let modal         = $state<ModalState | null>(null)
   let kanbanRef     = $state<HTMLElement | null>(null)
 
-  const toISO = (d: Date) => d.toISOString().split('T')[0]
-  const today = toISO(new Date())
+  const toISO = toLocalISO
+  const today = $derived(clock.today)
 
   const weekDays = $derived.by(() => {
-    const now = new Date()
+    const now = clock.now
     const dow = now.getDay()
     const daysToMon = dow === 0 ? -6 : 1 - dow
     const monday = new Date(now)

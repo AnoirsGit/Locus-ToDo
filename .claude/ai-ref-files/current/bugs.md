@@ -16,9 +16,9 @@
 midnight the whole app shows **yesterday**: wrong today list, wrong kanban highlight,
 wrong stats `?today=`. Mobile uses local `DateTime.now()` components → web and mobile
 disagree at night.
-- [ ] Add `shared/lib/date.ts`: `localToday()` and `toLocalISO(d)` (year/month/day from local time)
-- [ ] Replace every `toISOString().split('T')[0]` call used as a *calendar date* (audit each — timestamps sent to API as instants stay UTC)
-- [ ] Same helper on mobile for consistency (`shared/lib/date_utils.dart`) — mostly already local, unify anyway
+- [x] Add `shared/lib/date.ts`: `localToday()`, `toLocalISO(d)` + `weekStartISO`/`monthStartISO`/`yearStartISO` (dedups Monday/month-start math from 4 components); reactive `clock.svelte.ts` (`clock.today`/`clock.now`/`refresh()`)
+- [x] Replace every `toISOString().split('T')[0]` call used as a *calendar date* (layout, today, stats, Sidebar, WeekView, DayColumn, TaskList, CreateTaskForm; stats string-math helpers kept — they parse ISO as UTC and format with `timeZone: 'UTC'`, correct)
+- [ ] Same helper on mobile for consistency (`shared/lib/date_utils.dart`) — deferred until B4 branch merges (same files)
 
 ### B2. Web cannot delete or replan tasks
 `tasksApi.remove` and `tasksApi.replan` exist in `entities/task/api/tasks.api.ts` but
@@ -32,9 +32,9 @@ Scheduler transitions run hourly server-side (`node-cron`, `0 * * * *`); clients
 once on mount. A tab/app left open across midnight or an hourly tick shows stale
 statuses; "today" never rolls over. No `visibilitychange` / `AppLifecycleState`
 handling anywhere.
-- [ ] Web: on `document.visibilitychange` → visible (throttled, e.g. ≥60 s since last load): refetch tasks + recompute today
-- [ ] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`)
-- [ ] Recompute "today"/week window on refetch, not only at component init (web `today/+page.svelte` computes `now` once in module scope)
+- [x] Web: on `document.visibilitychange` → visible (throttled ≥60 s since last load): `loadAll()` refetch in `(app)/+layout.svelte`
+- [ ] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`) — deferred until B4 branch merges (same files)
+- [x] Recompute "today"/week window on refetch — `clock.refresh()` in `loadAll()`; today page, Sidebar, WeekView now `$derived` from `clock`
 
 ### B4. Mobile errors are swallowed silently
 No `SnackBar`/`ScaffoldMessenger` usage in the entire app. `tasks_notifier.dart`,

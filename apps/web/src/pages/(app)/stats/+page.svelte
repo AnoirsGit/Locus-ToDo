@@ -2,9 +2,10 @@
   import { onMount } from 'svelte'
   import { statsApi, type StatsData, type PeriodStat } from '$shared/api/stats.api'
   import { i18n } from '$shared/lib/i18n'
+  import { localToday, weekStartISO, monthStartISO } from '$shared/lib/date'
 
   const NOW = new Date()
-  const today = NOW.toISOString().split('T')[0]
+  const today = localToday()
 
   let data    = $state<StatsData | null>(null)
   let loading = $state(true)
@@ -35,7 +36,7 @@
 
   const monthLabel = (iso: string) => {
     const d = new Date(iso + 'T00:00:00Z')
-    const sameYear = d.getUTCFullYear() === NOW.getUTCFullYear()
+    const sameYear = d.getUTCFullYear() === NOW.getFullYear()
     return d.toLocaleDateString(i18n.locale, { month: 'short', year: sameYear ? undefined : 'numeric', timeZone: 'UTC' })
   }
 
@@ -47,12 +48,7 @@
 
   const weekTrendRows = $derived.by((): TrendRow[] => {
     if (!data) return []
-    const currentWeekStart = (() => {
-      const dow = NOW.getUTCDay()
-      const d = new Date(NOW)
-      d.setUTCDate(NOW.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
-      return d.toISOString().split('T')[0]
-    })()
+    const currentWeekStart = weekStartISO(NOW)
     const cur: TrendRow = {
       periodStart: currentWeekStart,
       label: weekLabel(currentWeekStart),
@@ -67,7 +63,7 @@
 
   const monthTrendRows = $derived.by((): TrendRow[] => {
     if (!data) return []
-    const currentMonthStart = `${NOW.getUTCFullYear()}-${String(NOW.getUTCMonth() + 1).padStart(2, '0')}-01`
+    const currentMonthStart = monthStartISO(NOW)
     const cur: TrendRow = {
       periodStart: currentMonthStart,
       label: monthLabel(currentMonthStart),

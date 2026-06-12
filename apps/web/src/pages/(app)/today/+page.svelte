@@ -4,24 +4,26 @@
   import { toggleTask } from '$features/toggle-task'
   import { TaskModal } from '$widgets/task-modal'
   import { i18n } from '$shared/lib/i18n'
+  import { clock } from '$shared/lib/clock.svelte'
+  import { weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
   import { tagStore } from '$entities/tag'
 
   // ── Date ─────────────────────────────────────────────────────────────────
-  const now   = new Date()
-  const today = now.toISOString().split('T')[0]
+  const now   = $derived(clock.now)
+  const today = $derived(clock.today)
 
   const dayName = $derived(new Intl.DateTimeFormat(i18n.locale, { weekday: 'long' }).format(now))
   const dateStr = $derived(new Intl.DateTimeFormat(i18n.locale, { day: '2-digit', month: 'short', year: 'numeric' }).format(now))
-  const weekNum = (() => {
-    const jan1  = new Date(Date.UTC(now.getUTCFullYear(), 0, 1))
+  const weekNum = $derived.by(() => {
+    const jan1  = new Date(now.getFullYear(), 0, 1)
     const diff  = now.getTime() - jan1.getTime()
     const dayOfYear = Math.floor(diff / 86400000)
-    return Math.ceil((dayOfYear + jan1.getUTCDay() + 1) / 7)
-  })()
+    return Math.ceil((dayOfYear + jan1.getDay() + 1) / 7)
+  })
 
   const QUIET_WORDS = ['quietly','focused','steady','present','clear','sharp','grounded']
-  const quietWord = QUIET_WORDS[now.getUTCDay() % QUIET_WORDS.length]
+  const quietWord = $derived(QUIET_WORDS[now.getDay() % QUIET_WORDS.length])
 
   // ── Tasks ────────────────────────────────────────────────────────────────
   const todayTasks = $derived(tagStore.filterTasks(taskStore.getForDate(today)))
@@ -44,18 +46,11 @@
 
   let modal = $state<ModalState | null>(null)
 
-  const fmt = (d: Date) => d.toISOString().split('T')[0]
-
   const periodStartFor = (level: TaskLevel): string => {
     if (level === 'day') return today
-    if (level === 'week') {
-      const dow = now.getDay()
-      const monday = new Date(now)
-      monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
-      return fmt(monday)
-    }
-    if (level === 'month') return fmt(new Date(now.getFullYear(), now.getMonth(), 1))
-    return `${now.getFullYear()}-01-01`
+    if (level === 'week') return weekStartISO(now)
+    if (level === 'month') return monthStartISO(now)
+    return yearStartISO(now)
   }
 
   const openCreate = (level: TaskLevel) => {
