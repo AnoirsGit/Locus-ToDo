@@ -75,6 +75,18 @@ class _NoteRowState extends ConsumerState<NoteRow> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
+      // Keep the edited row above the on-screen keyboard: once the keyboard
+      // has animated up and shrunk the viewport, scroll this row into view.
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (mounted) {
+          Scrollable.ensureVisible(
+            context,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     });
   }
 
