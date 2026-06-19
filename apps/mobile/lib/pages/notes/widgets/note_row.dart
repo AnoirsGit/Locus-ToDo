@@ -297,8 +297,15 @@ class _NoteRowState extends ConsumerState<NoteRow> {
                       ],
                     ),
                   ),
-                  // Actions menu trigger (hidden in selection mode)
-                  if (!isSelecting)
+                  // Open as page + actions menu (hidden in selection mode)
+                  if (!isSelecting) ...[
+                    GestureDetector(
+                      onTap: () => widget.onZoom(node.id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        child: Icon(Icons.open_in_full, size: 15, color: context.colorMuted),
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () => showNoteActionsSheet(
                         context,
@@ -308,10 +315,11 @@ class _NoteRowState extends ConsumerState<NoteRow> {
                         onZoom: widget.onZoom,
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 6, right: 10, top: 8, bottom: 8),
+                        padding: const EdgeInsets.only(left: 4, right: 10, top: 8, bottom: 8),
                         child: Icon(Icons.more_horiz, size: 18, color: context.colorMuted),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
