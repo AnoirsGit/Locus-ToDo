@@ -43,6 +43,8 @@ class StatsResult {
   final List<PeriodStat> weekTrend;
   final List<PeriodStat> monthTrend;
   final List<PeriodStat> yearHistory;
+  // Consistency = recurring habit regularity (spec §9, never mixed with completion).
+  final SnapshotStat consistency;
 
   const StatsResult({
     required this.today,
@@ -52,6 +54,7 @@ class StatsResult {
     required this.weekTrend,
     required this.monthTrend,
     required this.yearHistory,
+    required this.consistency,
   });
 
   factory StatsResult.fromJson(Map<String, dynamic> j) {
@@ -64,6 +67,9 @@ class StatsResult {
       weekTrend:   (j['weekTrend']   as List<dynamic>).map((e) => PeriodStat.fromJson(e as Map<String, dynamic>)).toList(),
       monthTrend:  (j['monthTrend']  as List<dynamic>).map((e) => PeriodStat.fromJson(e as Map<String, dynamic>)).toList(),
       yearHistory: (j['yearHistory'] as List<dynamic>).map((e) => PeriodStat.fromJson(e as Map<String, dynamic>)).toList(),
+      consistency: j['consistency'] != null
+          ? SnapshotStat.fromJson(j['consistency'] as Map<String, dynamic>)
+          : const SnapshotStat(done: 0, total: 0),
     );
   }
 }

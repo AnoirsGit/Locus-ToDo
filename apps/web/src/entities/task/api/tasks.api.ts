@@ -16,6 +16,10 @@ type CreateTaskDto = {
 type UpdateTaskDto = Partial<{
   title: string
   description: string | null
+  scheduledTime: string | null
+  targetDate: string | null
+  deadlineMonth: number | null
+  recurringConfig: Omit<RecurringConfig, 'id' | 'taskId' | 'createdAt'> | null
 }>
 
 type UpdatePeriodDto = Partial<{

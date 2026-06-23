@@ -98,6 +98,35 @@ const progressPeriodStatuses = async (userId: string, today: string) => {
     SELECT task_id FROM recurring_configs WHERE is_active = true
   `
 
+  // §6 Year task with a monthly deadline: the period stays the full year, but
+  // the deadline narrows to deadline_month. Once that month has ended, resolve
+  // immediately (skipping overdue). `period_start + N months` is the first day
+  // after the deadline month, so today >= that means the month is fully over.
+
+  // done → archived (completed by the deadline month — success)
+  await db`
+    UPDATE task_periods
+    SET    status = 'archived', archived_at = now()
+    WHERE  user_id        = ${userId}
+      AND  period_type    = 'year'
+      AND  deadline_month IS NOT NULL
+      AND  status         = 'done'
+      AND  ${today}::date >= (period_start + (deadline_month || ' months')::interval)::date
+      AND  task_id        NOT IN (${recurringTaskIds})
+  `
+
+  // todo → backlog (missed the deadline month)
+  await db`
+    UPDATE task_periods
+    SET    status = 'backlog', backlog_at = now()
+    WHERE  user_id        = ${userId}
+      AND  period_type    = 'year'
+      AND  deadline_month IS NOT NULL
+      AND  status         = 'todo'
+      AND  ${today}::date >= (period_start + (deadline_month || ' months')::interval)::date
+      AND  task_id        NOT IN (${recurringTaskIds})
+  `
+
   // todo → overdue (period ended, non-recurring only)
   await db`
     UPDATE task_periods
@@ -163,9 +192,17 @@ const rolloverRecurringDayTasks = async (userId: string, today: string) => {
 export const scheduler = {
   _task: null as ReturnType<typeof cron.schedule> | null,
 
-  start() {
+  async start() {
     this._task = cron.schedule('0 * * * *', () => this._tick())
     console.log('[scheduler] started (hourly)')
+    // Run one pass immediately on startup so task states are reconciled without
+    // waiting for the top of the hour. Wrapped so a tick failure never crashes boot.
+    try {
+      const r = await this._tick()
+      console.log(`[scheduler] startup tick done (users=${r.users}, date=${r.date})`)
+    } catch (e) {
+      console.error('[scheduler] startup tick failed', e)
+    }
   },
 
   stop() {

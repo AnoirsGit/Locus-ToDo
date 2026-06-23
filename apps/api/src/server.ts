@@ -61,7 +61,7 @@ const start = async () => {
     host: process.env.HOST ?? '0.0.0.0',
   })
 
-  scheduler.start()
+  await scheduler.start()
 
   const shutdown = async () => {
     await redis.quit()

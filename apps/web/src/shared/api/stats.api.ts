@@ -12,6 +12,7 @@ export type StatsData = {
   weekTrend:   PeriodStat[]
   monthTrend:  PeriodStat[]
   yearHistory: PeriodStat[]
+  consistency: { done: number; total: number }
 }
 
 export const statsApi = {

@@ -9,6 +9,7 @@ type CreateTaskInput = {
   periodStart: string
   deadlineMonth?: number
   targetDate?: string
+  scheduledTime?: string
   recurringConfig?: Omit<RecurringConfig, 'id' | 'taskId' | 'createdAt'>
 }
 
@@ -26,6 +27,7 @@ export const createTask = async (input: CreateTaskInput) => {
     title: input.title,
     description: input.description,
     level: input.level,
+    scheduledTime: input.scheduledTime,
     recurringConfig: input.recurringConfig
       ? { id: crypto.randomUUID(), taskId, createdAt: now, ...input.recurringConfig }
       : undefined,
@@ -56,6 +58,9 @@ export const createTask = async (input: CreateTaskInput) => {
       level: input.level,
       periodStart: input.periodStart,
       deadlineMonth: input.deadlineMonth,
+      targetDate: input.targetDate,
+      scheduledTime: input.scheduledTime,
+      recurringConfig: input.recurringConfig,
     })
     taskStore.remove(periodId)
     taskStore.upsert(item)

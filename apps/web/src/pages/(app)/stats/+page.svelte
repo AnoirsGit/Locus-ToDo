@@ -183,6 +183,30 @@
       </div>
     </section>
 
+    <!-- ── Consistency (recurring habits) ─────────────────────────────────── -->
+    {#if data.consistency.total > 0}
+      {@const cpct = pct(data.consistency.done, data.consistency.total)}
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">{i18n.locale === 'ru' ? 'Постоянство (привычки)' : 'Consistency (habits)'}</h2>
+        </div>
+        <div class="trend-list">
+          <div class="trend-row">
+            <div class="trend-label">{i18n.locale === 'ru' ? 'Повторяющиеся задачи' : 'Recurring tasks'}</div>
+            <div class="trend-bar-wrap">
+              <div class="trend-bar-track">
+                <div class="trend-bar-fill {pctColor(cpct)}" style="width:{cpct}%"></div>
+              </div>
+            </div>
+            <div class="trend-right">
+              <span class="trend-pct {pctTextColor(cpct)}">{cpct}%</span>
+              <span class="trend-count">{data.consistency.done}/{data.consistency.total}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    {/if}
+
     <!-- ── Weekly trend ──────────────────────────────────────────────────── -->
     {#if weekTrendRows.some(s => s.total > 0)}
       <section class="section">

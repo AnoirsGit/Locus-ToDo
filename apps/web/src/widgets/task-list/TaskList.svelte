@@ -14,7 +14,9 @@
   const _grouped = $derived(taskStore.getForView(view))
   const grouped = $derived({
     primary: tagStore.filterTasks(_grouped.primary),
-    context: _grouped.context,
+    week: _grouped.week,
+    month: _grouped.month,
+    year: _grouped.year,
   })
 
   const canCreate = $derived(view === 'week' || view === 'month' || view === 'year')
