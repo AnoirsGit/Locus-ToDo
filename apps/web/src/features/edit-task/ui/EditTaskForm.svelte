@@ -157,6 +157,9 @@
       const saved = await tasksApi.update(task.id, {
         title: updated.title,
         description: updated.description ?? null,
+        scheduledTime: level === 'day' ? (updated.scheduledTime ?? null) : null,
+        targetDate: updated.period.targetDate ?? null,
+        deadlineMonth: updated.period.deadlineMonth ?? null,
         recurringConfig: updated.recurringConfig
           ? { isActive: true, daysOfWeek: updated.recurringConfig.daysOfWeek, dayOfMonth: updated.recurringConfig.dayOfMonth }
           : null,

@@ -110,7 +110,7 @@
             {day}
             tasks={tasksByDay.get(key) ?? []}
             isToday={key === today}
-            onToggle={toggleTask}
+            onToggle={(t) => toggleTask(t.period.id)}
             onEdit={(t) => { modal = { mode: 'edit', task: t } }}
             onQuickCreate={handleQuickCreate}
             onOpenModal={(date) => { modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: date } }}

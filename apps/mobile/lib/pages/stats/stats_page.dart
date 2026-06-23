@@ -71,6 +71,44 @@ class StatsPage extends ConsumerWidget {
   }
 }
 
+// ── Consistency row ─────────────────────────────────────────────────────────────
+
+class _ConsistencyRow extends StatelessWidget {
+  final SnapshotStat stat;
+  const _ConsistencyRow({required this.stat});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (stat.pct * 100).round();
+    return Row(
+      children: [
+        Expanded(
+          child: Text('Повторяющиеся задачи',
+              style: TextStyle(fontSize: 13, color: context.colorMuted)),
+        ),
+        SizedBox(
+          width: 120,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: stat.pct,
+              minHeight: 6,
+              backgroundColor: context.colorBorder,
+              valueColor: AlwaysStoppedAnimation(context.colorBrand),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text('$pct%',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
+        const SizedBox(width: 6),
+        Text('${stat.done}/${stat.total}',
+            style: TextStyle(fontSize: 11, color: context.colorMuted)),
+      ],
+    );
+  }
+}
+
 // ── Body ──────────────────────────────────────────────────────────────────────
 
 class _StatsBody extends StatelessWidget {
@@ -107,6 +145,14 @@ class _StatsBody extends StatelessWidget {
         ),
 
         const SizedBox(height: 28),
+
+        // ── Consistency (recurring habits) ──────────────────────────────────
+        if (data.consistency.total > 0) ...[
+          _SectionTitle('Постоянство (привычки)'),
+          const SizedBox(height: 8),
+          _ConsistencyRow(stat: data.consistency),
+          const SizedBox(height: 20),
+        ],
 
         // ── Week trend ──────────────────────────────────────────────────────
         if (data.weekTrend.isNotEmpty) ...[
