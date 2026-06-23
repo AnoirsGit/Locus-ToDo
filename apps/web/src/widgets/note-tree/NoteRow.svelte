@@ -292,6 +292,22 @@
 
   </div>
 
+  <!-- Open as page (hover/focus revealed) -->
+  <button
+    class="note-row-open-btn"
+    onclick={(e) => { e.stopPropagation(); onZoom(node.id) }}
+    tabindex="-1"
+    aria-label="Open as page"
+    title="Open as page"
+  >
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 2H12v3.5"/>
+      <path d="M12 2 7 7"/>
+      <path d="M5.5 12H2V8.5"/>
+      <path d="M2 12 7 7"/>
+    </svg>
+  </button>
+
   <!-- Actions menu trigger (hover/focus revealed) -->
   <button
     class="note-row-menu-btn"
@@ -390,9 +406,9 @@
     background: transparent;
   }
 
-  .note-row-menu-btn {
+  .note-row-menu-btn,
+  .note-row-open-btn {
     position: absolute;
-    right: 6px;
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -409,13 +425,20 @@
     transition: opacity 100ms, background 100ms;
   }
 
+  .note-row-menu-btn { right: 6px; }
+  .note-row-open-btn { right: 32px; }
+
   .note-row:hover .note-row-menu-btn,
   .note-row:focus-within .note-row-menu-btn,
-  .note-row.menu-open .note-row-menu-btn {
+  .note-row.menu-open .note-row-menu-btn,
+  .note-row:hover .note-row-open-btn,
+  .note-row:focus-within .note-row-open-btn,
+  .note-row.menu-open .note-row-open-btn {
     opacity: 1;
   }
 
-  .note-row-menu-btn:hover {
+  .note-row-menu-btn:hover,
+  .note-row-open-btn:hover {
     color: var(--color-text);
     background: var(--color-surface-2);
   }
