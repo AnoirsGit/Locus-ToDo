@@ -28,6 +28,7 @@ const clearSession = () => {
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
   localStorage.removeItem('section_prefs')
+  localStorage.removeItem('cached_user')
 }
 
 const tryRefresh = async (): Promise<string | null> => {

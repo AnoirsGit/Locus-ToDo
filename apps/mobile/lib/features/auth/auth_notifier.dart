@@ -11,10 +11,23 @@ class AuthNotifier extends AsyncNotifier<User?> {
     final token = await storage.getAccessToken();
     if (token == null) return null;
     try {
-      return await ref.read(authApiProvider).me();
+      final user = await ref.read(authApiProvider).me();
+      await storage.saveUser(user.toJson());
+      return user;
+    } on DioException catch (e) {
+      // Genuine auth failure (refresh already failed in the interceptor) →
+      // sign out. Any other error (server down, no network) → stay signed in
+      // with the cached profile so the app keeps working offline / read-only.
+      if (e.response?.statusCode == 401) {
+        await storage.clearTokens();
+        await storage.clearUser();
+        return null;
+      }
+      final cached = await storage.getUser();
+      return cached != null ? User.fromJson(cached) : null;
     } catch (_) {
-      await storage.clearTokens();
-      return null;
+      final cached = await storage.getUser();
+      return cached != null ? User.fromJson(cached) : null;
     }
   }
 
@@ -23,10 +36,9 @@ class AuthNotifier extends AsyncNotifier<User?> {
     state = await AsyncValue.guard(() async {
       final (user, accessToken, refreshToken) =
           await ref.read(authApiProvider).login(email, password);
-      await ref.read(secureStorageProvider).saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      );
+      final storage = ref.read(secureStorageProvider);
+      await storage.saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+      await storage.saveUser(user.toJson());
       return user;
     });
   }
@@ -36,16 +48,16 @@ class AuthNotifier extends AsyncNotifier<User?> {
     state = await AsyncValue.guard(() async {
       final (user, accessToken, refreshToken) =
           await ref.read(authApiProvider).register(name, email, password);
-      await ref.read(secureStorageProvider).saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      );
+      final storage = ref.read(secureStorageProvider);
+      await storage.saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+      await storage.saveUser(user.toJson());
       return user;
     });
   }
 
   Future<void> updateProfile({String? name, String? email}) async {
     final updated = await ref.read(authApiProvider).updateProfile(name: name, email: email);
+    await ref.read(secureStorageProvider).saveUser(updated.toJson());
     state = AsyncData(updated);
   }
 
@@ -61,6 +73,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
       }
     }
     await storage.clearTokens();
+    await storage.clearUser();
     state = const AsyncData(null);
   }
 }

@@ -7,6 +7,7 @@
   import { userStore } from '$entities/user'
   import { tagStore, TagFilterBar } from '$entities/tag'
   import { authApi } from '$shared/api/auth.api'
+  import { ApiError } from '$shared/api/client'
   import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import { clock } from '$shared/lib/clock.svelte'
   import type { TaskView } from '$entities/task'
@@ -104,13 +105,29 @@
 
       const user = await authApi.me()
       userStore.set(user)
+      localStorage.setItem('cached_user', JSON.stringify(user))
 
       await loadAll()
       tagStore.load()
       tagStore.loadTaskAssignments()
     } catch (err) {
       console.error('[layout] bootstrap error', err)
-      goto('/login')
+      // A real 401 is handled by the API client (clears session + redirects to
+      // /login). Any other failure (server down / offline) must NOT log the user
+      // out: keep the session and restore the cached profile so a reload while
+      // the API is unreachable doesn't bounce to login.
+      const cachedUser = localStorage.getItem('cached_user')
+      if (err instanceof ApiError && err.status === 401) {
+        goto('/login')
+      } else if (cachedUser) {
+        try {
+          userStore.set(JSON.parse(cachedUser))
+        } catch {
+          goto('/login')
+        }
+      } else {
+        goto('/login')
+      }
     } finally {
       taskStore.setLoading(false)
     }
