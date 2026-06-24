@@ -68,7 +68,7 @@
           <svg viewBox="0 0 16 16" fill="none" style="width:13px;height:13px;flex-shrink:0">
             <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
           </svg>
-          Бэклог
+          {i18n.t('nav.backlog')}
         </a>
         <a href="/archive" class="btn">
           <svg viewBox="0 0 16 16" fill="none" style="width:13px;height:13px;flex-shrink:0">
@@ -76,9 +76,9 @@
             <path d="M1.5 6.5h13" stroke="currentColor" stroke-width="1.2"/>
             <path d="M6 9.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
           </svg>
-          Архив
+          {i18n.t('nav.archive')}
         </a>
-        <button class="btn primary" onclick={openCreate}>+ Add task</button>
+        <button class="btn primary" onclick={openCreate}>+ {i18n.t('action.add')}</button>
       {/if}
     </div>
   </div>

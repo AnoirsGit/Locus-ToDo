@@ -4,6 +4,7 @@
   import { createTask } from '$features/create-task'
   import { tagsApi } from '$shared/api/tags.api'
   import { tagStore } from '$entities/tag'
+  import { i18n } from '$shared/lib/i18n'
   import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
 
   type Props = {
@@ -75,7 +76,7 @@
     bind:tagIds
   />
   <div class="modal-footer">
-    <button type="button" onclick={onCancel} class="btn ghost">Отмена</button>
-    <button type="submit" disabled={!title.trim()} class="btn primary">Создать</button>
+    <button type="button" onclick={onCancel} class="btn ghost">{i18n.t('action.cancel')}</button>
+    <button type="submit" disabled={!title.trim()} class="btn primary">{i18n.t('action.create')}</button>
   </div>
 </form>

@@ -31,6 +31,7 @@ export const dictionaries = {
       logout: 'Выйти',
       unmark: 'Снять отметку',
       mark_done: 'Отметить выполненной',
+      create: 'Создать',
     },
     outcome: {
       on_time: 'Выполнено вовремя',
@@ -57,6 +58,16 @@ export const dictionaries = {
       week: 'Неделя',
       month: 'Месяц',
       year: 'Год',
+    },
+    level_short: {
+      day: 'День',
+      week: 'Нед',
+      month: 'Мес',
+      year: 'Год',
+    },
+    task: {
+      until: 'до',
+      subtasks: 'Подзадачи',
     },
     auth: {
       login: 'Войти',
@@ -123,6 +134,7 @@ export const dictionaries = {
       logout: 'Logout',
       unmark: 'Unmark',
       mark_done: 'Mark done',
+      create: 'Create',
     },
     outcome: {
       on_time: 'Done on time',
@@ -149,6 +161,16 @@ export const dictionaries = {
       week: 'Week',
       month: 'Month',
       year: 'Year',
+    },
+    level_short: {
+      day: 'Day',
+      week: 'Wk',
+      month: 'Mo',
+      year: 'Yr',
+    },
+    task: {
+      until: 'until',
+      subtasks: 'Subtasks',
     },
     auth: {
       login: 'Login',

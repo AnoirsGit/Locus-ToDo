@@ -2,7 +2,14 @@
   import type { TaskWithPeriod } from '../model/task.types'
   import TaskLevelBadge from './TaskLevelBadge.svelte'
   import SubtaskChecklist from './SubtaskChecklist.svelte'
-  import { DAY_NAMES_SHORT, MONTH_NAMES_SHORT } from '../model/task.constants'
+  import { i18n } from '$shared/lib/i18n'
+
+  // Locale-aware short names (UTC-anchored so they never shift by timezone).
+  // 2023-01-01 was a Sunday, so day index 0..6 maps Sun..Sat.
+  const weekdayShort = (dayIndex: number) =>
+    new Date(Date.UTC(2023, 0, 1 + dayIndex)).toLocaleDateString(i18n.locale, { weekday: 'short', timeZone: 'UTC' })
+  const monthShort = (month1to12: number) =>
+    new Date(Date.UTC(2000, month1to12 - 1, 1)).toLocaleDateString(i18n.locale, { month: 'short', timeZone: 'UTC' })
 
   type TagLike = { id: string; name: string; color: string | null }
 
@@ -28,11 +35,11 @@
 
   const fmt = (iso: string) => {
     const d = new Date(iso + 'T00:00:00Z')
-    return d.toLocaleDateString('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    return d.toLocaleDateString(i18n.locale, { month: 'short', day: 'numeric', timeZone: 'UTC' })
   }
   const fmtMonth = (iso: string) => {
     const d = new Date(iso + 'T00:00:00Z')
-    return d.toLocaleDateString('en', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    return d.toLocaleDateString(i18n.locale, { month: 'long', year: 'numeric', timeZone: 'UTC' })
   }
   const fmtYear = (iso: string) => iso.slice(0, 4)
 
@@ -60,11 +67,11 @@
     return new Date(p.doneAt) <= new Date(p.periodEnd + 'T23:59:59Z') ? 'on-time' : 'late'
   })())
 
-  const outcomeLabel: Record<Outcome, string> = {
-    'on-time': '✓ Done on time',
-    'late':    '✓ Done late',
-    'failed':  '✗ Not completed',
-  }
+  const outcomeLabel = $derived<Record<Outcome, string>>({
+    'on-time': `✓ ${i18n.t('outcome.on_time')}`,
+    'late':    `✓ ${i18n.t('outcome.late')}`,
+    'failed':  `✗ ${i18n.t('outcome.failed')}`,
+  })
   const outcomeClass: Record<Outcome, string> = {
     'on-time': 'text-success',
     'late':    'text-warning',
@@ -73,7 +80,7 @@
 
   const doneAtLabel = $derived((() => {
     if (!isArchived || !p.doneAt) return null
-    return new Date(p.doneAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+    return new Date(p.doneAt).toLocaleDateString(i18n.locale, { day: 'numeric', month: 'short', year: 'numeric' })
   })())
 
   // ── Meta chips ───────────────────────────────────────────────────────────
@@ -85,9 +92,9 @@
     if (task.level === 'week' && r.daysOfWeek?.length) {
       // Show day abbreviations sorted Mon-first
       const sorted = [...r.daysOfWeek].sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
-      parts.push(sorted.map((d) => DAY_NAMES_SHORT[d]).join(' '))
+      parts.push(sorted.map((d) => weekdayShort(d)).join(' '))
     } else if (task.level === 'month' && r.dayOfMonth != null) {
-      parts.push(`${r.dayOfMonth}-го`)
+      parts.push(i18n.locale === 'ru' ? `${r.dayOfMonth}-го` : `day ${r.dayOfMonth}`)
     }
     if (task.scheduledTime) parts.push(task.scheduledTime)
     return parts.length ? `↻ ${parts.join(' · ')}` : '↻'
@@ -96,12 +103,12 @@
   const targetDayLabel = $derived((() => {
     if (task.level !== 'week' || !p.targetDate) return null
     const d = new Date(p.targetDate + 'T00:00:00Z')
-    return DAY_NAMES_SHORT[d.getUTCDay()]
+    return weekdayShort(d.getUTCDay())
   })())
 
   const deadlineLabel = $derived((() => {
     if (task.level !== 'year' || !p.deadlineMonth) return null
-    return `до ${MONTH_NAMES_SHORT[p.deadlineMonth]}`
+    return `${i18n.t('task.until')} ${monthShort(p.deadlineMonth)}`
   })())
 
   // ── Backlog age ───────────────────────────────────────────────────────────
@@ -109,11 +116,11 @@
   const backlogAge = $derived((() => {
     if (!isBacklog || !p.backlogAt) return null
     const days = Math.floor((Date.now() - new Date(p.backlogAt).getTime()) / 86_400_000)
-    if (days === 0) return 'today'
-    if (days === 1) return '1 day ago'
-    if (days < 30)  return `${days} days ago`
+    if (days === 0) return i18n.t('backlog.today')
+    if (days === 1) return i18n.t('backlog.day_ago')
+    if (days < 30)  return `${days} ${i18n.t('backlog.days_ago')}`
     const months = Math.floor(days / 30)
-    return months === 1 ? '1 month ago' : `${months} months ago`
+    return months === 1 ? i18n.t('backlog.month_ago') : `${months} ${i18n.t('backlog.months_ago')}`
   })())
 </script>
 
@@ -127,7 +134,7 @@
       class="checkbox"
       class:checked={isDone}
       onclick={() => onToggle?.(p.id)}
-      aria-label={isDone ? 'Unmark' : 'Mark done'}
+      aria-label={isDone ? i18n.t('action.unmark') : i18n.t('action.mark_done')}
     >
       {#if isDone}
         <svg class="checkbox-tick" viewBox="0 0 10 10" fill="none">
@@ -207,7 +214,7 @@
           <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style:transform={subtasksOpen ? 'rotate(90deg)' : 'none'} style="transition:transform 0.15s">
             <path d="M2.5 1.5l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          Subtasks
+          {i18n.t('task.subtasks')}
         </button>
       </div>
 
@@ -226,7 +233,7 @@
       <button
         class="btn-icon"
         onclick={() => onEdit(task)}
-        aria-label="Edit"
+        aria-label={i18n.t('action.edit')}
       >
         <svg class="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none">
           <path d="M9.5 2.5L11.5 4.5M2 10L2.5 12L4.5 11.5L11.5 4.5L9.5 2.5L2 10Z"

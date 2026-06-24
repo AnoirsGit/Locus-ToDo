@@ -1,12 +1,9 @@
 <script lang="ts">
   import type { TaskLevel } from '../model/task.types'
+  import { i18n } from '$shared/lib/i18n'
 
   type Props = { level: TaskLevel }
   const { level }: Props = $props()
-
-  const labels: Record<TaskLevel, string> = {
-    day: 'День', week: 'Нед', month: 'Мес', year: 'Год',
-  }
 </script>
 
-<span class="level-badge level-{level}">{labels[level]}</span>
+<span class="level-badge level-{level}">{i18n.t(`level_short.${level}`)}</span>
