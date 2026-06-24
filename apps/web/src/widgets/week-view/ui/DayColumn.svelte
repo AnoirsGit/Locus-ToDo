@@ -1,8 +1,8 @@
 <script lang="ts">
   import { TaskCard } from '$entities/task';
   import type { TaskWithPeriod } from '$entities/task';
-  import { DAY_NAMES_SHORT } from '$entities/task';
   import { tagStore } from '$entities/tag';
+  import { i18n } from '$shared/lib/i18n';
   import { toLocalISO } from '$shared/lib/date';
 
   let { 
@@ -27,6 +27,7 @@
   let quickTitle = $state('');
   
   const dateKey = $derived(toLocalISO(day));
+  const dowLabel = $derived(new Intl.DateTimeFormat(i18n.locale, { weekday: 'short' }).format(day));
 
   async function submitQuickCreate() {
     const t = quickTitle.trim();
@@ -45,7 +46,7 @@
 
 <div class="day-col w-[85vw] md:w-52 shrink-0" data-date={dateKey}>
   <div class="day-col-header" class:today={isToday}>
-    <span class="day-col-dow">{DAY_NAMES_SHORT[day.getDay()]}</span>
+    <span class="day-col-dow">{dowLabel}</span>
     <span class="day-col-num" class:today={isToday}>{day.getDate()}</span>
   </div>
   <div class="day-col-body">

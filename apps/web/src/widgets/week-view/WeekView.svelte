@@ -1,7 +1,6 @@
 <script lang="ts">
   import { taskStore } from '$entities/task'
   import { tagStore } from '$entities/tag'
-  import { MONTH_NAMES_SHORT } from '$entities/task'
   import type { TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
   import { createTask } from '$features/create-task'
