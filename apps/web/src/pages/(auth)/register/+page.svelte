@@ -2,6 +2,7 @@
   import { authApi } from '$shared/api/auth.api'
   import { userStore } from '$entities/user'
   import { goto } from '$app/navigation'
+  import { i18n } from '$shared/lib/i18n'
 
   let name     = $state('')
   let email    = $state('')
@@ -20,7 +21,7 @@
       userStore.set(result.user)
       goto('/today')
     } catch (err: any) {
-      error = err.message ?? 'Не удалось зарегистрироваться'
+      error = err.message ?? i18n.t('auth.error_register')
     } finally {
       loading = false
     }

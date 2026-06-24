@@ -33,7 +33,22 @@ Task cards, task list header, create form — the screens users see constantly.
 - [x] `pnpm typecheck` clean; `svelte-check` 0 errors (27 pre-existing warnings, none from this change)
 - [ ] Switch locale ru⇄en in the running app: every touched label and date flips language (manual)
 
-## Deferred (next batch, same theme)
+## Batch 2 — week kanban header (DONE, shipped)
 
-- `widgets/week-view/ui/DayColumn.svelte` + `WeekView.svelte` (DAY_NAMES_SHORT / MONTH_NAMES_SHORT in week kanban headers)
-- `settings/+page.svelte` headers, `ProfileForm.svelte`, login/register error fallbacks
+- [x] `widgets/week-view/ui/DayColumn.svelte` weekday header → locale-aware `Intl`
+- [x] `widgets/week-view/WeekView.svelte` — drop unused `MONTH_NAMES_SHORT` import
+
+## Batch 3 — settings / profile / auth errors (DONE, shipped)
+
+- [x] `settings/+page.svelte` — all headers via new `settings.*` dict keys (was mixed ru/en)
+- [x] `features/update-profile/ui/ProfileForm.svelte` — labels/placeholder/buttons/states/error via i18n
+- [x] `login/+page.svelte` + `register/+page.svelte` — error fallbacks via `auth.error_*`
+- Added dict keys: `action.saving/saved/save_error`, `auth.name_placeholder/error_invalid/error_register`, `settings.*`
+
+## Still deferred (needs product/copy decision, not a clear bug)
+
+- Full **auth-page** localization (login/register brand copy: pull-quote, titles, field
+  labels, button text). Pages are Russian-first with no language toggle; localizing the
+  brand voice needs the user's English wording. Only the error fallbacks were fixed.
+- `DAY_NAMES_SHORT` / `MONTH_NAMES_SHORT` constants are now dead (Russian-only, no live
+  refs) — left in place; deleting is a separate cleanup outside the i18n scope.

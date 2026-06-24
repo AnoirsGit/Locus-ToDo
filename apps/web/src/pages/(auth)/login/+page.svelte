@@ -2,6 +2,7 @@
   import { authApi } from '$shared/api/auth.api'
   import { userStore } from '$entities/user'
   import { goto } from '$app/navigation'
+  import { i18n } from '$shared/lib/i18n'
 
   let email    = $state('')
   let password = $state('')
@@ -19,7 +20,7 @@
       userStore.set(result.user)
       goto('/today')
     } catch (err: any) {
-      error = err.message ?? 'Неверный email или пароль'
+      error = err.message ?? i18n.t('auth.error_invalid')
     } finally {
       loading = false
     }
