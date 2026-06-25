@@ -8,8 +8,8 @@
   import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import { onMount } from 'svelte'
 
-  type Props = { task: TaskWithPeriod; onClose?: () => void }
-  const { task, onClose }: Props = $props()
+  type Props = { task: TaskWithPeriod; onClose?: () => void; onCancel?: () => void; dirty?: boolean }
+  let { task, onClose, onCancel, dirty = $bindable(false) }: Props = $props()
 
   let title         = $state(task.title)
   let description   = $state(task.description ?? '')
@@ -23,6 +23,34 @@
 
   let subtasks = $state<TaskWithPeriod[]>([])
   let tagIds = $state<string[]>([])
+  // Snapshot of tags once loaded, to compare for unsaved-changes detection.
+  let initialTagIds = $state<string[] | null>(null)
+
+  // Initial field values, to detect unsaved edits (guards accidental modal close).
+  const initial = {
+    title: task.title,
+    description: task.description ?? '',
+    level: task.level as TaskLevel,
+    scheduledTime: task.scheduledTime ?? '',
+    targetDate: task.period.targetDate ?? '',
+    deadlineMonth: task.period.deadlineMonth?.toString() ?? '',
+    recurring: !!task.recurringConfig,
+    daysOfWeek: (task.recurringConfig?.daysOfWeek ?? []).join(','),
+    dayOfMonth: task.recurringConfig?.dayOfMonth?.toString() ?? '',
+  }
+  const isDirty = $derived(
+    title !== initial.title ||
+    description !== initial.description ||
+    level !== initial.level ||
+    scheduledTime !== initial.scheduledTime ||
+    targetDate !== initial.targetDate ||
+    deadlineMonth !== initial.deadlineMonth ||
+    recurring !== initial.recurring ||
+    daysOfWeek.join(',') !== initial.daysOfWeek ||
+    dayOfMonth !== initial.dayOfMonth ||
+    (initialTagIds !== null && [...tagIds].sort().join(',') !== [...initialTagIds].sort().join(',')),
+  )
+  $effect(() => { dirty = isDirty })
 
   // Danger zone: delete (any task) + replan (backlog only)
   let confirming  = $state<'delete' | 'replan' | null>(null)
@@ -80,6 +108,7 @@
       const tags = await tagsApi.getTaskTags(task.id)
       tagIds = tags.map(t => t.id)
     } catch { /* offline or no tags */ }
+    initialTagIds = [...tagIds]
   })
 
   const handleAddSubtask = async (subTitle: string) => {
@@ -212,7 +241,7 @@
         {/if}
       {/if}
     </div>
-    <button type="button" onclick={onClose} class="btn ghost">{i18n.t('action.cancel')}</button>
+    <button type="button" onclick={() => (onCancel ?? onClose)?.()} class="btn ghost">{i18n.t('action.cancel')}</button>
     <button type="submit" disabled={!title.trim()} class="btn primary">{i18n.t('action.save')}</button>
   </div>
 </form>

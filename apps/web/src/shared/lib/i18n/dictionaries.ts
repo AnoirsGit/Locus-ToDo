@@ -35,6 +35,7 @@ export const dictionaries = {
       saving: 'Сохраняем…',
       saved: 'Сохранено',
       save_error: 'Ошибка сохранения',
+      discard_confirm: 'Закрыть без сохранения? Несохранённые изменения будут потеряны.',
     },
     outcome: {
       on_time: 'Выполнено вовремя',
@@ -155,6 +156,7 @@ export const dictionaries = {
       saving: 'Saving…',
       saved: 'Saved',
       save_error: 'Failed to save',
+      discard_confirm: 'Discard unsaved changes?',
     },
     outcome: {
       on_time: 'Done on time',

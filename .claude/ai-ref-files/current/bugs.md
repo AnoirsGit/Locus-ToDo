@@ -48,8 +48,8 @@ silently reverts (or worse, doesn't).
 
 ## Minor bugs
 
-- [ ] **TaskModal discards edits silently** — Escape and backdrop click call `onClose` with no dirty check; unsaved edits vanish instantly
-- [ ] **Focus escapes the modal** — `aria-modal` is set on `TaskModal` but there is no focus trap; Tab walks out of the dialog, and focus is not returned to the opener on close
+- [x] **TaskModal discards edits silently** — Create/Edit forms now expose a bindable `dirty`; `TaskModal.requestClose` confirms (`action.discard_confirm`) before closing on Escape / backdrop / Cancel / header-X when dirty
+- [x] **Focus escapes the modal** — added `shared/lib/focusTrap.ts` (`use:trapFocus`): focuses first focusable on open (respects child autofocus), wraps Tab/Shift+Tab inside the dialog, restores focus to the opener on close
 - [ ] **Date format hardcoded `'en'` locale (web)** — `TaskCard` formats dates with `'en'` while the app may be in ru; should use `i18n.locale` everywhere a date is rendered
 - [ ] **Hardcoded Russian inside English-localized web components** — `TaskCard.svelte` (`'${r.dayOfMonth}-го'`, `'до <month>'`), `TaskList.svelte` ("Бэклог/Архив" buttons), `settings/+page.svelte` headers — must route through `i18n.t()`
 - [ ] **Archive outcome chip language mismatch** — web shows English ('Done on time'), mobile Russian ('выполнено') for the same state

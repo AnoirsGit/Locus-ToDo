@@ -12,8 +12,9 @@
     defaultPeriodStart?: string
     onSuccess?: () => void
     onCancel?: () => void
+    dirty?: boolean
   }
-  const { defaultLevel = 'week', defaultPeriodStart, onSuccess, onCancel }: Props = $props()
+  let { defaultLevel = 'week', defaultPeriodStart, onSuccess, onCancel, dirty = $bindable(false) }: Props = $props()
 
   let title         = $state('')
   let description   = $state('')
@@ -25,6 +26,14 @@
   let daysOfWeek    = $state<number[]>([])
   let dayOfMonth    = $state('')
   let tagIds        = $state<string[]>([])
+
+  // Report unsaved input upward so the modal can guard against accidental close.
+  const isDirty = $derived(
+    title.trim() !== '' || description.trim() !== '' || scheduledTime !== '' ||
+    targetDate !== '' || deadlineMonth !== '' || recurring ||
+    daysOfWeek.length > 0 || dayOfMonth !== '' || tagIds.length > 0,
+  )
+  $effect(() => { dirty = isDirty })
 
   const computePeriodStart = (): string => {
     const now = new Date()
