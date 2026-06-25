@@ -13,7 +13,67 @@ final statsProvider = FutureProvider.autoDispose<StatsResult>((ref) {
 
 String _isoToday() {
   final now = DateTime.now();
-  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  return _isoLocal(now);
+}
+
+String _isoLocal(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+// ── Trend row model + label/colour helpers ───────────────────────────────────────
+
+/// One row in a trend list (current snapshot or a historical period).
+class _TrendRow {
+  final String label;
+  final int done;
+  final int total;
+  final bool current;
+  const _TrendRow({
+    required this.label,
+    required this.done,
+    required this.total,
+    this.current = false,
+  });
+  double get pct => total == 0 ? 0 : done / total;
+}
+
+const _monthShort = [
+  '', 'янв', 'фев', 'мар', 'апр', 'май', 'июн',
+  'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
+];
+
+DateTime _parseUtc(String iso) => DateTime.parse('${iso.substring(0, 10)}T00:00:00Z');
+
+String _weekLabel(String start) {
+  final s = _parseUtc(start);
+  final e = s.add(const Duration(days: 6));
+  return '${s.day} ${_monthShort[s.month]} – ${e.day} ${_monthShort[e.month]}';
+}
+
+String _monthLabel(String iso) {
+  final d = _parseUtc(iso);
+  final sameYear = d.year == DateTime.now().year;
+  return sameYear ? _monthShort[d.month] : '${_monthShort[d.month]} ${d.year}';
+}
+
+String _yearLabel(String iso) => '${_parseUtc(iso).year}';
+
+String _currentWeekStart() {
+  final now = DateTime.now();
+  return _isoLocal(now.subtract(Duration(days: now.weekday - 1)));
+}
+
+String _currentMonthStart() {
+  final now = DateTime.now();
+  return _isoLocal(DateTime(now.year, now.month, 1));
+}
+
+/// Bar/text colour by completion threshold — mirrors web `pctColor`.
+Color _trendColor(BuildContext context, double pct) {
+  final p = pct * 100;
+  if (p >= 80) return context.colorSuccess;
+  if (p >= 50) return context.colorWarning;
+  if (p > 0) return context.colorDanger;
+  return context.colorMuted2;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -80,6 +140,7 @@ class _ConsistencyRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = (stat.pct * 100).round();
+    final color = _trendColor(context, stat.pct);
     return Row(
       children: [
         Expanded(
@@ -94,13 +155,13 @@ class _ConsistencyRow extends StatelessWidget {
               value: stat.pct,
               minHeight: 6,
               backgroundColor: context.colorBorder,
-              valueColor: AlwaysStoppedAnimation(context.colorBrand),
+              valueColor: AlwaysStoppedAnimation(color),
             ),
           ),
         ),
         const SizedBox(width: 10),
         Text('$pct%',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
         const SizedBox(width: 6),
         Text('${stat.done}/${stat.total}',
             style: TextStyle(fontSize: 11, color: context.colorMuted)),
@@ -148,31 +209,55 @@ class _StatsBody extends StatelessWidget {
 
         // ── Consistency (recurring habits) ──────────────────────────────────
         if (data.consistency.total > 0) ...[
-          _SectionTitle('Постоянство (привычки)'),
+          const _SectionTitle('Постоянство (привычки)'),
           const SizedBox(height: 8),
           _ConsistencyRow(stat: data.consistency),
           const SizedBox(height: 20),
         ],
 
-        // ── Week trend ──────────────────────────────────────────────────────
-        if (data.weekTrend.isNotEmpty) ...[
-          _SectionTitle('Тренд недели'),
+        // ── Week trend (current week prepended) ─────────────────────────────
+        if (_weekRows.any((r) => r.total > 0)) ...[
+          const _SectionTitle('Тренд недели'),
           const SizedBox(height: 8),
-          _TrendChart(periods: data.weekTrend, color: context.colorWeek),
+          _TrendChart(rows: _weekRows),
           const SizedBox(height: 20),
         ],
 
-        // ── Month trend ─────────────────────────────────────────────────────
-        if (data.monthTrend.isNotEmpty) ...[
-          _SectionTitle('Тренд месяца'),
+        // ── Month trend (current month prepended) ───────────────────────────
+        if (_monthRows.any((r) => r.total > 0)) ...[
+          const _SectionTitle('Тренд месяца'),
           const SizedBox(height: 8),
-          _TrendChart(periods: data.monthTrend, color: context.colorMonth),
+          _TrendChart(rows: _monthRows),
+          const SizedBox(height: 20),
+        ],
+
+        // ── Year history ────────────────────────────────────────────────────
+        if (_yearRows.isNotEmpty) ...[
+          const _SectionTitle('По годам'),
+          const SizedBox(height: 8),
+          _TrendChart(rows: _yearRows),
           const SizedBox(height: 100),
         ] else
           const SizedBox(height: 100),
       ],
     );
   }
+
+  // Current snapshot prepended as the first (highlighted) row, then history —
+  // mirrors web `weekTrendRows`/`monthTrendRows`. Year history has no current row.
+  List<_TrendRow> get _weekRows => [
+        _TrendRow(label: _weekLabel(_currentWeekStart()), done: data.week.done, total: data.week.total, current: true),
+        ...data.weekTrend.map((s) => _TrendRow(label: _weekLabel(s.periodStart), done: s.done, total: s.total)),
+      ].where((r) => r.total > 0 || r.current).toList();
+
+  List<_TrendRow> get _monthRows => [
+        _TrendRow(label: _monthLabel(_currentMonthStart()), done: data.month.done, total: data.month.total, current: true),
+        ...data.monthTrend.map((s) => _TrendRow(label: _monthLabel(s.periodStart), done: s.done, total: s.total)),
+      ].where((r) => r.total > 0 || r.current).toList();
+
+  List<_TrendRow> get _yearRows => data.yearHistory
+      .map((s) => _TrendRow(label: _yearLabel(s.periodStart), done: s.done, total: s.total))
+      .toList();
 }
 
 // ── Snapshot card ─────────────────────────────────────────────────────────────
@@ -251,14 +336,12 @@ class _SnapshotCard extends StatelessWidget {
 // ── Trend chart (horizontal bar list) ────────────────────────────────────────
 
 class _TrendChart extends StatelessWidget {
-  final List<PeriodStat> periods;
-  final Color color;
+  final List<_TrendRow> rows;
 
-  const _TrendChart({required this.periods, required this.color});
+  const _TrendChart({required this.rows});
 
   @override
   Widget build(BuildContext context) {
-    final displayed = periods.length > 8 ? periods.sublist(periods.length - 8) : periods;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -267,21 +350,50 @@ class _TrendChart extends StatelessWidget {
         border: Border.all(color: context.colorBorder),
       ),
       child: Column(
-        children: displayed.map((p) {
-          final label = p.periodStart.substring(0, 10);
+        children: rows.map((r) {
+          final color = _trendColor(context, r.pct);
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
                 SizedBox(
-                  width: 72,
-                  child: Text(label, style: TextStyle(fontSize: 10, color: context.colorMuted, fontFamily: 'monospace')),
+                  width: 118,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          r.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            color: r.current ? context.colorTextStrong : context.colorMuted,
+                            fontWeight: r.current ? FontWeight.w700 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                      if (r.current) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: context.colorBrandSoft,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text('сейчас',
+                              style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: context.colorBrand)),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(3),
                     child: LinearProgressIndicator(
-                      value: p.pct,
+                      value: r.pct,
                       minHeight: 8,
                       backgroundColor: context.colorSurface2,
                       valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -289,12 +401,17 @@ class _TrendChart extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                Text(
+                  '${(r.pct * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+                ),
+                const SizedBox(width: 6),
                 SizedBox(
-                  width: 36,
+                  width: 34,
                   child: Text(
-                    '${(p.pct * 100).toStringAsFixed(0)}%',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+                    '${r.done}/${r.total}',
                     textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 10, color: context.colorMuted),
                   ),
                 ),
               ],
