@@ -90,12 +90,14 @@ Remaining gaps are below, priority order.
 - Mobile `_DayColumn`: the "+ Add task" button calls the **global** `_openCreate(view)`
   → `periodStart` is today/this week, not the tapped column's date.
 
-**Todo**
-- [ ] Thread the column date through: `_WeekKanban` → `_DayColumn(onCreate)` becomes
-      `onCreate(String dateStr)` → `TaskFormSheet` with `defaultLevel: day`,
-      `defaultPeriodStart: dateStr`.
-- [ ] Optional (full parity): inline quick-add text field at the bottom of each column
-      (submit → `createTask({title, level: 'day', periodStart: date})`, no sheet).
+**Todo** — DONE (branch `feat/mobile-kanban-quickadd`)
+- [x] Column date threaded: `_DayColumn` now takes `dateStr` + `onOpenCreate(dateStr)` /
+      `onQuickCreate(title, dateStr)`. Full-sheet create opens with `defaultLevel: day`,
+      `defaultPeriodStart: dateStr` (was creating a *week* task on Monday).
+- [x] Inline quick-add (full parity with web): tapping "+ Add task" reveals an autofocus
+      field — Enter creates `{title, level:'day', periodStart: dateStr}`, an expand icon
+      opens the full sheet bound to the same date. Routed through the `'day'` provider
+      (which the kanban watches) so the card appears in the right column.
 
 ## Gap 5 — i18n: no language switch, hardcoded mixed-language strings
 
