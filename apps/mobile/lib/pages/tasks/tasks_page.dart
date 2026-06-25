@@ -197,7 +197,7 @@ class _Body extends ConsumerWidget {
     final filteredPrimary = tagState.filterTasks(data.primary, (t) => t.id);
 
     if (filteredPrimary.isEmpty && !data.hasContext && !tagState.isFiltering) {
-      return _Empty(canCreate: canCreate, onCreate: onCreate);
+      return _Empty(view: view, canCreate: canCreate, onCreate: onCreate);
     }
 
     return ListView(
@@ -248,7 +248,10 @@ class _Body extends ConsumerWidget {
       children: [
         Text('—', style: TextStyle(fontSize: 36, color: context.colorBorder2)),
         const SizedBox(height: 8),
-        Text('Нет задач', style: TextStyle(color: context.colorMuted)),
+        Text(
+          view == 'backlog' || view == 'archive' ? 'Чисто' : 'Нет задач',
+          style: TextStyle(color: context.colorMuted),
+        ),
         const SizedBox(height: 12),
         TextButton.icon(
           onPressed: onCreate,
@@ -403,13 +406,15 @@ class _AppBarChip extends StatelessWidget {
 // ── Empty state ────────────────────────────────────────────────────────────────
 
 class _Empty extends StatelessWidget {
+  final String view;
   final bool canCreate;
   final VoidCallback onCreate;
 
-  const _Empty({required this.canCreate, required this.onCreate});
+  const _Empty({required this.view, required this.canCreate, required this.onCreate});
 
   @override
   Widget build(BuildContext context) {
+    final isRecords = view == 'backlog' || view == 'archive';
     return ListView(
       children: [
         SizedBox(height: MediaQuery.of(context).size.height * 0.35),
@@ -418,7 +423,14 @@ class _Empty extends StatelessWidget {
             children: [
               Text('—', style: TextStyle(fontSize: 48, color: context.colorBorder2)),
               const SizedBox(height: 12),
-              Text('Нет задач', style: TextStyle(color: context.colorMuted, fontSize: 16)),
+              Text(
+                isRecords ? 'Чисто' : 'Нет задач',
+                style: TextStyle(color: context.colorMuted, fontSize: 16),
+              ),
+              if (view == 'backlog') ...[
+                const SizedBox(height: 6),
+                Text('Продолжай в том же духе.', style: TextStyle(color: context.colorMuted)),
+              ],
               if (canCreate) ...[
                 const SizedBox(height: 16),
                 TextButton.icon(

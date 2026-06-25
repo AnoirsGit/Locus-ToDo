@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/theme.dart';
+import '../../../shared/core/recurring.dart';
 import '../../../shared/providers/tag_store.dart';
 import '../task.dart';
 import 'subtask_checklist.dart';
@@ -34,9 +35,7 @@ class TaskCard extends ConsumerWidget {
     if (r == null) return null;
     final parts = <String>[];
     if (task.level == TaskLevel.week && r.daysOfWeek != null && r.daysOfWeek!.isNotEmpty) {
-      final sorted = [...r.daysOfWeek!]..sort();
-      final monFirst = [...sorted.where((d) => d != 0), ...sorted.where((d) => d == 0)];
-      parts.add(monFirst.map((d) => _dayNames[d]).join(' '));
+      parts.add(sortDaysMonFirst(r.daysOfWeek!).map((d) => _dayNames[d]).join(' '));
     } else if (task.level == TaskLevel.month && r.dayOfMonth != null) {
       parts.add('${r.dayOfMonth}-го');
     }
@@ -69,6 +68,39 @@ class TaskCard extends ConsumerWidget {
     return done.isAfter(deadline) ? 'late' : 'ontime';
   }
 
+  // Period range label — mirrors web `periodLabel` (UTC-anchored calendar dates).
+  String _periodLabel() {
+    String day(DateTime d) => '${d.day} ${_monthNames[d.month]}';
+    final start = task.period.periodStart;
+    return switch (task.level) {
+      TaskLevel.day   => day(start),
+      TaskLevel.week  => '${day(start)} – ${day(task.period.periodEnd)}',
+      TaskLevel.month => '${_monthNames[start.month]} ${start.year}',
+      TaskLevel.year  => '${start.year}',
+    };
+  }
+
+  // "7 янв 2024" — done date shown next to the archive outcome (local time, as web).
+  String? _doneAtLabel() {
+    if (task.period.status != TaskStatus.archived) return null;
+    final d = task.period.doneAt?.toLocal();
+    if (d == null) return null;
+    return '${d.day} ${_monthNames[d.month]} ${d.year}';
+  }
+
+  // Backlog age relative to now — mirrors web `backlogAge`.
+  String? _backlogAge() {
+    if (task.period.status != TaskStatus.backlog) return null;
+    final at = task.period.backlogAt;
+    if (at == null) return null;
+    final days = DateTime.now().difference(at).inDays;
+    if (days <= 0) return 'сегодня';
+    if (days == 1) return 'день назад';
+    if (days < 30) return '$days дней назад';
+    final months = days ~/ 30;
+    return months == 1 ? 'мес. назад' : '$months мес. назад';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tags = ref.watch(tagStoreProvider).getTagsForTask(task.id);
@@ -83,6 +115,9 @@ class TaskCard extends ConsumerWidget {
     final recurringLabel = _recurringLabel();
     final targetDayLabel = _targetDayLabel();
     final deadlineLabel = _deadlineLabel();
+    final periodLabel = _periodLabel();
+    final doneAtLabel = _doneAtLabel();
+    final backlogAge = _backlogAge();
 
     // Archive outcome colors — semantic, same across themes
     Color _outcomeColor(String? outcome) => switch (outcome) {
@@ -178,12 +213,15 @@ class TaskCard extends ConsumerWidget {
                     children: [
                       if (showLevel) TaskLevelBadge(level: task.level),
                       if (isArchived) ...[
+                        _MetaChip(periodLabel, color: context.colorMuted),
                         if (archiveOutcome == 'ontime')
                           _MetaChip('✓ выполнено', color: context.colorSuccess),
                         if (archiveOutcome == 'late')
                           _MetaChip('✓ с опозданием', color: context.colorYear),
                         if (archiveOutcome == 'failed')
                           _MetaChip('✗ не выполнено', color: context.colorDanger),
+                        if (doneAtLabel != null)
+                          _MetaChip('· $doneAtLabel', color: context.colorMuted),
                       ] else ...[
                         if (recurringLabel != null)
                           _MetaChip(recurringLabel, color: context.colorMuted)
@@ -195,6 +233,11 @@ class TaskCard extends ConsumerWidget {
                         ],
                         if (deadlineLabel != null)
                           _MetaChip(deadlineLabel, color: context.colorMuted),
+                        if (isBacklog) ...[
+                          _MetaChip(periodLabel, color: context.colorMuted),
+                          if (backlogAge != null)
+                            _MetaChip('· $backlogAge', color: context.colorMuted),
+                        ],
                         if (isOverdue)
                           _MetaChip('просрочено', color: context.colorWarning),
                       ],

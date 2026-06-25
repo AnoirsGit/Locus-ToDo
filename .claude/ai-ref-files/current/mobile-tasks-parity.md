@@ -115,13 +115,13 @@ Remaining gaps are below, priority order.
 
 ## Gap 6 — Small card/detail mismatches (batch, low effort)
 
-- [ ] Archived card: web shows period label + done-at date next to the outcome chip;
+- [x] Archived card: web shows period label + done-at date next to the outcome chip;
       mobile shows only the outcome chip — add period + date.
-- [ ] Backlog card: web shows period label + backlog age ("3 days ago"); mobile —
+- [x] Backlog card: web shows period label + backlog age ("3 days ago"); mobile —
       verify and add if missing.
-- [ ] Recurring chip day-order: mobile sorts plainly with a Sun-last hack; web sorts
+- [x] Recurring chip day-order: mobile sorts plainly with a Sun-last hack; web sorts
       Mon-first explicitly — unify (extract one shared rule, Mon-first).
-- [ ] Empty states: web has copy ("keep going" on backlog); align mobile copy via i18n keys.
+- [x] Empty states: web has copy ("keep going" on backlog); align mobile copy via i18n keys.
 
 ---
 

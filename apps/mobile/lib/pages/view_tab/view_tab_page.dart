@@ -7,6 +7,7 @@ import '../../entities/task/task.dart';
 import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
+import '../../shared/core/recurring.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/providers/view_provider.dart';
 import '../../shared/theme/theme.dart';
@@ -1034,9 +1035,7 @@ class _MiniTaskCard extends StatelessWidget {
     if (r != null) {
       String rec = '↻';
       if (task.level == TaskLevel.week && r.daysOfWeek != null && r.daysOfWeek!.isNotEmpty) {
-        final sorted = [...r.daysOfWeek!]..sort();
-        final mf = [...sorted.where((d) => d != 0), ...sorted.where((d) => d == 0)];
-        rec = '↻ ${mf.map((d) => _dayNames[d]).join(' ')}';
+        rec = '↻ ${sortDaysMonFirst(r.daysOfWeek!).map((d) => _dayNames[d]).join(' ')}';
       } else if (task.level == TaskLevel.month && r.dayOfMonth != null) {
         rec = '↻ ${r.dayOfMonth}-го';
       }
