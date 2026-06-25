@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../entities/tag/ui/tag_filter_bar.dart';
 import '../../entities/task/grouped_tasks_notifier.dart';
 import '../../entities/task/task.dart';
 import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
+import '../../shared/providers/tag_store.dart';
 import '../../shared/providers/view_provider.dart';
 import '../../shared/theme/theme.dart';
 
@@ -100,19 +102,40 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
         ),
         data: (data) {
           // For week kanban: also load day-level tasks so they appear in columns
-          final dayTasks = view == 'week'
+          final rawDayTasks = view == 'week'
               ? ref.watch(groupedTasksProvider('day')).valueOrNull?.primary ?? []
               : <TaskWithPeriod>[];
 
-          return RefreshIndicator(
-            onRefresh: () => ref.read(provider.notifier).refresh(),
-            color: context.colorBrand,
-            backgroundColor: context.colorSurface,
-            child: switch (view) {
-              'day'  => _TodayBody(data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
-              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
-              _      => _GenericBody(view: view, data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
-            },
+          // Apply the global tag filter to every list (primary + context +
+          // kanban day tasks) so filtering is consistent across all views,
+          // mirroring web where progress/counts also reflect the filtered set.
+          final tagState = ref.watch(tagStoreProvider);
+          List<TaskWithPeriod> f(List<TaskWithPeriod> l) =>
+              tagState.filterTasks(l, (t) => t.id);
+          final filtered = GroupedTasks(
+            primary: f(data.primary),
+            week: f(data.week),
+            month: f(data.month),
+            year: f(data.year),
+          );
+          final dayTasks = f(rawDayTasks);
+
+          return Column(
+            children: [
+              const TagFilterBar(),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () => ref.read(provider.notifier).refresh(),
+                  color: context.colorBrand,
+                  backgroundColor: context.colorSurface,
+                  child: switch (view) {
+                    'day'  => _TodayBody(data: filtered, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
+                    'week' => _WeekKanban(data: filtered, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
+                    _      => _GenericBody(view: view, data: filtered, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),

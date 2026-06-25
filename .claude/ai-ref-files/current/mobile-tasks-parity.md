@@ -26,15 +26,20 @@ Remaining gaps are below, priority order.
   `view_tab_page.dart` (the primary screen) has **zero tag filtering** — neither the
   bar nor `filterTasks` calls.
 
-**Todo**
-- [ ] Extract `_TagFilterBar` out of `tasks_page.dart` into a shared widget
-      (e.g. `entities/tag/ui/tag_filter_bar.dart` per FSD; tag state already lives in
-      `shared/providers/tag_store.dart`).
-- [ ] Render it in `view_tab_page.dart` below the view dropdown (all views).
-- [ ] Apply `tagState.filterTasks(...)` in `_TodayBody` (day list + week/month/year
-      context sections), `_WeekKanban` (day columns + week strip + context), `_GenericBody`.
-- [ ] Filter state is global (`tagStoreProvider`) — verify it stays consistent when
-      switching view ⇄ backlog/archive (web behaves globally; match that).
+**Todo** — DONE (branch `feat/mobile-tag-filter`)
+- [x] Extracted `TagFilterBar` (now a `ConsumerWidget` reading `tagStoreProvider`
+      directly, no prop drilling) into `entities/tag/ui/tag_filter_bar.dart`; localized
+      the clear button via `S.clearFilter`. `tasks_page.dart` swapped to it, local
+      `_TagFilterBar` deleted.
+- [x] Rendered in `view_tab_page.dart` as a strip above the body (below the AppBar view
+      dropdown), on every view; renders nothing when no tags exist.
+- [x] Filtering applied **at the page level**: build a filtered `GroupedTasks`
+      (primary + week/month/year context) + filtered kanban `dayTasks` once, pass down —
+      so day list, kanban columns/strip/context, generic month/year body, AND the
+      progress card all reflect the filter. Matches web (progress/counts derive from the
+      filtered `todayTasks`).
+- [x] Filter state is global (`tagStoreProvider`) → automatically consistent across
+      view ⇄ backlog/archive (both read the same provider).
 
 ## Gap 2 — Subtasks not reachable from task cards
 
