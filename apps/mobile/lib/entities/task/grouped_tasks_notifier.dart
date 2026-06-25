@@ -1,5 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/api/tasks_api.dart';
+import '../../shared/core/strings.dart';
+import '../../shared/ui/app_toast.dart';
 import 'task.dart';
 
 class GroupedTasks {
@@ -68,23 +71,43 @@ class GroupedTasksNotifier extends FamilyAsyncNotifier<GroupedTasks, String> {
   }
 
   Future<void> createTask(Map<String, dynamic> data) async {
-    await _api.createTask(data);
-    await refresh();
+    try {
+      await _api.createTask(data);
+      await refresh();
+    } catch (e) {
+      _toastError(e, S.errorSaveFailed);
+    }
   }
 
   Future<void> updateTask(String id, Map<String, dynamic> data) async {
-    await _api.updateTask(id, data);
-    await refresh();
+    try {
+      await _api.updateTask(id, data);
+      await refresh();
+    } catch (e) {
+      _toastError(e, S.errorSaveFailed);
+    }
   }
 
   Future<void> deleteTask(String id) async {
-    await _api.deleteTask(id);
-    await refresh();
+    try {
+      await _api.deleteTask(id);
+      await refresh();
+    } catch (e) {
+      // 409 → task has archived periods (parity with web delete UX).
+      final msg = (e is DioException && e.response?.statusCode == 409)
+          ? S.errorTaskHasArchive
+          : S.errorDeleteFailed;
+      _toastError(e, msg);
+    }
   }
 
   Future<void> replan(String taskId, String periodStart) async {
-    await _api.replanTask(taskId, periodStart);
-    await refresh();
+    try {
+      await _api.replanTask(taskId, periodStart);
+      await refresh();
+    } catch (e) {
+      _toastError(e, S.errorSaveFailed);
+    }
   }
 
   Future<void> toggle(TaskWithPeriod task) async {
@@ -107,7 +130,32 @@ class GroupedTasksNotifier extends FamilyAsyncNotifier<GroupedTasks, String> {
       ));
     }
 
-    await _api.toggleTask(task.period.id, newStatus);
+    try {
+      await _api.toggleTask(task.period.id, newStatus);
+    } catch (e) {
+      // Roll back the optimistic flip to the server's truth.
+      if (state.hasValue) {
+        final v = state.value!;
+        TaskWithPeriod restore(TaskWithPeriod t) => t.period.id == task.period.id
+            ? t.copyWithPeriod(t.period.copyWith(
+                status: task.period.status, doneAt: task.period.doneAt))
+            : t;
+        state = AsyncData(GroupedTasks(
+          primary: v.primary.map(restore).toList(),
+          week:    v.week.map(restore).toList(),
+          month:   v.month.map(restore).toList(),
+          year:    v.year.map(restore).toList(),
+        ));
+      }
+      _toastError(e, S.errorSaveFailed);
+    }
+  }
+
+  /// Surface a mutation failure as a toast, except 401 (the Dio interceptor
+  /// already handles session expiry by redirecting to login).
+  void _toastError(Object e, String message) {
+    if (e is DioException && e.response?.statusCode == 401) return;
+    AppToast.error(message);
   }
 }
 

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/tags_api.dart';
+import '../core/strings.dart';
+import '../ui/app_toast.dart';
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
@@ -171,7 +173,7 @@ class TagStoreNotifier extends StateNotifier<TagStoreState> {
     state = state.copyWith(
       noteTagsMap: {...state.noteTagsMap, noteId: tagIds},
     );
-    _api.setNoteTags(noteId, tagIds).catchError((_) {});
+    _api.setNoteTags(noteId, tagIds).catchError((_) => AppToast.error(S.errorSaveFailed));
   }
 
   void toggleNoteFilterTag(String id) {
