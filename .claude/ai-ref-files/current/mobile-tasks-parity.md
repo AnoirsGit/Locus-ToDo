@@ -44,13 +44,18 @@ Remaining gaps are below, priority order.
 - Mobile `task_card.dart`: nothing; subtasks only visible after opening
   `TaskFormSheet` (edit mode), and there is no subtask count hint on the card.
 
-**Todo**
-- [ ] New `entities/task/ui/subtask_checklist.dart` — port of web `SubtaskChecklist`
-      (lazy fetch on expand, optimistic toggle via period id, inline add field, delete).
-- [ ] Add an expander row to `task_card.dart` (chevron + "Subtasks"), hidden for
-      `archived`/`backlog` statuses — same rule as web.
-- [ ] Keep it lazy: fetch only on first expand (mirror web to avoid N+1 on lists).
-- [ ] API already exists (`getSubtasks` is in `tasks_api.dart`) — no backend work.
+**Todo** — DONE (branch `feat/mobile-subtasks-card`)
+- [x] New `entities/task/ui/subtask_checklist.dart` — port of web `SubtaskChecklist`
+      (`ConsumerStatefulWidget`: chevron expander + done/total count, lazy fetch on first
+      expand, optimistic toggle via `toggleTask(periodId)` with revert, inline add field).
+      **Delete excluded** to match web — web's card checklist is toggle+add only; delete
+      stays in the edit sheet. Error handling = silent revert (matches main; the global
+      toast lives on the separate B4 branch).
+- [x] Expander embedded in `task_card.dart` below the card body (inside the border),
+      shown only when `!archived && !backlog` — same rule as web.
+- [x] Lazy: fetches only on first expand. Keyed `ValueKey('subtasks_<taskId>')` so
+      expand/loaded state follows the task across list reorders.
+- [x] API already existed (`getSubtasks` in `tasks_api.dart`) — no backend work.
 
 ## Gap 3 — Stats screen missing the year section + "current" trend rows
 

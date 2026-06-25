@@ -60,4 +60,8 @@ class S {
   static String get addColumn => _ru ? 'Колонка' : 'Add column';
   static String get emptyCard => _ru ? 'Пусто' : 'Empty';
   static String nested(int n) => _ru ? 'вложенных: $n' : '$n nested';
+
+  // Subtasks
+  static String get subtasks => _ru ? 'Подзадачи' : 'Subtasks';
+  static String get addSubtask => _ru ? 'Добавить подзадачу…' : 'Add subtask…';
 }

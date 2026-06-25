@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/theme.dart';
 import '../../../shared/providers/tag_store.dart';
 import '../task.dart';
+import 'subtask_checklist.dart';
 import 'task_level_badge.dart';
 
 class TaskCard extends ConsumerWidget {
@@ -74,6 +75,9 @@ class TaskCard extends ConsumerWidget {
     final isDone = task.period.status == TaskStatus.done;
     final isOverdue = task.period.status == TaskStatus.overdue;
     final isArchived = task.period.status == TaskStatus.archived;
+    final isBacklog = task.period.status == TaskStatus.backlog;
+    // Subtask expander shown on active cards only — same rule as web.
+    final showSubtasks = !isArchived && !isBacklog;
     final archiveOutcome = _archiveOutcome();
 
     final recurringLabel = _recurringLabel();
@@ -259,7 +263,16 @@ class TaskCard extends ConsumerWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: card,
+        child: showSubtasks
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  card,
+                  Divider(height: 1, thickness: 1, color: context.colorBorder),
+                  SubtaskChecklist(key: ValueKey('subtasks_${task.id}'), parent: task),
+                ],
+              )
+            : card,
       ),
     );
 
