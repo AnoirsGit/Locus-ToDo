@@ -60,4 +60,24 @@ class S {
   static String get addColumn => _ru ? 'Колонка' : 'Add column';
   static String get emptyCard => _ru ? 'Пусто' : 'Empty';
   static String nested(int n) => _ru ? 'вложенных: $n' : '$n nested';
+
+  // Error toasts
+  static String get errorSaveFailed =>
+      _ru ? 'Не удалось сохранить изменения' : 'Failed to save changes';
+  static String get errorDeleteFailed =>
+      _ru ? 'Не удалось удалить' : 'Failed to delete';
+  static String get errorTaskHasArchive => _ru
+      ? 'Нельзя удалить: у задачи есть архивные периоды'
+      : 'Cannot delete: task has archived periods';
+  static String get errorGeneric =>
+      _ru ? 'Что-то пошло не так' : 'Something went wrong';
+
+  // Sync status
+  static String get syncTitle => _ru ? 'Синхронизация' : 'Sync';
+  static String get syncAllSynced =>
+      _ru ? 'Все изменения синхронизированы' : 'All changes synced';
+  static String syncPending(int n) => _ru
+      ? 'Изменений ожидает синхронизации: $n'
+      : '$n change${n == 1 ? '' : 's'} pending sync';
+  static String get syncNow => _ru ? 'Синхронизировать' : 'Sync now';
 }

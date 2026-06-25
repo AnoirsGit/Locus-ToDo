@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/auth_notifier.dart';
 import '../../shared/api/tags_api.dart';
+import '../../shared/core/strings.dart';
+import '../../shared/db/app_database.dart';
 import '../../shared/notifications/notification_prefs.dart';
 import '../../shared/notifications/notification_service.dart';
 import '../../shared/providers/tag_store.dart';
+import '../../shared/sync/notes_sync_worker.dart';
+import '../../shared/sync/sync_worker.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/app_toast.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/theme/theme_provider.dart';
 
@@ -113,6 +118,12 @@ class SettingsPage extends ConsumerWidget {
             ),
             data: (prefs) => _NotificationSection(prefs: prefs),
           ),
+
+          Divider(color: context.colorBorder),
+
+          // ── Sync ────────────────────────────────────────────────────────
+          _SectionHeader(title: S.syncTitle),
+          const _SyncSection(),
 
           Divider(color: context.colorBorder),
 
@@ -366,6 +377,38 @@ class _NotificationSection extends ConsumerWidget {
   }
 }
 
+// ── Sync section ───────────────────────────────────────────────────────────────
+
+class _SyncSection extends ConsumerWidget {
+  const _SyncSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingSyncCountProvider).valueOrNull ?? 0;
+    final pending = count > 0;
+
+    return ListTile(
+      leading: Icon(
+        pending ? Icons.sync_problem_outlined : Icons.cloud_done_outlined,
+        color: pending ? context.colorWarning : context.colorSuccess,
+      ),
+      title: Text(
+        pending ? S.syncPending(count) : S.syncAllSynced,
+        style: TextStyle(color: context.colorTextStrong, fontSize: 14),
+      ),
+      trailing: pending
+          ? TextButton(
+              onPressed: () {
+                ref.read(syncWorkerProvider).flush();
+                ref.read(notesSyncWorkerProvider).flush();
+              },
+              child: Text(S.syncNow, style: TextStyle(color: context.colorBrand)),
+            )
+          : null,
+    );
+  }
+}
+
 // ── Lead time picker ───────────────────────────────────────────────────────────
 
 class _LeadTimePicker extends StatelessWidget {
@@ -467,8 +510,12 @@ class _TagManagementSection extends ConsumerWidget {
             final name = nameCtrl.text.trim();
             if (name.isEmpty) return;
             Navigator.pop(ctx);
-            await ref.read(tagsApiProvider).create(name);
-            await ref.read(tagStoreProvider.notifier).reload();
+            try {
+              await ref.read(tagsApiProvider).create(name);
+              await ref.read(tagStoreProvider.notifier).reload();
+            } catch (_) {
+              AppToast.error(S.errorSaveFailed);
+            }
           },
         ),
         actions: [
@@ -481,8 +528,12 @@ class _TagManagementSection extends ConsumerWidget {
               final name = nameCtrl.text.trim();
               if (name.isEmpty) return;
               Navigator.pop(ctx);
-              await ref.read(tagsApiProvider).create(name);
-              await ref.read(tagStoreProvider.notifier).reload();
+              try {
+                await ref.read(tagsApiProvider).create(name);
+                await ref.read(tagStoreProvider.notifier).reload();
+              } catch (_) {
+                AppToast.error(S.errorSaveFailed);
+              }
             },
             child: const Text('Create'),
           ),
@@ -521,8 +572,12 @@ class _TagManagementSection extends ConsumerWidget {
                   icon: Icon(Icons.delete_outline, size: 18, color: context.colorMuted),
                   visualDensity: VisualDensity.compact,
                   onPressed: () async {
-                    await ref.read(tagsApiProvider).delete(tag.id);
-                    await ref.read(tagStoreProvider.notifier).reload();
+                    try {
+                      await ref.read(tagsApiProvider).delete(tag.id);
+                      await ref.read(tagStoreProvider.notifier).reload();
+                    } catch (_) {
+                      AppToast.error(S.errorDeleteFailed);
+                    }
                   },
                 ),
               )),

@@ -4,6 +4,7 @@ import 'core/router/router.dart';
 import 'shared/theme/theme.dart';
 import 'shared/theme/theme_provider.dart';
 import 'shared/notifications/notification_service.dart';
+import 'shared/ui/app_toast.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ class LocusApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Цикл',
+      scaffoldMessengerKey: appMessengerKey,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,

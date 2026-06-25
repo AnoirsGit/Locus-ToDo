@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/task/task.dart';
 import '../../shared/api/tags_api.dart';
 import '../../shared/api/tasks_api.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/app_toast.dart';
 import '../../shared/ui/rich_text_editor.dart';
 
 class TaskFormSheet extends ConsumerStatefulWidget {
@@ -138,7 +140,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       final taskId = widget.existingTask!.id;
       ref.read(tagsApiProvider).setTaskTags(taskId, _tagIds)
           .then((_) => ref.read(tagStoreProvider.notifier).setTaskTagsLocal(taskId, _tagIds))
-          .catchError((_) {});
+          .catchError((_) => AppToast.error(S.errorSaveFailed));
     }
 
     Navigator.pop(context);
@@ -235,7 +237,9 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
         'parentTaskId': widget.existingTask!.id,
       });
       if (mounted) setState(() => _subtasks = [..._subtasks, sub]);
-    } catch (_) {}
+    } catch (_) {
+      AppToast.error(S.errorSaveFailed);
+    }
   }
 
   Future<void> _toggleSubtask(String periodId) async {
@@ -251,6 +255,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       await ref.read(tasksApiProvider).toggleTask(periodId, newStatus);
     } catch (_) {
       if (mounted) setState(() { _subtasks[idx] = sub; });
+      AppToast.error(S.errorSaveFailed);
     }
   }
 
@@ -261,6 +266,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       await ref.read(tasksApiProvider).deleteTask(taskId);
     } catch (_) {
       if (mounted) setState(() => _subtasks = backup);
+      AppToast.error(S.errorDeleteFailed);
     }
   }
 

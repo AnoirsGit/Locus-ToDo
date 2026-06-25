@@ -220,6 +220,15 @@ class AppDatabase extends _$AppDatabase {
             attempts: const Value.absent(),
             nextRetryAt: Value(nextRetry),
           ));
+
+  /// Reactive total of all unsynced operations across both outboxes (task
+  /// toggles + note ops), regardless of backoff timing. Drives the Settings
+  /// "pending sync" indicator.
+  Stream<int> watchPendingSyncCount() => customSelect(
+        'SELECT (SELECT COUNT(*) FROM sync_outbox) + '
+        '(SELECT COUNT(*) FROM notes_outbox) AS c',
+        readsFrom: {syncOutbox, notesOutbox},
+      ).watchSingle().map((row) => row.read<int>('c'));
 }
 
 LazyDatabase _openConnection() {
@@ -235,3 +244,8 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   ref.onDispose(db.close);
   return db;
 });
+
+/// Number of operations queued in the outboxes waiting to reach the server.
+final pendingSyncCountProvider = StreamProvider<int>(
+  (ref) => ref.watch(appDatabaseProvider).watchPendingSyncCount(),
+);

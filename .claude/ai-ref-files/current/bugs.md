@@ -18,7 +18,9 @@ wrong stats `?today=`. Mobile uses local `DateTime.now()` components → web and
 disagree at night.
 - [x] Add `shared/lib/date.ts`: `localToday()`, `toLocalISO(d)` + `weekStartISO`/`monthStartISO`/`yearStartISO` (dedups Monday/month-start math from 4 components); reactive `clock.svelte.ts` (`clock.today`/`clock.now`/`refresh()`)
 - [x] Replace every `toISOString().split('T')[0]` call used as a *calendar date* (layout, today, stats, Sidebar, WeekView, DayColumn, TaskList, CreateTaskForm; stats string-math helpers kept — they parse ISO as UTC and format with `timeZone: 'UTC'`, correct)
-- [ ] Same helper on mobile for consistency (`shared/lib/date_utils.dart`) — deferred until B4 branch merges (same files)
+- [ ] Same helper on mobile for consistency (`shared/lib/date_utils.dart`) — OPTIONAL dedup
+  only: mobile already computes "today" from local `DateTime.now()` components (no
+  correctness gap — the UTC bug was web-only). Not done; pure refactor, low value.
 
 ### B2. Web cannot delete or replan tasks
 `tasksApi.remove` and `tasksApi.replan` exist in `entities/task/api/tasks.api.ts` but
@@ -33,16 +35,19 @@ once on mount. A tab/app left open across midnight or an hourly tick shows stale
 statuses; "today" never rolls over. No `visibilitychange` / `AppLifecycleState`
 handling anywhere.
 - [x] Web: on `document.visibilitychange` → visible (throttled ≥60 s since last load): `loadAll()` refetch in `(app)/+layout.svelte`
-- [ ] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`) — deferred until B4 branch merges (same files)
+- [x] Mobile: on `AppLifecycleState.resumed` (throttled ≥60 s) — `AppShell` is now a
+  `WidgetsBindingObserver`; invalidates `groupedTasksProvider` + `notesProvider` (active
+  view refetches + local "today"/week window recomputes on rebuild) and flushes both
+  outboxes (resume = connectivity likely back)
 - [x] Recompute "today"/week window on refetch — `clock.refresh()` in `loadAll()`; today page, Sidebar, WeekView now `$derived` from `clock`
 
 ### B4. Mobile errors are swallowed silently
 No `SnackBar`/`ScaffoldMessenger` usage in the entire app. `tasks_notifier.dart`,
 `sync_worker.dart`, notes notifier — all `catch (_) {}`. A failed create/toggle just
 silently reverts (or worse, doesn't).
-- [ ] Minimal toast service (`shared/ui/app_toast.dart`, ScaffoldMessenger-based) — mirror web `toastStore` semantics
-- [ ] Wire into task/notes/tags mutation error paths (non-auth failures), like web's API client does
-- [ ] Sync outbox: surface "N changes pending sync" + a failed-sync indicator (badge in app bar or settings row) — outbox exists, user has zero visibility
+- [x] Minimal toast service (`shared/ui/app_toast.dart`, ScaffoldMessenger-based via global `appMessengerKey`) — error/success/info, mirrors web `toastStore`
+- [x] Wire into task/tags mutation error paths (non-auth failures): `GroupedTasksNotifier` create/update/delete/replan/toggle (+ optimistic toggle rollback, 409→"archived periods" parity with web B2), `task_form_sheet` subtask add/toggle/delete, tag create/delete/assign. **Notes are offline-first** (`OfflineNotesApi` queues on failure, never throws) → surfaced via the sync badge, not toasts (a queued op is expected, not an error)
+- [x] Sync outbox: Settings "Sync" section — reactive `pendingSyncCountProvider` (counts `sync_outbox` + `notes_outbox`) shows "N changes pending sync" + "Sync now" button (flushes both workers); "All changes synced" when empty
 
 ---
 
@@ -76,5 +81,5 @@ Static checks pass (web `tsc` clean, `flutter analyze` clean); these need a runn
 - [x] B1: verified live via Playwright `timezoneId: 'Etc/GMT+12'` (local date ≠ UTC date at run time) — today header "11 ИЮН", day fetches start `periodStart=2026-06-11`, kanban highlights `data-date="2026-06-11"`, stats `?today=2026-06-11`. Mobile-agrees check pending (B4 merge).
 - [x] B3: dispatching `visibilitychange` inside the 60 s throttle → 0 requests; after 62 s → full 15-request refetch burst (10 day + week/month/year/backlog/archive)
 - [x] B2: archived task delete → 409 + localized inline message (screenshot); fresh task delete → 204, gone after reload; backlog replan → 200, card left backlog (3→2). Found+fixed along the way: web client sent `Content-Type: application/json` on body-less DELETEs → Fastify 400 `FST_ERR_CTP_EMPTY_JSON_BODY` — **no web DELETE ever reached the API before** (subtask delete included)
-- [ ] B4: kill API, toggle a task on mobile → toast appears, outbox badge increments; restart API → badge clears
+- [~] B4: implemented + `flutter analyze` clean (no new issues). Live QA pending (needs emulator + API): kill API, toggle a task on mobile → toast appears, outbox badge increments; restart API → "Sync now" clears badge
 - [ ] `pnpm typecheck` + `flutter analyze` clean on every branch (web branches: typecheck clean ✓)
