@@ -60,13 +60,18 @@ Remaining gaps are below, priority order.
 - Mobile `stats_page.dart`: snapshot cards (incl. a year card) + week/month
   `_TrendChart` — **no year history list, no prepended current row**.
 
-**Todo**
-- [ ] Add year history section (`data.yearHistory` is already in the API payload —
-      check `StatsDto` parsing in mobile; add the field if dropped).
-- [ ] Prepend the current week/month snapshot as the first trend row, visually marked
-      (web uses a `current` flag — replicate the emphasis).
-- [ ] Verify Consistency % vs Completion % split renders identically to web
-      (recurring vs non-recurring must never be mixed — product rule).
+**Todo** — DONE (branch `feat/mobile-stats-parity`)
+- [x] Year history section added (`data.yearHistory` was already parsed in `StatsResult` —
+      just never rendered). New "По годам" section, labelled by year, no current prepend
+      (matches web).
+- [x] Current week/month snapshot prepended as the first trend row, marked with a
+      "сейчас" pill + bold label (mirrors web's `current` flag / "now" badge). Rows
+      filtered to `total > 0 || current` like web.
+- [x] Faithful trend rendering: proper labels (week range / month / year), `done/total`
+      counts, and **threshold bar colours** (≥80 success / ≥50 warning / >0 danger) via
+      `_trendColor` — mirrors web `pctColor`. Consistency row uses the same threshold
+      colour; recurring (consistency) stays a separate section from completion (snapshot/
+      trends) — the split is preserved.
 
 ## Gap 4 — Kanban day columns: create is not date-bound, no quick add
 
