@@ -124,6 +124,8 @@ export const dictionaries = {
       empty: 'Чисто',
       no_tasks: 'Нет задач',
       keep_going: 'Продолжай в том же духе.',
+      no_match: 'Нет задач по этому фильтру',
+      clear_filter: 'Сбросить фильтр',
     },
     shortcuts: {
       title: 'Горячие клавиши',
@@ -257,6 +259,8 @@ export const dictionaries = {
       empty: 'Empty',
       no_tasks: 'No tasks',
       keep_going: 'Keep going.',
+      no_match: 'No tasks match this filter',
+      clear_filter: 'Clear filter',
     },
     shortcuts: {
       title: 'Keyboard shortcuts',

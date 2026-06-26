@@ -36,7 +36,7 @@ Bug-flavored bullets from sections C–F below were moved there too.
 ## E — Consistency & content
 
 - [ ] **E1. i18n unification** — single biggest consistency win; mobile plan already in `mobile-tasks-parity.md` Gap 5. Hardcoded-string leaks (web RU-in-EN, chip language mismatch, mobile AppBar title, date locale) are itemized in `bugs.md` — this item is the systematic sweep that closes them all
-- [ ] **Empty states** — good ones exist (notes, backlog); audit: archive, stats-no-data, filtered-to-empty (tag filter active → say "no tasks match the filter" + clear-filter action, web + mobile)
+- [~] **Empty states** — filtered-to-empty DONE on web: TaskList + today show "No tasks match this filter" + a Clear-filter button when `tagStore.isFiltering`. Mobile equivalent still pending; archive/stats-no-data already have copy.
 - [x] **Page titles (web)** — DONE: localized `<title>` in `(app)/+layout.svelte` per route; auth pages + root fallback; `NotePage` sets the note content as title
 
 ## F — Auth & session QoL

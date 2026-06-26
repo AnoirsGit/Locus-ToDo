@@ -119,6 +119,12 @@
             tags={tagStore.getTagsForTask(task.id)}
           />
         {/each}
+        {#if todayTasks.length === 0 && tagStore.isFiltering}
+          <div class="empty">
+            <p class="empty-title">{i18n.t('common.no_match')}</p>
+            <button class="btn ghost sm mt-2" onclick={() => tagStore.clearFilter()}>{i18n.t('common.clear_filter')}</button>
+          </div>
+        {/if}
         <button class="add-task-row" onclick={() => openCreate('day')}>
           + {i18n.t('action.add_today')}
         </button>

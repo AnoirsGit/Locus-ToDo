@@ -111,6 +111,11 @@
               tags={tagStore.getTagsForTask(task.id)}
             />
           {/each}
+        {:else if tagStore.isFiltering}
+          <div class="empty">
+            <p class="empty-title">{i18n.t('common.no_match')}</p>
+            <button class="btn ghost sm mt-2" onclick={() => tagStore.clearFilter()}>{i18n.t('common.clear_filter')}</button>
+          </div>
         {:else}
           <div class="empty">
             <p class="empty-title">{view === 'backlog' || view === 'archive' ? i18n.t('common.empty') : i18n.t('common.no_tasks')}</p>
