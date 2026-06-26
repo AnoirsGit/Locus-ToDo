@@ -15,15 +15,15 @@ Bug-flavored bullets from sections C–F below were moved there too.
 
 ## B — Feedback & loading states
 
-- [ ] **Skeleton loaders** — zero exist (grep: no skeleton/shimmer anywhere). Web: skeleton task cards for today/week/stats instead of the "Loading…" text line; mobile: same instead of bare `CircularProgressIndicator` (notes + tasks + stats)
+- [~] **Skeleton loaders** — WEB DONE (`Skeleton`/`TaskListSkeleton`/`StatsSkeleton`, wired into today/TaskList/stats). Mobile still pending (bare `CircularProgressIndicator` on notes + tasks + stats)
 - [ ] **Pull-to-refresh on mobile notes** — tasks/view have `RefreshIndicator`, notes page doesn't
-- [ ] **Double-submit guards** — audit all submit buttons; auth pages do it (`loading` flag), verify Create/Edit task forms and note inputs disable while a request is in flight
+- [~] **Double-submit guards** — DONE for task forms: CreateTaskForm now has a `submitting` flag; EditTaskForm closes synchronously before its background save (no window). Note inputs still unaudited.
 - [ ] **Optimistic-failure rollback consistency** — web notes rollback on create failure ✓; verify task toggle/create rollback on web + mobile and that the user sees a toast when it happens (ties to A4)
 
 ## C — Input & interaction (web)
 
-- [ ] **Global keyboard shortcuts**: `c`/`n` quick-add task on current view, `g t / g w / g m / g y` view navigation, `?` shortcut-help overlay. Only notes + modal-Escape have keys today
-- [ ] **Undo toasts** — after task delete (A2), note delete (notes-v2), and replan: 5-s toast with Undo (client-side re-create; no schema change)
+- [x] **Global keyboard shortcuts** — DONE: `c`/`n` quick-add on the active view (via `shared/lib/commands.svelte.ts` bus), `g`+`t/w/m/y/b/a/s/n` navigation, `?` help overlay (`ShortcutsHelp`); wired in `(app)/+layout.svelte`
+- [~] **Undo toasts** — task DELETE done (toast with Undo → client-side re-create in `EditTaskForm`). Replan-undo and note-delete-undo still pending.
 - [ ] **Drag-and-drop**: tasks between kanban day columns (`PATCH targetDate`/`periodStart` — API supports it); also covers notes via `notes-v2/05` N5
 - [ ] **Web-on-phone pass**: burger sidebar exists ✓, kanban drag-scroll ✓ — verify TaskModal usability at 360 px (sticky footer buttons, no horizontal overflow), tap targets ≥40 px in note rows
 
@@ -37,11 +37,11 @@ Bug-flavored bullets from sections C–F below were moved there too.
 
 - [ ] **E1. i18n unification** — single biggest consistency win; mobile plan already in `mobile-tasks-parity.md` Gap 5. Hardcoded-string leaks (web RU-in-EN, chip language mismatch, mobile AppBar title, date locale) are itemized in `bugs.md` — this item is the systematic sweep that closes them all
 - [ ] **Empty states** — good ones exist (notes, backlog); audit: archive, stats-no-data, filtered-to-empty (tag filter active → say "no tasks match the filter" + clear-filter action, web + mobile)
-- [ ] **Page titles (web)** — no `<svelte:head><title>` per route; add ("Today — Locus", etc.); note pages get note content as title
+- [x] **Page titles (web)** — DONE: localized `<title>` in `(app)/+layout.svelte` per route; auth pages + root fallback; `NotePage` sets the note content as title
 
 ## F — Auth & session QoL
 
-- [ ] **Return-to URL after login** — 401 hard-redirects to `/login` (`client.ts`) losing location; store intended path, redirect back after login
+- [x] **Return-to URL after login** — DONE: `client.ts` stores `returnTo` before the 401 redirect; login sends the user back (validated path), register clears it
 - [ ] **Login/register form polish** — show/hide password toggle, autofocus first field, min-length hint on register, localized error messages (currently hardcoded Russian fallback 'Неверный email или пароль')
 - [ ] **Graceful 401 during background refetch** (after `bugs.md` B3 lands) — don't yank the user to login from a background tab refresh failure without a toast
 
