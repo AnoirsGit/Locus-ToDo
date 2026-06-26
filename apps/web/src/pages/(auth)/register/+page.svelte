@@ -28,6 +28,8 @@
   }
 </script>
 
+<svelte:head><title>{i18n.t('auth.register')} — Locus</title></svelte:head>
+
 <div class="auth-wrap">
   <!-- Left panel -->
   <div class="auth-left">

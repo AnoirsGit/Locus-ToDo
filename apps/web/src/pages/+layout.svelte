@@ -6,4 +6,6 @@
   const { children }: Props = $props()
 </script>
 
+<svelte:head><title>Locus</title></svelte:head>
+
 {@render children()}

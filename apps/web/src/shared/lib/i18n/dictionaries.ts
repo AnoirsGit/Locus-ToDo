@@ -10,6 +10,8 @@ export const dictionaries = {
       backlog: 'Беклог',
       archive: 'Архив',
       settings: 'Настройки',
+      stats: 'Статистика',
+      notes: 'Заметки',
     },
     action: {
       add: 'Добавить задачу',
@@ -131,6 +133,8 @@ export const dictionaries = {
       backlog: 'Backlog',
       archive: 'Archive',
       settings: 'Settings',
+      stats: 'Stats',
+      notes: 'Notes',
     },
     action: {
       add: 'Add task',

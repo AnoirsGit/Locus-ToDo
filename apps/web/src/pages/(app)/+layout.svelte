@@ -34,6 +34,16 @@
   }
 
   const currentView = $derived(routeToView[$page.url.pathname] ?? 'day')
+
+  // Per-route document title (localized). A deeper page (e.g. a specific note)
+  // can override this with its own <svelte:head><title>.
+  const viewTitleKey: Record<AppView, string> = {
+    day: 'nav.today', week: 'nav.week', month: 'nav.month', year: 'nav.year',
+    backlog: 'nav.backlog', archive: 'nav.archive', settings: 'nav.settings',
+    stats: 'nav.stats', docs: 'nav.notes',
+  }
+  const pageTitle = $derived(i18n.t(viewTitleKey[currentView]))
+
   let isSidebarOpen = $state(false)
   let isViewDropdownOpen = $state(false)
 
@@ -148,6 +158,8 @@
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 </script>
+
+<svelte:head><title>{pageTitle} — Locus</title></svelte:head>
 
 <div class="app">
   <header class="mobile-header">
