@@ -76,7 +76,14 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (res.status === 401) {
     clearSession()
-    window.location.href = '/login'
+    // Remember where the user was so login can send them back.
+    if (typeof window !== 'undefined') {
+      const here = window.location.pathname + window.location.search
+      if (!here.startsWith('/login') && !here.startsWith('/register')) {
+        localStorage.setItem('returnTo', here)
+      }
+      window.location.href = '/login'
+    }
     throw new ApiError(401, 'Unauthorized')
   }
 

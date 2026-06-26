@@ -19,6 +19,7 @@
       localStorage.setItem('access_token', result.accessToken)
       localStorage.setItem('refresh_token', result.refreshToken)
       userStore.set(result.user)
+      localStorage.removeItem('returnTo')
       goto('/today')
     } catch (err: any) {
       error = err.message ?? i18n.t('auth.error_register')

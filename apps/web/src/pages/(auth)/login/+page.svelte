@@ -18,7 +18,9 @@
       localStorage.setItem('access_token', result.accessToken)
       localStorage.setItem('refresh_token', result.refreshToken)
       userStore.set(result.user)
-      goto('/today')
+      const returnTo = localStorage.getItem('returnTo')
+      localStorage.removeItem('returnTo')
+      goto(returnTo && returnTo.startsWith('/') && !returnTo.startsWith('/login') && !returnTo.startsWith('/register') ? returnTo : '/today')
     } catch (err: any) {
       error = err.message ?? i18n.t('auth.error_invalid')
     } finally {
