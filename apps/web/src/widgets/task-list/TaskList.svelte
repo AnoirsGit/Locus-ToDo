@@ -7,6 +7,7 @@
   import { toggleTask } from '$features/toggle-task'
   import { TaskModal } from '$widgets/task-modal'
   import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
+  import TaskListSkeleton from '$shared/ui/TaskListSkeleton.svelte'
 
   type Props = { view: TaskView }
   const { view }: Props = $props()
@@ -84,7 +85,7 @@
   </div>
 
   {#if taskStore.loading}
-    <div class="empty"><p class="text-muted">{i18n.t('action.loading')}</p></div>
+    <TaskListSkeleton />
   {:else}
 
     <!-- Primary tasks -->

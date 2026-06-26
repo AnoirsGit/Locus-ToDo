@@ -7,6 +7,7 @@
   import { clock } from '$shared/lib/clock.svelte'
   import { weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
+  import TaskListSkeleton from '$shared/ui/TaskListSkeleton.svelte'
   import { tagStore } from '$entities/tag'
 
   // ── Date ─────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@
   <div class="today-divider"></div>
 
   {#if taskStore.loading}
-    <div class="empty"><p class="text-muted">{i18n.t('action.loading')}</p></div>
+    <TaskListSkeleton count={6} />
   {:else}
 
     <!-- ── Progress ───────────────────────────────────────────────────────── -->

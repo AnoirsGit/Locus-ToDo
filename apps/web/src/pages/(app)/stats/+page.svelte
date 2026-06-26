@@ -3,6 +3,7 @@
   import { statsApi, type StatsData, type PeriodStat } from '$shared/api/stats.api'
   import { i18n } from '$shared/lib/i18n'
   import { localToday, weekStartISO, monthStartISO } from '$shared/lib/date'
+  import StatsSkeleton from '$shared/ui/StatsSkeleton.svelte'
 
   const NOW = new Date()
   const today = localToday()
@@ -104,7 +105,7 @@
   </div>
 
   {#if loading}
-    <div class="empty"><p class="text-muted">{i18n.t('action.loading')}</p></div>
+    <StatsSkeleton />
 
   {:else if error || !data}
     <div class="empty">
