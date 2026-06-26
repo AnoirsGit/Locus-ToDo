@@ -120,6 +120,12 @@ export const dictionaries = {
       empty: 'Чисто',
       no_tasks: 'Нет задач',
       keep_going: 'Продолжай в том же духе.',
+    },
+    shortcuts: {
+      title: 'Горячие клавиши',
+      create: 'Создать задачу',
+      go_prefix: 'Перейти к…',
+      help: 'Показать эту справку',
     }
   },
   en: {
@@ -243,6 +249,12 @@ export const dictionaries = {
       empty: 'Empty',
       no_tasks: 'No tasks',
       keep_going: 'Keep going.',
+    },
+    shortcuts: {
+      title: 'Keyboard shortcuts',
+      create: 'Create task',
+      go_prefix: 'Go to…',
+      help: 'Show this help',
     }
   }
 } as const;

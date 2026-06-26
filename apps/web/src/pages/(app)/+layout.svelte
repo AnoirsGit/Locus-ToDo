@@ -15,6 +15,8 @@
   import { page } from '$app/stores'
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
+  import { commands } from '$shared/lib/commands.svelte'
+  import ShortcutsHelp from '$shared/ui/ShortcutsHelp.svelte'
 
   type AppView = TaskView | 'settings' | 'stats' | 'docs'
 
@@ -43,6 +45,42 @@
     stats: 'nav.stats', docs: 'nav.notes',
   }
   const pageTitle = $derived(i18n.t(viewTitleKey[currentView]))
+
+  // ── Global keyboard shortcuts ──────────────────────────────────────────────
+  // c/n → create task on the active view; g then t/w/m/y/b/a/s/n → navigate; ? → help.
+  let helpOpen = $state(false)
+  let gPending = false
+  let gTimer: ReturnType<typeof setTimeout> | undefined
+
+  const routeForKey: Record<string, string> = {
+    t: '/today', w: '/week', m: '/month', y: '/year',
+    b: '/backlog', a: '/archive', s: '/stats', n: '/notes',
+  }
+
+  const handleShortcut = (e: KeyboardEvent) => {
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
+    const el = e.target as HTMLElement | null
+    if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return
+
+    if (e.key === '?') { e.preventDefault(); helpOpen = !helpOpen; return }
+    if (e.key === 'Escape' && helpOpen) { helpOpen = false; return }
+    if (helpOpen) return
+
+    if (gPending) {
+      gPending = false
+      clearTimeout(gTimer)
+      const route = routeForKey[e.key.toLowerCase()]
+      if (route) { e.preventDefault(); goto(route) }
+      return
+    }
+    if (e.key === 'g') {
+      gPending = true
+      clearTimeout(gTimer)
+      gTimer = setTimeout(() => { gPending = false }, 1200)
+      return
+    }
+    if (e.key === 'c' || e.key === 'n') { e.preventDefault(); commands.requestCreate() }
+  }
 
   let isSidebarOpen = $state(false)
   let isViewDropdownOpen = $state(false)
@@ -160,6 +198,7 @@
 </script>
 
 <svelte:head><title>{pageTitle} — Locus</title></svelte:head>
+<svelte:window onkeydown={handleShortcut} />
 
 <div class="app">
   <header class="mobile-header">
@@ -276,3 +315,7 @@
     </a>
   </nav>
 </div>
+
+{#if helpOpen}
+  <ShortcutsHelp onClose={() => (helpOpen = false)} />
+{/if}

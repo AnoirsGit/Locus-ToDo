@@ -8,6 +8,7 @@
   import { TaskModal } from '$widgets/task-modal'
   import TaskSection from '$widgets/week-view/ui/TaskSection.svelte'
   import TaskListSkeleton from '$shared/ui/TaskListSkeleton.svelte'
+  import { commands } from '$shared/lib/commands.svelte'
 
   type Props = { view: TaskView }
   const { view }: Props = $props()
@@ -39,6 +40,15 @@
       yearStartISO(now)
     modal = { mode: 'create', defaultLevel, defaultPeriodStart: periodStart }
   }
+
+  // Global "create task" shortcut (c/n) → open create when this view supports it.
+  let lastCreateTick = 0
+  $effect(() => {
+    if (commands.createTick !== lastCreateTick) {
+      lastCreateTick = commands.createTick
+      if (canCreate) openCreate()
+    }
+  })
 
   const VIEW_LABELS: Record<TaskView, { title: string; eyebrow: string }> = $derived({
     day:     { title: i18n.t('view.today'),   eyebrow: i18n.t('nav.today') },

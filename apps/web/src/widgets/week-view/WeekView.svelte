@@ -13,6 +13,7 @@
   import TaskSection from './ui/TaskSection.svelte'
   import DayColumn from './ui/DayColumn.svelte'
   import { dragScroll } from '$shared/lib/dragScroll'
+  import { commands } from '$shared/lib/commands.svelte'
 
   type ModalState =
     | { mode: 'create'; defaultLevel: TaskLevel; defaultPeriodStart: string }
@@ -91,6 +92,15 @@
   const handleQuickCreate = async (title: string, date: string) => {
     await createTask({ title, level: 'day', periodStart: date })
   }
+
+  // Global "create task" shortcut (c/n) → open a week-level create on this view.
+  let lastCreateTick = 0
+  $effect(() => {
+    if (commands.createTick !== lastCreateTick) {
+      lastCreateTick = commands.createTick
+      modal = { mode: 'create', defaultLevel: 'week', defaultPeriodStart: toISO(weekDays[0]) }
+    }
+  })
 </script>
 
 <div class="main-inner flex flex-col gap-0">
