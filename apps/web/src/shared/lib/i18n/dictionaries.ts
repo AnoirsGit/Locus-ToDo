@@ -86,6 +86,8 @@ export const dictionaries = {
       name_placeholder: 'Ваше имя',
       error_invalid: 'Неверный email или пароль',
       error_register: 'Не удалось зарегистрироваться',
+      show_password: 'Показать пароль',
+      hide_password: 'Скрыть пароль',
     },
     settings: {
       eyebrow: 'Профиль + настройки',
@@ -217,6 +219,8 @@ export const dictionaries = {
       name_placeholder: 'Your name',
       error_invalid: 'Invalid email or password',
       error_register: 'Could not create account',
+      show_password: 'Show password',
+      hide_password: 'Hide password',
     },
     settings: {
       eyebrow: 'Profile + settings',

@@ -3,6 +3,7 @@
   import { userStore } from '$entities/user'
   import { goto } from '$app/navigation'
   import { i18n } from '$shared/lib/i18n'
+  import PasswordInput from '$shared/ui/PasswordInput.svelte'
 
   let name     = $state('')
   let email    = $state('')
@@ -59,11 +60,13 @@
       <form onsubmit={handleSubmit}>
         <div class="auth-field">
           <label class="label" for="name">Имя</label>
+          <!-- svelte-ignore a11y_autofocus -->
           <input
             id="name"
             type="text"
             bind:value={name}
             required
+            autofocus
             autocomplete="name"
             placeholder="Как тебя зовут?"
             class="input"
@@ -85,15 +88,13 @@
 
         <div class="auth-field">
           <label class="label" for="password">Пароль</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             bind:value={password}
             required
             minlength={8}
             autocomplete="new-password"
             placeholder="Минимум 8 символов"
-            class="input"
           />
         </div>
 
