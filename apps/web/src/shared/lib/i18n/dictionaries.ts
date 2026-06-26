@@ -38,6 +38,8 @@ export const dictionaries = {
       saved: 'Сохранено',
       save_error: 'Ошибка сохранения',
       discard_confirm: 'Закрыть без сохранения? Несохранённые изменения будут потеряны.',
+      deleted: 'Задача удалена',
+      undo: 'Отменить',
     },
     outcome: {
       on_time: 'Выполнено вовремя',
@@ -167,6 +169,8 @@ export const dictionaries = {
       saved: 'Saved',
       save_error: 'Failed to save',
       discard_confirm: 'Discard unsaved changes?',
+      deleted: 'Task deleted',
+      undo: 'Undo',
     },
     outcome: {
       on_time: 'Done on time',
