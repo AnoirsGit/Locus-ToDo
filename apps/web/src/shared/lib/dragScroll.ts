@@ -10,7 +10,8 @@ export function dragScroll(node: HTMLElement) {
 
   const onDown = (e: PointerEvent) => {
     if (e.pointerType === 'touch') return // let browser handle touch natively
-    if ((e.target as Element).closest('button, a, input, textarea, select')) return
+    // Ignore interactive elements and draggable cards (native HTML5 drag handles those).
+    if ((e.target as Element).closest('button, a, input, textarea, select, [draggable="true"]')) return
 
     active = true
     startX = e.clientX

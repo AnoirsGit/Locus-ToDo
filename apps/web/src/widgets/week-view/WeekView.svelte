@@ -1,5 +1,6 @@
 <script lang="ts">
   import { taskStore } from '$entities/task'
+  import { tasksApi } from '$entities/task'
   import { tagStore } from '$entities/tag'
   import type { TaskLevel, TaskWithPeriod } from '$entities/task'
   import { toggleTask } from '$features/toggle-task'
@@ -93,6 +94,19 @@
     await createTask({ title, level: 'day', periodStart: date })
   }
 
+  // Drag-and-drop in the kanban: reassign a week task's target day (optimistic + PATCH).
+  const handleDropTask = async (periodId: string, targetDate: string) => {
+    const t = taskStore.items.find((x) => x.period.id === periodId)
+    if (!t || t.level !== 'week' || t.period.targetDate === targetDate) return
+    const prev = t.period.targetDate
+    taskStore.updatePeriod(periodId, { targetDate })
+    try {
+      await tasksApi.update(t.id, { targetDate })
+    } catch {
+      taskStore.updatePeriod(periodId, { targetDate: prev }) // revert; client already toasted
+    }
+  }
+
   // Global "create task" shortcut (c/n) → open a week-level create on this view.
   let lastCreateTick = 0
   $effect(() => {
@@ -123,6 +137,7 @@
             onEdit={(t) => { modal = { mode: 'edit', task: t } }}
             onQuickCreate={handleQuickCreate}
             onOpenModal={(date) => { modal = { mode: 'create', defaultLevel: 'day', defaultPeriodStart: date } }}
+            onDropTask={handleDropTask}
           />
         {/each}
       </div>

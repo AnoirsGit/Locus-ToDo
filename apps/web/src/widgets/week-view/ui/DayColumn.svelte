@@ -5,14 +5,15 @@
   import { i18n } from '$shared/lib/i18n';
   import { toLocalISO } from '$shared/lib/date';
 
-  let { 
-    day, 
-    tasks, 
-    isToday, 
-    onToggle, 
-    onEdit, 
+  let {
+    day,
+    tasks,
+    isToday,
+    onToggle,
+    onEdit,
     onQuickCreate,
-    onOpenModal
+    onOpenModal,
+    onDropTask
   } = $props<{
     day: Date;
     tasks: TaskWithPeriod[];
@@ -21,10 +22,32 @@
     onEdit: (task: TaskWithPeriod) => void;
     onQuickCreate: (title: string, date: string) => Promise<void>;
     onOpenModal: (date: string) => void;
+    onDropTask: (periodId: string, date: string) => void;
   }>();
 
   let quickCreateActive = $state(false);
   let quickTitle = $state('');
+  let dragOver = $state(false);
+
+  // Only week-level tasks can be re-dropped onto another day (their targetDate is
+  // editable via the API). Day tasks have no periodStart update path, so they don't drag.
+  const onCardDragStart = (e: DragEvent, periodId: string) => {
+    e.dataTransfer?.setData('text/plain', periodId);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const onColDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    dragOver = true;
+  };
+
+  const onColDrop = (e: DragEvent) => {
+    e.preventDefault();
+    dragOver = false;
+    const periodId = e.dataTransfer?.getData('text/plain');
+    if (periodId) onDropTask(periodId, dateKey);
+  };
   
   const dateKey = $derived(toLocalISO(day));
   const dowLabel = $derived(new Intl.DateTimeFormat(i18n.locale, { weekday: 'short' }).format(day));
@@ -44,20 +67,45 @@
   }
 </script>
 
-<div class="day-col w-[85vw] md:w-52 shrink-0" data-date={dateKey}>
+<div
+  class="day-col w-[85vw] md:w-52 shrink-0"
+  class:drag-over={dragOver}
+  data-date={dateKey}
+  role="list"
+  ondragover={onColDragOver}
+  ondragleave={() => (dragOver = false)}
+  ondrop={onColDrop}
+>
   <div class="day-col-header" class:today={isToday}>
     <span class="day-col-dow">{dowLabel}</span>
     <span class="day-col-num" class:today={isToday}>{day.getDate()}</span>
   </div>
   <div class="day-col-body">
     {#each tasks as task (task.period.id)}
-      <TaskCard
-        {task}
-        onToggle={onToggle}
-        onEdit={onEdit}
-        showLevel={false}
-        tags={tagStore.getTagsForTask(task.id)}
-      />
+      {#if task.level === 'week'}
+        <div
+          class="kanban-draggable"
+          draggable="true"
+          role="listitem"
+          ondragstart={(e) => onCardDragStart(e, task.period.id)}
+        >
+          <TaskCard
+            {task}
+            onToggle={onToggle}
+            onEdit={onEdit}
+            showLevel={false}
+            tags={tagStore.getTagsForTask(task.id)}
+          />
+        </div>
+      {:else}
+        <TaskCard
+          {task}
+          onToggle={onToggle}
+          onEdit={onEdit}
+          showLevel={false}
+          tags={tagStore.getTagsForTask(task.id)}
+        />
+      {/if}
     {/each}
 
     {#if quickCreateActive}
@@ -91,3 +139,14 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .day-col.drag-over {
+    outline: 2px dashed var(--color-day);
+    outline-offset: -2px;
+    border-radius: 8px;
+    background: var(--color-day-tint);
+  }
+  .kanban-draggable { cursor: grab; }
+  .kanban-draggable:active { cursor: grabbing; }
+</style>
