@@ -79,7 +79,15 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
     // Remember where the user was so login can send them back.
     if (typeof window !== 'undefined') {
       const here = window.location.pathname + window.location.search
-      if (!here.startsWith('/login') && !here.startsWith('/register')) {
+      // pathname always starts with a single '/', but guard against protocol-relative
+      // forms anyway so the stored value can never become an off-site redirect.
+      if (
+        here.startsWith('/') &&
+        !here.startsWith('//') &&
+        !here.startsWith('/\\') &&
+        !here.startsWith('/login') &&
+        !here.startsWith('/register')
+      ) {
         localStorage.setItem('returnTo', here)
       }
       window.location.href = '/login'

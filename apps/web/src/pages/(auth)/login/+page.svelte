@@ -20,7 +20,15 @@
       userStore.set(result.user)
       const returnTo = localStorage.getItem('returnTo')
       localStorage.removeItem('returnTo')
-      goto(returnTo && returnTo.startsWith('/') && !returnTo.startsWith('/login') && !returnTo.startsWith('/register') ? returnTo : '/today')
+      // Only allow same-origin in-app paths (reject protocol-relative // and /\ to avoid open redirect).
+      const safe =
+        !!returnTo &&
+        returnTo.startsWith('/') &&
+        !returnTo.startsWith('//') &&
+        !returnTo.startsWith('/\\') &&
+        !returnTo.startsWith('/login') &&
+        !returnTo.startsWith('/register')
+      goto(safe ? returnTo! : '/today')
     } catch (err: any) {
       error = err.message ?? i18n.t('auth.error_invalid')
     } finally {
