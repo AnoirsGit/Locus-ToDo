@@ -24,7 +24,7 @@ Bug-flavored bullets from sections C–F below were moved there too.
 
 - [x] **Global keyboard shortcuts** — DONE: `c`/`n` quick-add on the active view (via `shared/lib/commands.svelte.ts` bus), `g`+`t/w/m/y/b/a/s/n` navigation, `?` help overlay (`ShortcutsHelp`); wired in `(app)/+layout.svelte`
 - [~] **Undo toasts** — task DELETE done (toast with Undo → client-side re-create in `EditTaskForm`). Replan-undo and note-delete-undo still pending.
-- [ ] **Drag-and-drop**: tasks between kanban day columns (`PATCH targetDate`/`periodStart` — API supports it); also covers notes via `notes-v2/05` N5
+- [~] **Drag-and-drop**: DONE for kanban day columns — week tasks drag between days (`PATCH /tasks/:id { targetDate }`, optimistic + revert). Day tasks don't drag: no `periodStart` update path in the API (only `status` on `/task-periods`). Notes DnD (notes-v2 N5) still separate.
 - [ ] **Web-on-phone pass**: burger sidebar exists ✓, kanban drag-scroll ✓ — verify TaskModal usability at 360 px (sticky footer buttons, no horizontal overflow), tap targets ≥40 px in note rows
 
 ## D — Interaction polish (mobile)
