@@ -43,34 +43,43 @@
     return yearStartISO(now)
   }
 
+  let submitting = $state(false)
+
   const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    // Guard against double submit (Enter + click, or repeated Ctrl+Enter) while in flight.
+    if (submitting || !title.trim()) return
+    submitting = true
 
     const dom = dayOfMonth ? parseInt(dayOfMonth) : undefined
 
-    const item = await createTask({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      level,
-      periodStart: computePeriodStart(),
-      scheduledTime: scheduledTime || undefined,
-      targetDate: level === 'week' && targetDate ? targetDate : undefined,
-      deadlineMonth: level === 'year' && deadlineMonth ? parseInt(deadlineMonth) : undefined,
-      recurringConfig: recurring
-        ? {
-            isActive: true,
-            daysOfWeek: level === 'week' && daysOfWeek.length > 0 ? daysOfWeek : undefined,
-            dayOfMonth: level === 'month' ? dom : undefined,
-          }
-        : undefined,
-    })
+    try {
+      const item = await createTask({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        level,
+        periodStart: computePeriodStart(),
+        scheduledTime: scheduledTime || undefined,
+        targetDate: level === 'week' && targetDate ? targetDate : undefined,
+        deadlineMonth: level === 'year' && deadlineMonth ? parseInt(deadlineMonth) : undefined,
+        recurringConfig: recurring
+          ? {
+              isActive: true,
+              daysOfWeek: level === 'week' && daysOfWeek.length > 0 ? daysOfWeek : undefined,
+              dayOfMonth: level === 'month' ? dom : undefined,
+            }
+          : undefined,
+      })
 
-    if (tagIds.length > 0) {
-      tagsApi.setTaskTags(item.id, tagIds).then(() => tagStore.setTaskTagsLocal(item.id, tagIds)).catch(() => {})
+      if (tagIds.length > 0) {
+        tagsApi.setTaskTags(item.id, tagIds).then(() => tagStore.setTaskTagsLocal(item.id, tagIds)).catch(() => {})
+      }
+
+      onSuccess?.()
+    } catch {
+      // API client already surfaces the error toast; keep the form open to retry.
+      submitting = false
     }
-
-    onSuccess?.()
   }
 </script>
 
@@ -86,6 +95,6 @@
   />
   <div class="modal-footer">
     <button type="button" onclick={onCancel} class="btn ghost">{i18n.t('action.cancel')}</button>
-    <button type="submit" disabled={!title.trim()} class="btn primary">{i18n.t('action.create')}</button>
+    <button type="submit" disabled={submitting || !title.trim()} class="btn primary">{submitting ? i18n.t('action.saving') : i18n.t('action.create')}</button>
   </div>
 </form>
