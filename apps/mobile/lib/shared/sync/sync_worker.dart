@@ -68,3 +68,9 @@ final syncWorkerProvider = Provider<SyncWorker>(
     ref.watch(tasksApiProvider),
   ),
 );
+
+/// Reactive count of pending task-toggle outbox entries.
+/// Drives the sync-pending banner in [AppShell].
+final outboxCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).watchPendingOutboxCount();
+});

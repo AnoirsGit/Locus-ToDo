@@ -5,6 +5,7 @@ import '../../shared/db/local_task_repository.dart';
 import '../../shared/sync/sync_worker.dart';
 import '../../shared/notifications/notification_service.dart';
 import '../../shared/notifications/notification_prefs.dart';
+import '../../shared/ui/app_toast.dart';
 import 'task.dart';
 
 class TasksNotifier extends FamilyAsyncNotifier<List<TaskWithPeriod>, String?> {
@@ -82,17 +83,35 @@ class TasksNotifier extends FamilyAsyncNotifier<List<TaskWithPeriod>, String?> {
   }
 
   Future<void> createTask(Map<String, dynamic> data) async {
-    await _api.createTask(data);
-    await refresh();
+    try {
+      await _api.createTask(data);
+    } catch (_) {
+      ref.read(appToastProvider.notifier).show('Не удалось создать задачу');
+      return;
+    }
+    try { await refresh(); } catch (_) {}
   }
 
   Future<void> updateTask(String id, Map<String, dynamic> data) async {
-    await _api.updateTask(id, data);
-    await refresh();
+    try {
+      await _api.updateTask(id, data);
+    } catch (_) {
+      ref.read(appToastProvider.notifier).show('Не удалось сохранить задачу');
+      return;
+    }
+    try { await refresh(); } catch (_) {}
   }
 
   Future<void> deleteTask(String id) async {
-    await _api.deleteTask(id);
+    try {
+      await _api.deleteTask(id);
+    } catch (e) {
+      final msg = e.toString().contains('409')
+          ? 'Нельзя удалить: задача имеет архивные периоды'
+          : 'Не удалось удалить задачу';
+      ref.read(appToastProvider.notifier).show(msg);
+      return;
+    }
     if (state.hasValue) {
       state = AsyncData(state.value!.where((t) => t.id != id).toList());
     }

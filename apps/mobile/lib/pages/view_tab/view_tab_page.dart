@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../entities/task/grouped_tasks_notifier.dart';
 import '../../entities/task/task.dart';
+import '../../entities/task/ui/tag_filter_bar.dart';
 import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
+import '../../shared/providers/tag_store.dart';
 import '../../shared/providers/view_provider.dart';
 import '../../shared/theme/theme.dart';
 
@@ -239,7 +241,7 @@ class _ViewDropdown extends StatelessWidget {
 // TODAY BODY
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _TodayBody extends StatelessWidget {
+class _TodayBody extends ConsumerWidget {
   final GroupedTasks data;
   final void Function(TaskWithPeriod) onToggle;
   final void Function(TaskWithPeriod) onEdit;
@@ -280,10 +282,15 @@ class _TodayBody extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final total = data.primary.length;
-    final done = data.primary.where((t) => t.period.status == TaskStatus.done).length;
-    final overdue = data.primary.where((t) => t.period.status == TaskStatus.overdue).length;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tagState = ref.watch(tagStoreProvider);
+    final filtered = tagState.filterTasks(data.primary, (t) => t.id);
+    final filteredWeek = tagState.filterTasks(data.week, (t) => t.id);
+    final filteredMonth = tagState.filterTasks(data.month, (t) => t.id);
+    final filteredYear = tagState.filterTasks(data.year, (t) => t.id);
+    final total = filtered.length;
+    final done = filtered.where((t) => t.period.status == TaskStatus.done).length;
+    final overdue = filtered.where((t) => t.period.status == TaskStatus.overdue).length;
     final pct = total == 0 ? 0.0 : done / total;
 
     return ListView(
@@ -431,8 +438,16 @@ class _TodayBody extends StatelessWidget {
             ),
           ),
 
+        // ── Tag filter ───────────────────────────────────────────────────
+        if (tagState.tags.isNotEmpty)
+          TagFilterBar(
+            tagState: tagState,
+            onToggle: (id) => ref.read(tagStoreProvider.notifier).toggleFilterTag(id),
+            onClear: () => ref.read(tagStoreProvider.notifier).clearFilter(),
+          ),
+
         // ── Day tasks ────────────────────────────────────────────────────
-        ...data.primary.map((task) => TaskCard(
+        ...filtered.map((task) => TaskCard(
               task: task,
               onToggle: () => onToggle(task),
               onEdit: () => onEdit(task),
@@ -468,26 +483,26 @@ class _TodayBody extends StatelessWidget {
         const SizedBox(height: 8),
 
         // ── Context sections ─────────────────────────────────────────────
-        if (data.week.isNotEmpty)
+        if (filteredWeek.isNotEmpty)
           _CollapsibleSection(
             title: 'Цели недели · контекст',
-            tasks: data.week,
+            tasks: filteredWeek,
             storageKey: 'today:week',
             onToggle: onToggle,
             onEdit: onEdit,
           ),
-        if (data.month.isNotEmpty)
+        if (filteredMonth.isNotEmpty)
           _CollapsibleSection(
             title: 'Цели месяца · контекст',
-            tasks: data.month,
+            tasks: filteredMonth,
             storageKey: 'today:month',
             onToggle: onToggle,
             onEdit: onEdit,
           ),
-        if (data.year.isNotEmpty)
+        if (filteredYear.isNotEmpty)
           _CollapsibleSection(
             title: 'Цели года · контекст',
-            tasks: data.year,
+            tasks: filteredYear,
             storageKey: 'today:year',
             onToggle: onToggle,
             onEdit: onEdit,
@@ -501,7 +516,7 @@ class _TodayBody extends StatelessWidget {
 // WEEK KANBAN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _WeekKanban extends StatelessWidget {
+class _WeekKanban extends ConsumerWidget {
   final GroupedTasks data;
   final List<TaskWithPeriod> dayTasks;
   final int weekOffset;
@@ -541,7 +556,12 @@ class _WeekKanban extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tagState = ref.watch(tagStoreProvider);
+    final filteredWeek = tagState.filterTasks(data.primary, (t) => t.id);
+    final filteredDay = tagState.filterTasks(dayTasks, (t) => t.id);
+    final filteredMonth = tagState.filterTasks(data.month, (t) => t.id);
+    final filteredYear = tagState.filterTasks(data.year, (t) => t.id);
     final now = DateTime.now();
     final monday = _monday;
     final days = List.generate(7, (i) => monday.add(Duration(days: i)));
@@ -550,7 +570,7 @@ class _WeekKanban extends StatelessWidget {
     final Map<String, List<TaskWithPeriod>> byDay = {};
     final List<TaskWithPeriod> unassigned = [];
 
-    for (final task in data.primary) {
+    for (final task in filteredWeek) {
       final td = task.period.targetDate?.split('T')[0];
       if (td != null) {
         byDay[td] = [...(byDay[td] ?? []), task];
@@ -560,7 +580,7 @@ class _WeekKanban extends StatelessWidget {
     }
 
     // Add day-level tasks into columns by their periodStart date
-    for (final task in dayTasks) {
+    for (final task in filteredDay) {
       final dateStr = task.period.periodStart.toIso8601String().split('T')[0];
       byDay[dateStr] = [...(byDay[dateStr] ?? []), task];
     }
@@ -694,19 +714,27 @@ class _WeekKanban extends StatelessWidget {
           addButton: onCreate,
         ),
 
+        // ── Tag filter ───────────────────────────────────────────────────
+        if (tagState.tags.isNotEmpty)
+          TagFilterBar(
+            tagState: tagState,
+            onToggle: (id) => ref.read(tagStoreProvider.notifier).toggleFilterTag(id),
+            onClear: () => ref.read(tagStoreProvider.notifier).clearFilter(),
+          ),
+
         // ── Context sections ─────────────────────────────────────────────
-        if (data.month.isNotEmpty)
+        if (filteredMonth.isNotEmpty)
           _CollapsibleSection(
             title: 'Задачи месяца · контекст',
-            tasks: data.month,
+            tasks: filteredMonth,
             storageKey: 'week:month',
             onToggle: onToggle,
             onEdit: onEdit,
           ),
-        if (data.year.isNotEmpty)
+        if (filteredYear.isNotEmpty)
           _CollapsibleSection(
             title: 'Задачи года · контекст',
-            tasks: data.year,
+            tasks: filteredYear,
             storageKey: 'week:year',
             onToggle: onToggle,
             onEdit: onEdit,
@@ -1036,7 +1064,7 @@ class _MiniTaskCard extends StatelessWidget {
 // GENERIC BODY (Month / Year)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _GenericBody extends StatelessWidget {
+class _GenericBody extends ConsumerWidget {
   final String view;
   final GroupedTasks data;
   final void Function(TaskWithPeriod) onToggle;
@@ -1057,7 +1085,12 @@ class _GenericBody extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tagState = ref.watch(tagStoreProvider);
+    final filtered = tagState.filterTasks(data.primary, (t) => t.id);
+    final filteredWeek = tagState.filterTasks(data.week, (t) => t.id);
+    final filteredMonth = tagState.filterTasks(data.month, (t) => t.id);
+    final filteredYear = tagState.filterTasks(data.year, (t) => t.id);
     final (eyebrow, title) = _headers[view] ?? ('', view);
 
     return ListView(
@@ -1088,13 +1121,20 @@ class _GenericBody extends StatelessWidget {
         Divider(color: context.colorBorder, indent: 20, endIndent: 20),
         const SizedBox(height: 8),
 
-        ...data.primary.map((task) => TaskCard(
+        if (tagState.tags.isNotEmpty)
+          TagFilterBar(
+            tagState: tagState,
+            onToggle: (id) => ref.read(tagStoreProvider.notifier).toggleFilterTag(id),
+            onClear: () => ref.read(tagStoreProvider.notifier).clearFilter(),
+          ),
+
+        ...filtered.map((task) => TaskCard(
               task: task,
               onToggle: () => onToggle(task),
               onEdit: () => onEdit(task),
             )),
 
-        if (data.primary.isEmpty)
+        if (filtered.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Column(
@@ -1112,26 +1152,26 @@ class _GenericBody extends StatelessWidget {
             ),
           ),
 
-        if (data.week.isNotEmpty)
+        if (filteredWeek.isNotEmpty)
           _CollapsibleSection(
             title: 'Задачи недели',
-            tasks: data.week,
+            tasks: filteredWeek,
             storageKey: '$view:week',
             onToggle: onToggle,
             onEdit: onEdit,
           ),
-        if (data.month.isNotEmpty)
+        if (filteredMonth.isNotEmpty)
           _CollapsibleSection(
             title: 'Задачи месяца',
-            tasks: data.month,
+            tasks: filteredMonth,
             storageKey: '$view:month',
             onToggle: onToggle,
             onEdit: onEdit,
           ),
-        if (data.year.isNotEmpty)
+        if (filteredYear.isNotEmpty)
           _CollapsibleSection(
             title: 'Задачи года',
-            tasks: data.year,
+            tasks: filteredYear,
             storageKey: '$view:year',
             onToggle: onToggle,
             onEdit: onEdit,

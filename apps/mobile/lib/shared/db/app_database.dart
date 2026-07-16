@@ -220,6 +220,10 @@ class AppDatabase extends _$AppDatabase {
             attempts: const Value.absent(),
             nextRetryAt: Value(nextRetry),
           ));
+
+  /// Reactive count of all pending task-toggle outbox entries.
+  Stream<int> watchPendingOutboxCount() =>
+      (select(syncOutbox)).watch().map((rows) => rows.length);
 }
 
 LazyDatabase _openConnection() {

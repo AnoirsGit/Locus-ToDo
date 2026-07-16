@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/api/notes_api.dart';
 import '../../../shared/api/offline_notes_api.dart';
 import '../../../shared/sync/notes_sync_worker.dart';
+import '../../../shared/ui/app_toast.dart';
 import 'note_node.dart';
 
 class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
@@ -146,7 +147,9 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
 
     _api
         .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
-        .ignore();
+        .catchError((_) {
+      ref.read(appToastProvider.notifier).show('Не удалось создать заметку');
+    });
   }
 
   void addRoot({String? underRootId}) {
@@ -159,7 +162,9 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     state = AsyncData([..._nodes, fresh]);
     _api
         .create(id: fresh.id, parentId: null, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
-        .ignore();
+        .catchError((_) {
+      ref.read(appToastProvider.notifier).show('Не удалось создать заметку');
+    });
   }
 
   void addAfter(String id) {
@@ -178,7 +183,9 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     }
     _api
         .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: (idx + 1) * 10)
-        .ignore();
+        .catchError((_) {
+      ref.read(appToastProvider.notifier).show('Не удалось создать заметку');
+    });
   }
 
   void indent(String id) {
@@ -350,6 +357,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     }()
         .catchError((_) {
       state = AsyncData(_removeNode(_nodes, clone.id));
+      ref.read(appToastProvider.notifier).show('Не удалось дублировать заметку');
     });
   }
 
@@ -392,7 +400,9 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
   void removeNote(String id) {
     _cancelDebounce(id);
     state = AsyncData(_removeNode(_nodes, id));
-    _api.delete(id).catchError((_) {});
+    _api.delete(id).catchError((_) {
+      ref.read(appToastProvider.notifier).show('Не удалось удалить заметку');
+    });
   }
 
   void deleteMultiple(Set<String> ids) {
@@ -403,7 +413,9 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     }
     state = AsyncData(nodes);
     for (final id in ids) {
-      _api.delete(id).catchError((_) {});
+      _api.delete(id).catchError((_) {
+        ref.read(appToastProvider.notifier).show('Не удалось удалить заметку');
+      });
     }
   }
 
