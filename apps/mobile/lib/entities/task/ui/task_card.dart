@@ -5,6 +5,7 @@ import '../../../shared/theme/theme.dart';
 import '../../../shared/providers/tag_store.dart';
 import '../task.dart';
 import 'task_level_badge.dart';
+import 'subtask_checklist.dart';
 
 class TaskCard extends ConsumerWidget {
   final TaskWithPeriod task;
@@ -226,6 +227,10 @@ class TaskCard extends ConsumerWidget {
                       }).toList(),
                     ),
                   ],
+
+                  // Subtask expander — hidden for archived and backlog cards
+                  if (!isArchived && task.period.status != TaskStatus.backlog)
+                    _SubtaskSection(task: task),
                 ],
               ),
             ),
@@ -296,6 +301,60 @@ Color _parseHexColor(String hex) {
   final h = hex.replaceFirst('#', '');
   final value = int.tryParse(h.length == 6 ? 'FF$h' : h, radix: 16);
   return value != null ? Color(value) : const Color(0xFF888888);
+}
+
+// ── Subtask expander ─────────────────────────────────────────────────────────
+
+class _SubtaskSection extends ConsumerStatefulWidget {
+  final TaskWithPeriod task;
+  const _SubtaskSection({required this.task});
+
+  @override
+  ConsumerState<_SubtaskSection> createState() => _SubtaskSectionState();
+}
+
+class _SubtaskSectionState extends ConsumerState<_SubtaskSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() => _expanded = !_expanded);
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  size: 14,
+                  color: context.colorMuted,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  'Подзадачи',
+                  style: TextStyle(fontSize: 11, color: context.colorMuted),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded)
+          SubtaskChecklist(
+            parentTaskId: widget.task.id,
+            parentLevel: widget.task.level,
+            parentPeriodStart: widget.task.period.periodStart,
+          ),
+      ],
+    );
+  }
 }
 
 class _MetaChip extends StatelessWidget {
