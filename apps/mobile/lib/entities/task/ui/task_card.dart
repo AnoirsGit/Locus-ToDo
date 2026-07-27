@@ -29,6 +29,47 @@ class TaskCard extends ConsumerWidget {
     'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
   ];
 
+  static const _monthNamesFull = [
+    '', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+    'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+  ];
+
+  /// Period label shown on backlog/archive cards — mirrors web's
+  /// `fmt`/`fmtMonth`/`fmtYear` (TaskCard.svelte).
+  String _periodLabel() {
+    final start = task.period.periodStart;
+    final end = task.period.periodEnd;
+    switch (task.level) {
+      case TaskLevel.day:
+        return '${start.day} ${_monthNames[start.month]}';
+      case TaskLevel.week:
+        return '${start.day} ${_monthNames[start.month]} – ${end.day} ${_monthNames[end.month]}';
+      case TaskLevel.month:
+        return '${_monthNamesFull[start.month]} ${start.year}';
+      case TaskLevel.year:
+        return '${start.year}';
+    }
+  }
+
+  String? _doneAtLabel() {
+    if (task.period.status != TaskStatus.archived) return null;
+    final d = task.period.doneAt;
+    if (d == null) return null;
+    return '${d.day} ${_monthNames[d.month]} ${d.year}';
+  }
+
+  String? _backlogAge() {
+    if (task.period.status != TaskStatus.backlog) return null;
+    final backlogAt = task.period.backlogAt;
+    if (backlogAt == null) return null;
+    final days = DateTime.now().difference(backlogAt).inDays;
+    if (days <= 0) return 'сегодня';
+    if (days == 1) return 'день назад';
+    if (days < 30) return '$days дней назад';
+    final months = (days / 30).floor();
+    return '$months мес. назад';
+  }
+
   String? _recurringLabel() {
     final r = task.recurringConfig;
     if (r == null) return null;
@@ -75,7 +116,10 @@ class TaskCard extends ConsumerWidget {
     final isDone = task.period.status == TaskStatus.done;
     final isOverdue = task.period.status == TaskStatus.overdue;
     final isArchived = task.period.status == TaskStatus.archived;
+    final isBacklog = task.period.status == TaskStatus.backlog;
     final archiveOutcome = _archiveOutcome();
+    final doneAtLabel = _doneAtLabel();
+    final backlogAge = _backlogAge();
 
     final recurringLabel = _recurringLabel();
     final targetDayLabel = _targetDayLabel();
@@ -175,12 +219,15 @@ class TaskCard extends ConsumerWidget {
                     children: [
                       if (showLevel) TaskLevelBadge(level: task.level),
                       if (isArchived) ...[
+                        _MetaChip(_periodLabel(), color: context.colorMuted),
                         if (archiveOutcome == 'ontime')
                           _MetaChip('✓ выполнено', color: context.colorSuccess),
                         if (archiveOutcome == 'late')
                           _MetaChip('✓ с опозданием', color: context.colorYear),
                         if (archiveOutcome == 'failed')
                           _MetaChip('✗ не выполнено', color: context.colorDanger),
+                        if (doneAtLabel != null)
+                          _MetaChip('· $doneAtLabel', color: context.colorMuted),
                       ] else ...[
                         if (recurringLabel != null)
                           _MetaChip(recurringLabel, color: context.colorMuted)
@@ -194,6 +241,11 @@ class TaskCard extends ConsumerWidget {
                           _MetaChip(deadlineLabel, color: context.colorMuted),
                         if (isOverdue)
                           _MetaChip('просрочено', color: context.colorWarning),
+                        if (isBacklog) ...[
+                          _MetaChip(_periodLabel(), color: context.colorMuted),
+                          if (backlogAge != null)
+                            _MetaChip('· $backlogAge', color: context.colorMuted),
+                        ],
                       ],
                     ],
                   ),
