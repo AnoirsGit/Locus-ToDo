@@ -187,8 +187,8 @@ class TaskCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    task.title,
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -196,6 +196,7 @@ class TaskCard extends ConsumerWidget {
                       decoration: (isDone || isArchived) ? TextDecoration.lineThrough : null,
                       decorationColor: context.colorMuted2,
                     ),
+                    child: Text(task.title),
                   ),
                   if (task.description != null && task.description!.isNotEmpty) ...[
                     const SizedBox(height: 3),
