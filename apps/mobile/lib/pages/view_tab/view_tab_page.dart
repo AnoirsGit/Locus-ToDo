@@ -10,6 +10,7 @@ import '../../pages/app_shell.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/providers/view_provider.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/skeleton.dart';
 
 // ── View tab page ──────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
         child: const Icon(Icons.add),
       ),
       body: grouped.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const TaskListSkeleton(),
         error: (err, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

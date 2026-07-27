@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/api/stats_api.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/skeleton.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ class StatsPage extends ConsumerWidget {
         ],
       ),
       body: stats.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const StatsSkeleton(),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

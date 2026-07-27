@@ -10,6 +10,7 @@ import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/skeleton.dart';
 
 class TasksPage extends ConsumerWidget {
   final String view;
@@ -60,7 +61,7 @@ class TasksPage extends ConsumerWidget {
             onCreate: () => _openCreate(context, ref),
           ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const TaskListSkeleton(),
         error: (err, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

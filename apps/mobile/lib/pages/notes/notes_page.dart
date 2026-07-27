@@ -6,6 +6,7 @@ import '../../entities/note/model/notes_notifier.dart';
 import '../../shared/core/strings.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/skeleton.dart';
 import '../app_shell.dart';
 import 'widgets/breadcrumb_bar.dart';
 import 'widgets/note_actions_sheet.dart';
@@ -139,7 +140,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         ],
       ),
       body: state.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const TaskListSkeleton(),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
