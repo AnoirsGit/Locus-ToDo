@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/auth_notifier.dart';
+import '../../shared/core/auth_error.dart';
 import '../../shared/theme/theme.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -18,6 +19,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _nameFocus          = FocusNode();
   final _emailFocus         = FocusNode();
   final _passwordFocus      = FocusNode();
+  bool _obscurePassword     = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nameFocus.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
@@ -30,7 +40,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
+  bool get _formValid =>
+      _nameController.text.trim().isNotEmpty &&
+      _emailController.text.trim().isNotEmpty &&
+      _passwordController.text.length >= 8;
+
   void _submit() {
+    if (!_formValid) return;
     ref.read(authNotifierProvider.notifier).register(
       _nameController.text.trim(),
       _emailController.text.trim(),
@@ -92,6 +108,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     onSubmitted: (_) => _emailFocus.requestFocus(),
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(hintText: 'Ваше имя'),
                   ),
 
@@ -107,6 +124,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     autocorrect: false,
                     enableSuggestions: false,
                     onSubmitted: (_) => _passwordFocus.requestFocus(),
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(hintText: 'you@example.com'),
                   ),
 
@@ -117,10 +135,26 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   TextField(
                     controller: _passwordController,
                     focusNode: _passwordFocus,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
-                    decoration: const InputDecoration(hintText: '••••••••'),
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: '••••••••',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          size: 20,
+                          color: context.colorMuted,
+                        ),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Минимум 8 символов',
+                    style: TextStyle(fontSize: 12, color: context.colorMuted2),
                   ),
 
                   const SizedBox(height: 20),
@@ -129,7 +163,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
-                        authState.error.toString(),
+                        formatAuthError(authState.error!),
                         style: TextStyle(color: context.colorDanger, fontSize: 13),
                       ),
                     ),
@@ -137,7 +171,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: isLoading || _nameController.text.trim().isEmpty ? null : _submit,
+                      onPressed: isLoading || !_formValid ? null : _submit,
                       child: isLoading
                           ? const SizedBox(
                               width: 20, height: 20,

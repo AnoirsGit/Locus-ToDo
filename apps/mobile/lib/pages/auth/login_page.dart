@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/auth_notifier.dart';
+import '../../shared/core/auth_error.dart';
 import '../../shared/theme/theme.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -16,6 +17,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
   final _emailFocus         = FocusNode();
   final _passwordFocus      = FocusNode();
+  bool _obscurePassword     = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _emailFocus.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
@@ -101,10 +111,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   TextField(
                     controller: _passwordController,
                     focusNode: _passwordFocus,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
-                    decoration: const InputDecoration(hintText: '••••••••'),
+                    decoration: InputDecoration(
+                      hintText: '••••••••',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          size: 20,
+                          color: context.colorMuted,
+                        ),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),
@@ -114,7 +134,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
-                        authState.error.toString(),
+                        formatAuthError(authState.error!),
                         style: TextStyle(color: context.colorDanger, fontSize: 13),
                       ),
                     ),
