@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/task/task.dart';
 import '../../shared/api/tags_api.dart';
@@ -172,6 +173,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
           if (_level == TaskLevel.month && _dayOfMonth != null) 'dayOfMonth': _dayOfMonth,
         },
     };
+    HapticFeedback.mediumImpact();
     widget.onSubmit(data);
 
     // Save tags for edit mode (we have the task ID)
@@ -200,6 +202,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
           ),
           TextButton(
             onPressed: () {
+              HapticFeedback.heavyImpact();
               Navigator.pop(ctx);
               Navigator.pop(context);
               widget.onDelete!();
