@@ -18,3 +18,4 @@ apps/mobile/.flutter-plugins-dependencies
 .DS_Store
 Thumbs.db
 .claude/worktrees/
+.agents_tmp/
