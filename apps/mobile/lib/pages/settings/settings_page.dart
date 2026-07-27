@@ -6,6 +6,7 @@ import '../../shared/notifications/notification_prefs.dart';
 import '../../shared/notifications/notification_service.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/app_toast.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/theme/theme_provider.dart';
 
@@ -196,6 +197,7 @@ void _showEditProfileDialog(BuildContext context, WidgetRef ref, String currentN
               name: name.isNotEmpty ? name : null,
               email: email.isNotEmpty ? email : null,
             );
+            // Failure toast is already shown by the notifier itself.
           },
           child: const Text('Save'),
         ),
@@ -463,13 +465,7 @@ class _TagManagementSection extends ConsumerWidget {
           autofocus: true,
           decoration: const InputDecoration(labelText: 'Tag name'),
           textCapitalization: TextCapitalization.words,
-          onSubmitted: (_) async {
-            final name = nameCtrl.text.trim();
-            if (name.isEmpty) return;
-            Navigator.pop(ctx);
-            await ref.read(tagsApiProvider).create(name);
-            await ref.read(tagStoreProvider.notifier).reload();
-          },
+          onSubmitted: (_) => _createTag(ref, ctx, nameCtrl.text),
         ),
         actions: [
           TextButton(
@@ -477,18 +473,24 @@ class _TagManagementSection extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              final name = nameCtrl.text.trim();
-              if (name.isEmpty) return;
-              Navigator.pop(ctx);
-              await ref.read(tagsApiProvider).create(name);
-              await ref.read(tagStoreProvider.notifier).reload();
-            },
+            onPressed: () => _createTag(ref, ctx, nameCtrl.text),
             child: const Text('Create'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _createTag(WidgetRef ref, BuildContext dialogCtx, String rawName) async {
+    final name = rawName.trim();
+    if (name.isEmpty) return;
+    Navigator.pop(dialogCtx);
+    try {
+      await ref.read(tagsApiProvider).create(name);
+      await ref.read(tagStoreProvider.notifier).reload();
+    } catch (_) {
+      ref.read(appToastProvider.notifier).show('Не удалось создать тег');
+    }
   }
 
   @override
@@ -521,8 +523,12 @@ class _TagManagementSection extends ConsumerWidget {
                   icon: Icon(Icons.delete_outline, size: 18, color: context.colorMuted),
                   visualDensity: VisualDensity.compact,
                   onPressed: () async {
-                    await ref.read(tagsApiProvider).delete(tag.id);
-                    await ref.read(tagStoreProvider.notifier).reload();
+                    try {
+                      await ref.read(tagsApiProvider).delete(tag.id);
+                      await ref.read(tagStoreProvider.notifier).reload();
+                    } catch (_) {
+                      ref.read(appToastProvider.notifier).show('Не удалось удалить тег');
+                    }
                   },
                 ),
               )),

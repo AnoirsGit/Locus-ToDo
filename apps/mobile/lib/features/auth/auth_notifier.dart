@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/user/user.dart';
 import '../../shared/api/auth_api.dart';
 import '../../shared/api/api_client.dart';
+import '../../shared/ui/app_toast.dart';
 
 class AuthNotifier extends AsyncNotifier<User?> {
   @override
@@ -55,10 +56,19 @@ class AuthNotifier extends AsyncNotifier<User?> {
     });
   }
 
-  Future<void> updateProfile({String? name, String? email}) async {
-    final updated = await ref.read(authApiProvider).updateProfile(name: name, email: email);
-    await ref.read(secureStorageProvider).saveUser(updated.toJson());
-    state = AsyncData(updated);
+  /// Returns true on success. On failure, state is left untouched and an
+  /// error toast is shown — previously a failed save silently vanished
+  /// (dialog already closed, exception thrown into the void).
+  Future<bool> updateProfile({String? name, String? email}) async {
+    try {
+      final updated = await ref.read(authApiProvider).updateProfile(name: name, email: email);
+      await ref.read(secureStorageProvider).saveUser(updated.toJson());
+      state = AsyncData(updated);
+      return true;
+    } catch (_) {
+      ref.read(appToastProvider.notifier).show('Не удалось обновить профиль');
+      return false;
+    }
   }
 
   Future<void> logout() async {
