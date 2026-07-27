@@ -6,6 +6,7 @@ import '../../shared/api/tags_api.dart';
 import '../../shared/api/tasks_api.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
+import '../../shared/ui/app_toast.dart';
 import '../../shared/ui/rich_text_editor.dart';
 
 class TaskFormSheet extends ConsumerStatefulWidget {
@@ -279,7 +280,9 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
         'parentTaskId': widget.existingTask!.id,
       });
       if (mounted) setState(() => _subtasks = [..._subtasks, sub]);
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) ref.read(appToastProvider.notifier).show('Не удалось добавить подзадачу');
+    }
   }
 
   Future<void> _toggleSubtask(String periodId) async {
@@ -294,7 +297,10 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     try {
       await ref.read(tasksApiProvider).toggleTask(periodId, newStatus);
     } catch (_) {
-      if (mounted) setState(() { _subtasks[idx] = sub; });
+      if (mounted) {
+        setState(() { _subtasks[idx] = sub; });
+        ref.read(appToastProvider.notifier).show('Не удалось сохранить подзадачу');
+      }
     }
   }
 
@@ -304,7 +310,10 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     try {
       await ref.read(tasksApiProvider).deleteTask(taskId);
     } catch (_) {
-      if (mounted) setState(() => _subtasks = backup);
+      if (mounted) {
+        setState(() => _subtasks = backup);
+        ref.read(appToastProvider.notifier).show('Не удалось удалить подзадачу');
+      }
     }
   }
 
