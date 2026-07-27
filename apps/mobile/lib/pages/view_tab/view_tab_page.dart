@@ -57,6 +57,19 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
     );
   }
 
+  void _openCreateForDate(String dateStr) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => TaskFormSheet(
+        defaultLevel: TaskLevel.day,
+        defaultPeriodStart: dateStr,
+        onSubmit: (data) =>
+            ref.read(groupedTasksProvider('week').notifier).createTask(data),
+      ),
+    );
+  }
+
   void _openEdit(String view, TaskWithPeriod task) {
     showModalBottomSheet(
       context: context,
@@ -112,7 +125,7 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
             backgroundColor: context.colorSurface,
             child: switch (view) {
               'day'  => _TodayBody(data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
-              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
+              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view), onCreateDay: _openCreateForDate),
               _      => _GenericBody(view: view, data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
             },
           );
@@ -524,6 +537,7 @@ class _WeekKanban extends ConsumerWidget {
   final void Function(TaskWithPeriod) onToggle;
   final void Function(TaskWithPeriod) onEdit;
   final VoidCallback onCreate;
+  final void Function(String dateStr) onCreateDay;
 
   const _WeekKanban({
     required this.data,
@@ -533,6 +547,7 @@ class _WeekKanban extends ConsumerWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onCreate,
+    required this.onCreateDay,
   });
 
   static const _dayShort = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -696,7 +711,7 @@ class _WeekKanban extends ConsumerWidget {
                 isToday: isToday,
                 onToggle: onToggle,
                 onEdit: onEdit,
-                onCreate: onCreate,
+                onCreate: () => onCreateDay(dateStr),
               );
             },
           ),
