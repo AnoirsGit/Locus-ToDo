@@ -207,7 +207,9 @@ class _Body extends ConsumerWidget {
       children: [
         if (tagState.tags.isNotEmpty)
           TagFilterBar(tagState: tagState, onToggle: (id) => ref.read(tagStoreProvider.notifier).toggleFilterTag(id), onClear: () => ref.read(tagStoreProvider.notifier).clearFilter()),
-        if (filteredPrimary.isEmpty && canCreate)
+        if (filteredPrimary.isEmpty && tagState.isFiltering)
+          _emptyFiltered(context, ref)
+        else if (filteredPrimary.isEmpty && canCreate)
           _emptyPrimary(context)
         else
           ...filteredPrimary.map((task) => TaskCard(
@@ -257,6 +259,23 @@ class _Body extends ConsumerWidget {
           onPressed: onCreate,
           icon: const Icon(Icons.add, size: 16),
           label: const Text('Добавить'),
+        ),
+      ],
+    ),
+  );
+
+  /// Shown instead of [_emptyPrimary] when the list is empty because of an
+  /// active tag filter — offers "clear filter" rather than "create task",
+  /// mirroring web's `tagStore.isFiltering` empty branch.
+  Widget _emptyFiltered(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+    child: Column(
+      children: [
+        Text('Нет задач по фильтру', style: TextStyle(color: context.colorMuted)),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: () => ref.read(tagStoreProvider.notifier).clearFilter(),
+          child: const Text('Очистить фильтр'),
         ),
       ],
     ),

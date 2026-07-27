@@ -466,11 +466,14 @@ class _TodayBody extends ConsumerWidget {
           ),
 
         // ── Day tasks ────────────────────────────────────────────────────
-        ...filtered.map((task) => TaskCard(
-              task: task,
-              onToggle: () => onToggle(task),
-              onEdit: () => onEdit(task),
-            )),
+        if (filtered.isEmpty && tagState.isFiltering)
+          _emptyFiltered(context, ref)
+        else
+          ...filtered.map((task) => TaskCard(
+                task: task,
+                onToggle: () => onToggle(task),
+                onEdit: () => onEdit(task),
+              )),
 
         // Inline create button — always visible like web
         Padding(
@@ -530,6 +533,23 @@ class _TodayBody extends ConsumerWidget {
     );
   }
 }
+
+/// Shown instead of the plain "no tasks" state when the empty list is caused
+/// by an active tag filter — offers "clear filter" instead of "create task",
+/// matching web's `tagStore.isFiltering` branch (TaskList/today +page).
+Widget _emptyFiltered(BuildContext context, WidgetRef ref) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Column(
+        children: [
+          Text('Нет задач по фильтру', style: TextStyle(color: context.colorMuted)),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => ref.read(tagStoreProvider.notifier).clearFilter(),
+            child: const Text('Очистить фильтр'),
+          ),
+        ],
+      ),
+    );
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEEK KANBAN
@@ -1149,13 +1169,16 @@ class _GenericBody extends ConsumerWidget {
             onClear: () => ref.read(tagStoreProvider.notifier).clearFilter(),
           ),
 
-        ...filtered.map((task) => TaskCard(
-              task: task,
-              onToggle: () => onToggle(task),
-              onEdit: () => onEdit(task),
-            )),
+        if (filtered.isEmpty && tagState.isFiltering)
+          _emptyFiltered(context, ref)
+        else
+          ...filtered.map((task) => TaskCard(
+                task: task,
+                onToggle: () => onToggle(task),
+                onEdit: () => onEdit(task),
+              )),
 
-        if (filtered.isEmpty)
+        if (filtered.isEmpty && !tagState.isFiltering)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Column(
