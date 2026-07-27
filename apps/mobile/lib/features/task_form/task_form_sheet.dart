@@ -44,7 +44,18 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
   List<String> _tagIds = [];
   bool _tagsLoaded = false;
 
+  // Baseline snapshot for the dirty-dismiss guard (see `_dirty`).
+  late String _initialTitle;
+  late String _initialDescriptionHtml;
+
   bool get _isEdit => widget.existingTask != null;
+
+  // Only the two fields most costly to silently lose (a typed title / a
+  // written description) gate the confirm dialog — matches the web modal's
+  // dirty guard in spirit without needing to track every minor field.
+  bool get _dirty =>
+      _titleCtrl.text.trim() != _initialTitle.trim() ||
+      _descriptionHtml != _initialDescriptionHtml;
 
   static const _monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -71,10 +82,40 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     _recurring = t?.recurringConfig != null;
     _daysOfWeek = List<int>.from(t?.recurringConfig?.daysOfWeek ?? []);
     _dayOfMonth = t?.recurringConfig?.dayOfMonth;
+    _initialTitle = _titleCtrl.text;
+    _initialDescriptionHtml = _descriptionHtml;
     if (_isEdit) {
       _loadSubtasks();
       _loadTags();
     }
+  }
+
+  /// Close the sheet, confirming first if title/description were edited.
+  Future<void> _confirmClose() async {
+    if (!_dirty) {
+      Navigator.pop(context);
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colorCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Text('Discard changes?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
+        content: Text('You have unsaved changes.', style: TextStyle(fontSize: 13, color: context.colorMuted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Keep editing', style: TextStyle(color: context.colorText)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Discard', style: TextStyle(color: context.colorDanger, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.pop(context);
   }
 
   Future<void> _loadSubtasks() async {
@@ -269,7 +310,13 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     final isValid = _titleCtrl.text.trim().isNotEmpty;
 
-    return Container(
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _confirmClose();
+      },
+      child: Container(
       decoration: BoxDecoration(
         color: context.colorSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -330,7 +377,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                   ),
                 IconButton(
                   icon: Icon(Icons.close, size: 20, color: context.colorMuted),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _confirmClose,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -373,7 +420,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                   const SizedBox(height: 8),
                   RichTextEditor(
                     initialValue: _descriptionHtml,
-                    onChanged: (html) => _descriptionHtml = html,
+                    onChanged: (html) => setState(() => _descriptionHtml = html),
                     placeholder: 'Add description…',
                     minHeight: 100,
                   ),
@@ -561,6 +608,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

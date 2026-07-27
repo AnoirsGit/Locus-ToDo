@@ -143,6 +143,8 @@ class TasksPage extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => TaskFormSheet(
         defaultLevel: _levelFor(view),
         defaultPeriodStart: _periodStartFor(view),

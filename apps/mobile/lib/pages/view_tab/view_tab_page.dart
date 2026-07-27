@@ -48,6 +48,8 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => TaskFormSheet(
         defaultLevel: _defaultLevel(view),
         defaultPeriodStart: _periodStart(view),
@@ -61,6 +63,8 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => TaskFormSheet(
         defaultLevel: TaskLevel.day,
         defaultPeriodStart: dateStr,
@@ -74,6 +78,8 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => TaskFormSheet(
         existingTask: task,
         defaultLevel: task.level,
