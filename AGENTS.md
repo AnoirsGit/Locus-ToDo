@@ -54,6 +54,34 @@ this session.
 - qol-polish.md G: dev date/time mock widget, seed-data script — dev tooling,
   out of mobile-app scope for this pass.
 
+### Session 2 additions (commits `4cc881e`..`0922d08`)
+
+- B4 stragglers closed: `authNotifier.updateProfile` had zero error handling
+  (exception thrown into a fire-and-forget `onPressed` after the dialog was
+  already closed — user saw nothing); Settings > Tags create/delete had the
+  same silent-noop-on-failure shape. Both now toast via `appToastProvider`.
+- **Real bug found & fixed**: `register_page.dart`'s submit button computed
+  `disabled` from `_nameController.text` inside `build()`, but nothing
+  triggered a rebuild on keystroke (no `onChanged`/listener on that
+  `TextField`) — the button could stay stuck disabled regardless of what the
+  user typed, until some unrelated rebuild happened to fire. Fixed by adding
+  `onChanged: (_) => setState(() {})` to all three fields + a proper
+  `_formValid` getter (name/email non-empty, password ≥ 8 — matches the API's
+  `zod .min(8)`). **If you touch any other form with a `Controller.text`-based
+  `onPressed: ... ? null : ...` gate, verify a rebuild trigger exists** —
+  `TaskFormSheet`'s title field already does this correctly
+  (`onChanged: (_) => setState(() {})` at the TextField), so it was spared;
+  this was an isolated instance, not a pattern.
+- Login/register: `authState.error.toString()` was rendered straight to the
+  UI (raw `DioException [bad response]: ...` text). Added
+  `shared/core/auth_error.dart::formatAuthError()` (401/409/422/network-
+  timeout → short Russian messages) and wired both pages to it.
+- qol-polish.md F polish: show/hide password toggle + autofocus first field
+  on both auth pages; min-8-chars password hint on register.
+- Housekeeping: `.agents_tmp/` (agent scratch dir) got swept into a commit by
+  a wildcard `git add -A` — removed from tracking, added to `.gitignore`.
+  **Don't `git add -A` blindly in this repo; check `git status` first.**
+
 ### Environment gotcha
 This workspace runs multiple parallel checkouts of the same repo under
 `/workspace/project/<uuid>/Locus-ToDo`. If a working directory suddenly reports
