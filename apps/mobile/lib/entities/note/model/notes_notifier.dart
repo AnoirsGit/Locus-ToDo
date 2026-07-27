@@ -376,6 +376,29 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     });
   }
 
+  /// Force any pending (debounced) content saves out to the API immediately.
+  /// The in-memory state already holds the latest typed text — only the
+  /// network write is delayed — so this just cancels the timers and fires
+  /// the writes now. Call this before the app is about to go to the
+  /// background/be killed, otherwise up to 600 ms of typing can be lost
+  /// with no error, no retry and no visible sign anything went wrong.
+  Future<void> flushPendingSaves() async {
+    final ids = _debounceTimers.keys.toList();
+    for (final id in ids) {
+      _debounceTimers.remove(id)?.cancel();
+    }
+    for (final id in ids) {
+      final node = _findNode(_nodes, id);
+      if (node == null) continue;
+      try {
+        await _api.update(id, content: node.content);
+      } catch (_) {
+        // Best-effort: will be retried on the next edit/debounce or next
+        // app open via the notes list refetch.
+      }
+    }
+  }
+
   void updateType(String id, NoteNodeType type) {
     state = AsyncData(_mapNodes(_nodes, id, (n) => n.copyWith(type: type)));
     _api.update(id, nodeType: type.api).catchError((_) {});

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../entities/note/model/notes_notifier.dart';
 import '../entities/task/grouped_tasks_notifier.dart';
 import '../shared/sync/sync_worker.dart';
 import '../shared/theme/theme.dart';
@@ -37,6 +38,20 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   /// B3: on app resume, refetch if ≥60 s have passed since last load.
   @override
   void didChangeAppLifecycleState(AppLifecycleState appState) {
+    // Leaving the foreground: push out any debounced note edits now —
+    // otherwise up to 600ms of typing is silently lost if the app is
+    // killed while backgrounded. `inactive` fires first (e.g. app
+    // switcher, incoming call) so flush there rather than waiting for
+    // `paused`, which may never arrive before the process is killed.
+    if ((appState == AppLifecycleState.inactive ||
+            appState == AppLifecycleState.paused ||
+            appState == AppLifecycleState.hidden) &&
+        ref.exists(notesProvider)) {
+      // Guarded by ref.exists: don't force-initialize (and fetch) notes
+      // just because the app backgrounded if the user never opened them.
+      ref.read(notesProvider.notifier).flushPendingSaves();
+    }
+
     if (appState != AppLifecycleState.resumed) return;
     final now = DateTime.now();
     if (_lastRefresh != null &&
