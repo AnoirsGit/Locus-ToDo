@@ -159,7 +159,11 @@ class _NotesPageState extends ConsumerState<NotesPage> {
             roots = _pruneByTag(roots, tagState);
           }
 
-          return Column(
+          return RefreshIndicator(
+            onRefresh: () => notifier.refresh(),
+            color: context.colorBrand,
+            backgroundColor: context.colorSurface,
+            child: Column(
             children: [
               // Breadcrumbs
               if (isZoomed)
@@ -232,6 +236,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                               ),
               ),
             ],
+            ),
           );
         },
       ),

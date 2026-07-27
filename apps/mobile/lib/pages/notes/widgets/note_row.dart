@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../entities/note/model/note_node.dart';
@@ -276,18 +277,37 @@ class _NoteRowState extends ConsumerState<NoteRow> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _editing
-                            ? TextField(
-                                controller: _ctrl,
-                                focusNode: _focusNode,
-                                style: _contentStyle(context),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                            ? Focus(
+                                onKeyEvent: (node, event) {
+                                  // Backspace on an already-empty, childless
+                                  // note deletes it (Notion-style block
+                                  // merge) instead of leaving an empty
+                                  // "ghost" node the user must delete via
+                                  // the ⋮ menu.
+                                  if (event is KeyDownEvent &&
+                                      event.logicalKey == LogicalKeyboardKey.backspace &&
+                                      _ctrl.text.isEmpty &&
+                                      widget.node.children.isEmpty) {
+                                    final undo = widget.notifier
+                                        .removeNoteWithUndo(widget.node.id);
+                                    showNoteUndoSnack(context, undo);
+                                    return KeyEventResult.handled;
+                                  }
+                                  return KeyEventResult.ignored;
+                                },
+                                child: TextField(
+                                  controller: _ctrl,
+                                  focusNode: _focusNode,
+                                  style: _contentStyle(context),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _commitAndAddSibling(),
+                                  onTapOutside: (_) => _commit(),
                                 ),
-                                textInputAction: TextInputAction.done,
-                                onSubmitted: (_) => _commitAndAddSibling(),
-                                onTapOutside: (_) => _commit(),
                               )
                             : Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 9),

@@ -19,6 +19,11 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     return dtos.map(NoteNode.fromDto).toList();
   }
 
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+
   List<NoteNode> get _nodes => state.value ?? [];
 
   // ── Tree helpers ─────────────────────────────────────────────────────────
