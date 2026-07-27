@@ -97,7 +97,7 @@ jobs:
             IMAGE_TAG=$IMAGE_TAG \
             GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
             docker compose -f docker-compose.prod.yml run --rm api \
-              node --import ./node_modules/tsx/esm/index.js src/db/migrate.js || true
+              node dist/db/migrate.js || true
 
             # Rolling restart
             IMAGE_TAG=$IMAGE_TAG \
