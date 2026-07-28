@@ -108,6 +108,36 @@ class S {
   static String get addSubtask => _ru ? '+ добавить подзадачу' : '+ add subtask';
   static String get addSubtaskHint => _ru ? 'Добавить подзадачу...' : 'Add subtask...';
 
+  // Bottom nav labels — mirrors web's `nav.*` i18n keys.
+  static String get navView => _ru ? 'Просмотр' : 'View';
+  static String get navStats => _ru ? 'Статистика' : 'Stats';
+  static String get navSettings => _ru ? 'Настройки' : 'Settings';
+
+  // Drawer nav — mirrors web `nav.*`/`Sidebar.svelte` wording.
+  static String get navToday => _ru ? 'Сегодня' : 'Today';
+  static String get navWeek => _ru ? 'Неделя' : 'Week';
+  static String get navMonth => _ru ? 'Месяц' : 'Month';
+  static String get navYear => _ru ? 'Год' : 'Year';
+  static String get navBacklog => _ru ? 'Бэклог' : 'Backlog';
+  static String get navArchive => _ru ? 'Архив' : 'Archive';
+  static String get sectionHorizons => _ru ? 'ГОРИЗОНТЫ' : 'HORIZONS';
+  static String get sectionRecords => _ru ? 'ЗАПИСИ' : 'RECORDS';
+  static String get themeLight => _ru ? 'Светлая' : 'Light';
+  static String get themeDark => _ru ? 'Тёмная' : 'Dark';
+
+  // Outbox sync banner — ru needs genitive plural forms, en doesn't.
+  static String syncPending(int count) {
+    if (!_ru) return '$count change${count == 1 ? '' : 's'} pending sync';
+    final word = count == 1 ? 'изменение ожидает' : 'изменений ожидают';
+    return '$count $word синхронизации';
+  }
+
+  static String syncFailed(int count) {
+    if (!_ru) return '$count change${count == 1 ? '' : 's'} not synced, retrying...';
+    final word = count == 1 ? 'изменение' : 'изменений';
+    return '$count $word не синхронизировано, повтор...';
+  }
+
   // Backlog age chip ("3 days ago").
   static String get backlogToday => _ru ? 'сегодня' : 'today';
   static String backlogAge(int days) {
