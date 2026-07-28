@@ -74,7 +74,14 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
     }
   }
 
-  if (res.status === 401) {
+  // A 401 from the credential-submission endpoints themselves (wrong password,
+  // etc.) is not an expired session — there was never a session to expire.
+  // Let it fall through to the generic error branch below instead of wiping
+  // storage and redirecting the user away from the login/register page they're
+  // already on.
+  const isAuthAttempt = path === '/auth/login' || path === '/auth/register'
+
+  if (res.status === 401 && !isAuthAttempt) {
     clearSession()
     // Remember where the user was so login can send them back.
     if (typeof window !== 'undefined') {
