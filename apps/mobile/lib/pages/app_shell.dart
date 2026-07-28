@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../entities/note/model/notes_notifier.dart';
 import '../entities/task/grouped_tasks_notifier.dart';
+import '../shared/core/strings.dart';
 import '../shared/sync/notes_sync_worker.dart';
 import '../shared/sync/sync_worker.dart';
 import '../shared/theme/theme.dart';
@@ -108,23 +109,27 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           NavigationBar(
             selectedIndex: idx,
             onDestinationSelected: (i) => context.go(_routes[i]),
-            destinations: const [
-              NavigationDestination(
+            destinations: [
+              const NavigationDestination(
                 icon: Icon(Icons.grid_view_outlined),
                 selectedIcon: Icon(Icons.grid_view),
                 label: 'Просмотр',
               ),
+              // S.notes already exists (notes page reuses it) — bugs.md flagged
+              // this literal as bypassing it. Other three labels are out of
+              // scope: no S.* keys exist for them yet (see mobile-tasks-parity
+              // Gap 5, the full mobile i18n sweep).
               NavigationDestination(
-                icon: Icon(Icons.note_alt_outlined),
-                selectedIcon: Icon(Icons.note_alt),
-                label: 'Заметки',
+                icon: const Icon(Icons.note_alt_outlined),
+                selectedIcon: const Icon(Icons.note_alt),
+                label: S.notes,
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.bar_chart_outlined),
                 selectedIcon: Icon(Icons.bar_chart),
                 label: 'Статистика',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.settings_outlined),
                 selectedIcon: Icon(Icons.settings),
                 label: 'Настройки',
