@@ -187,9 +187,13 @@
     }
   }
 
+  let submitting = $state(false)
+
   const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    // Guard against double submit (Enter + click, or repeated Ctrl+Enter) while in flight.
+    if (submitting || !title.trim()) return
+    submitting = true
 
     const now = new Date().toISOString()
     const dm  = deadlineMonth ? parseInt(deadlineMonth) : undefined
@@ -283,6 +287,6 @@
       {/if}
     </div>
     <button type="button" onclick={() => (onCancel ?? onClose)?.()} class="btn ghost">{i18n.t('action.cancel')}</button>
-    <button type="submit" disabled={!title.trim()} class="btn primary">{i18n.t('action.save')}</button>
+    <button type="submit" disabled={submitting || !title.trim()} class="btn primary">{i18n.t('action.save')}</button>
   </div>
 </form>
