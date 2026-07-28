@@ -24,17 +24,6 @@ class TaskCard extends ConsumerWidget {
 
   // ── Meta helpers ────────────────────────────────────────────────────────
 
-  static const _dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-  static const _monthNames = [
-    '', 'янв', 'фев', 'мар', 'апр', 'май', 'июн',
-    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
-  ];
-
-  static const _monthNamesFull = [
-    '', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-    'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
-  ];
-
   /// Period label shown on backlog/archive cards — mirrors web's
   /// `fmt`/`fmtMonth`/`fmtYear` (TaskCard.svelte).
   String _periodLabel() {
@@ -42,11 +31,11 @@ class TaskCard extends ConsumerWidget {
     final end = task.period.periodEnd;
     switch (task.level) {
       case TaskLevel.day:
-        return '${start.day} ${_monthNames[start.month]}';
+        return '${start.day} ${S.monthShort(start.month)}';
       case TaskLevel.week:
-        return '${start.day} ${_monthNames[start.month]} – ${end.day} ${_monthNames[end.month]}';
+        return '${start.day} ${S.monthShort(start.month)} – ${end.day} ${S.monthShort(end.month)}';
       case TaskLevel.month:
-        return '${_monthNamesFull[start.month]} ${start.year}';
+        return '${S.monthFull(start.month)} ${start.year}';
       case TaskLevel.year:
         return '${start.year}';
     }
@@ -56,7 +45,7 @@ class TaskCard extends ConsumerWidget {
     if (task.period.status != TaskStatus.archived) return null;
     final d = task.period.doneAt;
     if (d == null) return null;
-    return '${d.day} ${_monthNames[d.month]} ${d.year}';
+    return '${d.day} ${S.monthShort(d.month)} ${d.year}';
   }
 
   String? _backlogAge() {
@@ -64,11 +53,8 @@ class TaskCard extends ConsumerWidget {
     final backlogAt = task.period.backlogAt;
     if (backlogAt == null) return null;
     final days = DateTime.now().difference(backlogAt).inDays;
-    if (days <= 0) return 'сегодня';
-    if (days == 1) return 'день назад';
-    if (days < 30) return '$days дней назад';
-    final months = (days / 30).floor();
-    return '$months мес. назад';
+    if (days <= 0) return S.backlogToday;
+    return S.backlogAge(days);
   }
 
   String? _recurringLabel() {
@@ -78,9 +64,9 @@ class TaskCard extends ConsumerWidget {
     if (task.level == TaskLevel.week && r.daysOfWeek != null && r.daysOfWeek!.isNotEmpty) {
       final sorted = [...r.daysOfWeek!]..sort();
       final monFirst = [...sorted.where((d) => d != 0), ...sorted.where((d) => d == 0)];
-      parts.add(monFirst.map((d) => _dayNames[d]).join(' '));
+      parts.add(monFirst.map((d) => S.weekdayShort(d)).join(' '));
     } else if (task.level == TaskLevel.month && r.dayOfMonth != null) {
-      parts.add('${r.dayOfMonth}-го');
+      parts.add(S.dayOfMonthOrdinal(r.dayOfMonth!));
     }
     if (task.scheduledTime != null) parts.add(task.scheduledTime!);
     return parts.isEmpty ? '↻' : '↻ ${parts.join(' · ')}';
@@ -89,13 +75,13 @@ class TaskCard extends ConsumerWidget {
   String? _targetDayLabel() {
     if (task.level != TaskLevel.week || task.period.targetDate == null) return null;
     final d = DateTime.parse('${task.period.targetDate}T00:00:00Z');
-    return '→ ${_dayNames[d.weekday % 7]}';
+    return '→ ${S.weekdayShort(d.weekday % 7)}';
   }
 
   String? _deadlineLabel() {
     final m = task.period.deadlineMonth;
     if (task.level != TaskLevel.year || m == null) return null;
-    return 'до ${_monthNames[m]}';
+    return S.until(S.monthShort(m));
   }
 
   String? _archiveOutcome() {
@@ -242,7 +228,7 @@ class TaskCard extends ConsumerWidget {
                         if (deadlineLabel != null)
                           _MetaChip(deadlineLabel, color: context.colorMuted),
                         if (isOverdue)
-                          _MetaChip('просрочено', color: context.colorWarning),
+                          _MetaChip(S.overdue, color: context.colorWarning),
                         if (isBacklog) ...[
                           _MetaChip(_periodLabel(), color: context.colorMuted),
                           if (backlogAge != null)
@@ -393,7 +379,7 @@ class _SubtaskSectionState extends ConsumerState<_SubtaskSection> {
                 ),
                 const SizedBox(width: 2),
                 Text(
-                  'Подзадачи',
+                  S.subtasks,
                   style: TextStyle(fontSize: 11, color: context.colorMuted),
                 ),
               ],
