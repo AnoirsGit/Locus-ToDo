@@ -53,7 +53,7 @@ silently reverts (or worse, doesn't).
 - [ ] **Date format hardcoded `'en'` locale (web)** — `TaskCard` formats dates with `'en'` while the app may be in ru; should use `i18n.locale` everywhere a date is rendered
 - [ ] **Hardcoded Russian inside English-localized web components** — `TaskCard.svelte` (`'${r.dayOfMonth}-го'`, `'до <month>'`), `TaskList.svelte` ("Бэклог/Архив" buttons), `settings/+page.svelte` headers — must route through `i18n.t()`
 - [ ] **Archive outcome chip language mismatch** — web shows English ('Done on time'), mobile Russian ('выполнено') for the same state
-- [ ] **Mobile notes AppBar title hardcodes 'Заметки'** — web is ru/en localized; mobile strings table exists (`shared/core/strings.dart`) but this title bypasses it
+- [x] **Mobile notes AppBar title hardcodes 'Заметки'** — web is ru/en localized; mobile strings table exists (`shared/core/strings.dart`) but this title bypassed it. `notes_page.dart` AppBar title already used `S.notes`; the real leak was the bottom-nav `NavigationDestination` label in `app_shell.dart` — now uses `S.notes` too. Other three nav labels (Статистика/Настройки/Просмотр) left as-is — no `S.*` keys exist yet, full sweep is mobile-tasks-parity Gap 5
 - [ ] **Login error fallback hardcoded Russian** — 'Неверный email или пароль' regardless of locale
 - [ ] **Double-submit guards unverified** — auth pages disable while in flight; Create/Edit task forms and note inputs need the same audit
 
