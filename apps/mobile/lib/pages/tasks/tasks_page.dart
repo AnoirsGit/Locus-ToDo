@@ -8,6 +8,7 @@ import '../../entities/task/ui/tag_filter_bar.dart';
 import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
+import '../../shared/core/date_utils.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/ui/skeleton.dart';
@@ -120,16 +121,11 @@ class TasksPage extends ConsumerWidget {
 
   String _periodStartFor(String v) {
     final now = DateTime.now();
-    if (v == 'day') return _iso(now);
-    if (v == 'week') {
-      final dow = now.weekday;
-      return _iso(now.subtract(Duration(days: dow - 1)));
-    }
-    if (v == 'month') return _iso(DateTime(now.year, now.month, 1));
-    return '${now.year}-01-01';
+    if (v == 'day') return localIso(now);
+    if (v == 'week') return weekStartISO(now);
+    if (v == 'month') return monthStartISO(now);
+    return yearStartISO(now);
   }
-
-  String _iso(DateTime d) => d.toIso8601String().split('T')[0];
 
   TaskLevel _levelFor(String v) {
     switch (v) {
@@ -163,7 +159,7 @@ class TasksPage extends ConsumerWidget {
       builder: (_) => TaskFormSheet(
         existingTask: task,
         defaultLevel: task.level,
-        defaultPeriodStart: task.period.periodStart.toIso8601String().split('T')[0],
+        defaultPeriodStart: localIso(task.period.periodStart),
         onSubmit: (data) {
           ref.read(groupedTasksProvider(view).notifier).updateTask(task.id, data);
         },

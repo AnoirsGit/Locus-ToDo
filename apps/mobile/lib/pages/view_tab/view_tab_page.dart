@@ -7,6 +7,7 @@ import '../../entities/task/ui/tag_filter_bar.dart';
 import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
+import '../../shared/core/date_utils.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/providers/view_provider.dart';
 import '../../shared/theme/theme.dart';
@@ -84,7 +85,7 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
       builder: (_) => TaskFormSheet(
         existingTask: task,
         defaultLevel: task.level,
-        defaultPeriodStart: task.period.periodStart.toIso8601String().split('T')[0],
+        defaultPeriodStart: localIso(task.period.periodStart),
         onSubmit: (data) =>
             ref.read(groupedTasksProvider(view).notifier).updateTask(task.id, data),
         onDelete: () =>
@@ -623,7 +624,7 @@ class _WeekKanban extends ConsumerWidget {
 
     // Add day-level tasks into columns by their periodStart date
     for (final task in filteredDay) {
-      final dateStr = task.period.periodStart.toIso8601String().split('T')[0];
+      final dateStr = localIso(task.period.periodStart);
       byDay[dateStr] = [...(byDay[dateStr] ?? []), task];
     }
 
