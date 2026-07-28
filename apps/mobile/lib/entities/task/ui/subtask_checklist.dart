@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/api/tasks_api.dart';
 import '../../../shared/core/date_utils.dart';
+import '../../../shared/core/strings.dart';
 import '../../../shared/theme/theme.dart';
 import '../../../shared/ui/app_toast.dart';
 import '../task.dart';
@@ -65,7 +66,7 @@ class _SubtaskChecklistState extends ConsumerState<SubtaskChecklist> {
       setState(() => _local = current);
       ref.invalidate(subtasksProvider(widget.parentTaskId));
       if (mounted) {
-        ref.read(appToastProvider.notifier).show('Не удалось обновить подзадачу');
+        ref.read(appToastProvider.notifier).show(S.subtaskUpdateFailed);
       }
     }
   }
@@ -91,7 +92,7 @@ class _SubtaskChecklistState extends ConsumerState<SubtaskChecklist> {
       // Calls tasksApiProvider directly (not the tasks_notifier wrapper),
       // so it needs its own toast on failure.
       if (mounted) {
-        ref.read(appToastProvider.notifier).show('Не удалось добавить подзадачу');
+        ref.read(appToastProvider.notifier).show(S.subtaskAddFailed);
       }
     } finally {
       if (mounted) setState(() => _adding = false);
@@ -138,7 +139,7 @@ class _SubtaskChecklistState extends ConsumerState<SubtaskChecklist> {
                 child: Padding(
                   padding: const EdgeInsets.only(left: 32, top: 4, bottom: 2),
                   child: Text(
-                    '+ добавить подзадачу',
+                    S.addSubtask,
                     style: TextStyle(fontSize: 11, color: context.colorMuted),
                   ),
                 ),
@@ -245,7 +246,7 @@ class _AddRow extends StatelessWidget {
               textInputAction: TextInputAction.done,
               style: TextStyle(fontSize: 12.5, color: context.colorText),
               decoration: InputDecoration(
-                hintText: 'Добавить подзадачу...',
+                hintText: S.addSubtaskHint,
                 hintStyle: TextStyle(fontSize: 12.5, color: context.colorMuted),
                 isDense: true,
                 border: InputBorder.none,

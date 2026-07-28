@@ -65,4 +65,61 @@ class S {
   static String get outcomeOnTime => _ru ? 'Выполнено вовремя' : 'Done on time';
   static String get outcomeLate => _ru ? 'Выполнено с опозданием' : 'Done late';
   static String get outcomeFailed => _ru ? 'Не выполнено' : 'Failed';
+
+  // Task card date/period formatting — mirrors web `TaskCard.svelte`'s
+  // `weekdayShort`/`monthShort` (index 0 = Sunday, 1-12 = Jan-Dec, index 0 unused).
+  static const _weekdayShortRu = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  static const _weekdayShortEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  static String weekdayShort(int weekday0Sun) =>
+      (_ru ? _weekdayShortRu : _weekdayShortEn)[weekday0Sun];
+
+  static const _monthShortRu = [
+    '', 'янв', 'фев', 'мар', 'апр', 'май', 'июн',
+    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
+  ];
+  static const _monthShortEn = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  static String monthShort(int month1to12) =>
+      (_ru ? _monthShortRu : _monthShortEn)[month1to12];
+
+  static const _monthFullRu = [
+    '', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+    'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+  ];
+  static const _monthFullEn = [
+    '', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  static String monthFull(int month1to12) =>
+      (_ru ? _monthFullRu : _monthFullEn)[month1to12];
+
+  // Recurring "on the Nth" (month-level) — mirrors web's `${dayOfMonth}-го` / `day ${n}`.
+  static String dayOfMonthOrdinal(int day) => _ru ? '$day-го' : 'day $day';
+
+  // Year-level deadline chip — mirrors web's `task.until`.
+  static String until(String month) => _ru ? 'до $month' : 'until $month';
+
+  static String get overdue => _ru ? 'просрочено' : 'overdue';
+  static String get subtasks => _ru ? 'Подзадачи' : 'Subtasks';
+  static String get subtaskUpdateFailed => _ru ? 'Не удалось обновить подзадачу' : 'Failed to update subtask';
+  static String get subtaskAddFailed => _ru ? 'Не удалось добавить подзадачу' : 'Failed to add subtask';
+  static String get addSubtask => _ru ? '+ добавить подзадачу' : '+ add subtask';
+  static String get addSubtaskHint => _ru ? 'Добавить подзадачу...' : 'Add subtask...';
+
+  // Backlog age chip ("3 days ago").
+  static String get backlogToday => _ru ? 'сегодня' : 'today';
+  static String backlogAge(int days) {
+    if (_ru) {
+      if (days == 1) return 'день назад';
+      if (days < 30) return '$days дней назад';
+      final months = (days / 30).floor();
+      return '$months мес. назад';
+    }
+    if (days == 1) return '1 day ago';
+    if (days < 30) return '$days days ago';
+    final months = (days / 30).floor();
+    return '$months mo. ago';
+  }
 }
