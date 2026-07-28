@@ -35,6 +35,10 @@ jobs:
         working-directory: apps/mobile
         run: flutter pub get
 
+      - name: Generate code (drift)
+        working-directory: apps/mobile
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Decode keystore
         if: github.ref == 'refs/heads/main'
         working-directory: apps/mobile/android
