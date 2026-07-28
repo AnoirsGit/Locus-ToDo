@@ -130,6 +130,14 @@ class LocalNoteRepository implements NoteLocalStore {
 
 /// Network-first notes API with a local cache + outbox fallback. Same public
 /// surface as [NotesApi] so [NotesNotifier] uses it unchanged.
+///
+/// [create]/[update]/[delete] never rethrow network failures — they queue
+/// the op into [NoteLocalStore.enqueue] and return normally, so callers'
+/// `.catchError(...)` only fires for local (Drift) write failures, not for
+/// being offline. Pending/stuck syncs are surfaced separately via
+/// `noteOutboxCountProvider`/`failedNoteOutboxCountProvider` (see
+/// `shared/sync/notes_sync_worker.dart`), not as a per-action error toast —
+/// offline queuing is expected behavior, not a failure.
 class OfflineNotesApi {
   final NotesApi _api;
   final NoteLocalStore _local;

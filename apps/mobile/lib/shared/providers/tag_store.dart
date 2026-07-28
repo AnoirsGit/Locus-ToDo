@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/tags_api.dart';
+import '../ui/app_toast.dart';
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
@@ -82,8 +83,9 @@ class TagStoreState {
 
 class TagStoreNotifier extends StateNotifier<TagStoreState> {
   final TagsApi _api;
+  final Ref _ref;
 
-  TagStoreNotifier(this._api) : super(const TagStoreState()) {
+  TagStoreNotifier(this._api, this._ref) : super(const TagStoreState()) {
     load();
   }
 
@@ -171,7 +173,9 @@ class TagStoreNotifier extends StateNotifier<TagStoreState> {
     state = state.copyWith(
       noteTagsMap: {...state.noteTagsMap, noteId: tagIds},
     );
-    _api.setNoteTags(noteId, tagIds).catchError((_) {});
+    _api.setNoteTags(noteId, tagIds).catchError((_) {
+      _ref.read(appToastProvider.notifier).show('Не удалось сохранить теги заметки');
+    });
   }
 
   void toggleNoteFilterTag(String id) {
@@ -193,5 +197,5 @@ class TagStoreNotifier extends StateNotifier<TagStoreState> {
 
 final tagStoreProvider =
     StateNotifierProvider<TagStoreNotifier, TagStoreState>((ref) {
-  return TagStoreNotifier(ref.watch(tagsApiProvider));
+  return TagStoreNotifier(ref.watch(tagsApiProvider), ref);
 });

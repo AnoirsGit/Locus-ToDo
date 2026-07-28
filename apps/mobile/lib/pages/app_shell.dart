@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../entities/note/model/notes_notifier.dart';
 import '../entities/task/grouped_tasks_notifier.dart';
+import '../shared/sync/notes_sync_worker.dart';
 import '../shared/sync/sync_worker.dart';
 import '../shared/theme/theme.dart';
 import '../shared/ui/app_toast.dart';
@@ -86,7 +87,14 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
     final location = GoRouterState.of(context).uri.path;
     final idx = _currentIndex(location);
-    final outboxCount = ref.watch(outboxCountProvider).valueOrNull ?? 0;
+    // B4: combined pending-sync count across tasks + notes outboxes, with a
+    // distinct "failed" style once any entry has retried at least once
+    // (attempts > 0) rather than just being freshly queued while offline.
+    final taskOutboxCount = ref.watch(outboxCountProvider).valueOrNull ?? 0;
+    final noteOutboxCount = ref.watch(noteOutboxCountProvider).valueOrNull ?? 0;
+    final outboxCount = taskOutboxCount + noteOutboxCount;
+    final failedCount = (ref.watch(failedOutboxCountProvider).valueOrNull ?? 0) +
+        (ref.watch(failedNoteOutboxCountProvider).valueOrNull ?? 0);
 
     return Scaffold(
       key: AppShell._scaffoldKey,
@@ -95,7 +103,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (outboxCount > 0) _SyncBanner(count: outboxCount),
+          if (outboxCount > 0)
+            _SyncBanner(count: outboxCount, failed: failedCount > 0),
           NavigationBar(
             selectedIndex: idx,
             onDestinationSelected: (i) => context.go(_routes[i]),
@@ -130,21 +139,30 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
 class _SyncBanner extends StatelessWidget {
   final int count;
-  const _SyncBanner({required this.count});
+  final bool failed;
+  const _SyncBanner({required this.count, this.failed = false});
 
   @override
   Widget build(BuildContext context) {
+    final color = failed ? context.colorDanger : context.colorWarning;
+    final label = failed
+        ? '$count ${count == 1 ? 'изменение' : 'изменений'} не синхронизировано, повтор...'
+        : '$count ${count == 1 ? 'изменение ожидает' : 'изменений ожидают'} синхронизации';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       color: context.colorWarningTint,
       child: Row(
         children: [
-          Icon(Icons.sync_outlined, size: 14, color: context.colorWarning),
+          Icon(
+            failed ? Icons.error_outline : Icons.sync_outlined,
+            size: 14,
+            color: color,
+          ),
           const SizedBox(width: 8),
           Text(
-            '$count ${count == 1 ? 'изменение ожидает' : 'изменений ожидают'} синхронизации',
-            style: TextStyle(fontSize: 12, color: context.colorWarningInk),
+            label,
+            style: TextStyle(fontSize: 12, color: context.colorWarningInk, fontWeight: failed ? FontWeight.w600 : FontWeight.w400),
           ),
         ],
       ),

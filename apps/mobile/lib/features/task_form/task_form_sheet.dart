@@ -177,12 +177,20 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     HapticFeedback.mediumImpact();
     widget.onSubmit(data);
 
-    // Save tags for edit mode (we have the task ID)
+    // Save tags for edit mode (we have the task ID). Capture the objects we
+    // need now, before the sheet closes below — `ref` isn't safe to read
+    // from inside the .then()/.catchError() callbacks once this State has
+    // been disposed.
     if (_isEdit) {
       final taskId = widget.existingTask!.id;
-      ref.read(tagsApiProvider).setTaskTags(taskId, _tagIds)
-          .then((_) => ref.read(tagStoreProvider.notifier).setTaskTagsLocal(taskId, _tagIds))
-          .catchError((_) {});
+      final tagsApi = ref.read(tagsApiProvider);
+      final tagStore = ref.read(tagStoreProvider.notifier);
+      final toast = ref.read(appToastProvider.notifier);
+      tagsApi.setTaskTags(taskId, _tagIds)
+          .then((_) => tagStore.setTaskTagsLocal(taskId, _tagIds))
+          .catchError((_) {
+        toast.show('Не удалось сохранить теги задачи');
+      });
     }
 
     Navigator.pop(context);
@@ -249,9 +257,17 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
           ),
           TextButton(
             onPressed: () async {
+              // Capture before closing — `ref` isn't safe to read once this
+              // State has been disposed, and both sheets close below.
+              final api = ref.read(tasksApiProvider);
+              final toast = ref.read(appToastProvider.notifier);
               Navigator.pop(ctx);
               Navigator.pop(context);
-              await ref.read(tasksApiProvider).replanTask(task.id, periodStart);
+              try {
+                await api.replanTask(task.id, periodStart);
+              } catch (_) {
+                toast.show('Не удалось перепланировать задачу');
+              }
             },
             child: Text('Перенести', style: TextStyle(color: context.colorBrand, fontWeight: FontWeight.w600)),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/api/tasks_api.dart';
 import '../../../shared/theme/theme.dart';
+import '../../../shared/ui/app_toast.dart';
 import '../task.dart';
 
 /// Auto-dispose so subtasks are freed when the card scrolls out of view.
@@ -62,6 +63,9 @@ class _SubtaskChecklistState extends ConsumerState<SubtaskChecklist> {
     } catch (_) {
       setState(() => _local = current);
       ref.invalidate(subtasksProvider(widget.parentTaskId));
+      if (mounted) {
+        ref.read(appToastProvider.notifier).show('Не удалось обновить подзадачу');
+      }
     }
   }
 
@@ -84,7 +88,11 @@ class _SubtaskChecklistState extends ConsumerState<SubtaskChecklist> {
         _showInput = false;
       });
     } catch (_) {
-      // API client already fires toast via the tasks_notifier wrapper
+      // Calls tasksApiProvider directly (not the tasks_notifier wrapper),
+      // so it needs its own toast on failure.
+      if (mounted) {
+        ref.read(appToastProvider.notifier).show('Не удалось добавить подзадачу');
+      }
     } finally {
       if (mounted) setState(() => _adding = false);
     }
