@@ -30,8 +30,12 @@
         !returnTo.startsWith('/login') &&
         !returnTo.startsWith('/register')
       goto(safe ? returnTo! : '/today')
-    } catch (err: any) {
-      error = err.message ?? i18n.t('auth.error_invalid')
+    } catch {
+      // Ignore err.message: the API client's generic 401 handler reports a
+      // fixed 'Unauthorized', and the backend's own message ('Invalid
+      // credentials') is an untranslated technical string either way —
+      // always show the localized, user-facing text instead.
+      error = i18n.t('auth.error_invalid')
     } finally {
       loading = false
     }
