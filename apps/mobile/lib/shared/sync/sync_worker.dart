@@ -74,3 +74,9 @@ final syncWorkerProvider = Provider<SyncWorker>(
 final outboxCountProvider = StreamProvider<int>((ref) {
   return ref.watch(appDatabaseProvider).watchPendingOutboxCount();
 });
+
+/// Reactive count of task-toggle outbox entries stuck retrying (attempts > 0).
+/// Drives the failed-sync styling of the banner in [AppShell].
+final failedOutboxCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).watchFailedOutboxCount();
+});

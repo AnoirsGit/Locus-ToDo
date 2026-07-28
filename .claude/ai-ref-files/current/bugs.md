@@ -40,9 +40,9 @@ handling anywhere.
 No `SnackBar`/`ScaffoldMessenger` usage in the entire app. `tasks_notifier.dart`,
 `sync_worker.dart`, notes notifier — all `catch (_) {}`. A failed create/toggle just
 silently reverts (or worse, doesn't).
-- [ ] Minimal toast service (`shared/ui/app_toast.dart`, ScaffoldMessenger-based) — mirror web `toastStore` semantics
-- [ ] Wire into task/notes/tags mutation error paths (non-auth failures), like web's API client does
-- [ ] Sync outbox: surface "N changes pending sync" + a failed-sync indicator (badge in app bar or settings row) — outbox exists, user has zero visibility
+- [x] Minimal toast service (`shared/ui/app_toast.dart`, ScaffoldMessenger-based) — mirrors web `toastStore` semantics; wired into `AppShell` (`ref.listen(appToastProvider, ...)`)
+- [x] Wire into task/notes/tags mutation error paths (non-auth failures) — `tasks_notifier.dart` create/update/delete already covered; `subtask_checklist.dart` (`_toggle`/`_add`) and `task_form_sheet.dart` (`_replan`, tag-save-on-submit) and `tag_store.dart` (`setNoteTags`) now show toasts too (were silently swallowing). Note: `notes_notifier.dart`'s own create/update/delete `.catchError` only fires for local (Drift) write failures — `OfflineNotesApi` deliberately never rethrows network failures (offline-first: queues to outbox instead), documented in `offline_notes_api.dart`.
+- [x] Sync outbox: surface "N changes pending sync" + a failed-sync indicator — `AppShell`'s `_SyncBanner` now combines task + note outbox counts (`noteOutboxCountProvider` added, previously notes had zero visibility) and switches to a red "not synced, retrying..." style once any entry has failed at least once (`failedOutboxCountProvider`/`failedNoteOutboxCountProvider`, `attempts > 0`)
 
 ---
 

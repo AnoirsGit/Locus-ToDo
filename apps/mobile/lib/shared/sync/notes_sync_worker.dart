@@ -57,3 +57,15 @@ final notesSyncWorkerProvider = Provider<NotesSyncWorker>(
     ref.watch(notesApiProvider),
   ),
 );
+
+/// Reactive count of pending note outbox entries.
+/// Drives the sync-pending banner in [AppShell] (combined with task outbox).
+final noteOutboxCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).watchPendingNoteOutboxCount();
+});
+
+/// Reactive count of note outbox entries stuck retrying (attempts > 0).
+/// Drives the failed-sync styling of the banner in [AppShell].
+final failedNoteOutboxCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).watchFailedNoteOutboxCount();
+});

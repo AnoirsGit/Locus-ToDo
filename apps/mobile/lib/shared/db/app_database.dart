@@ -149,6 +149,17 @@ class AppDatabase extends _$AppDatabase {
         NotesOutboxCompanion(attempts: Value(attempts), nextRetryAt: Value(nextRetry)),
       );
 
+  /// Reactive count of all pending note outbox entries.
+  Stream<int> watchPendingNoteOutboxCount() =>
+      (select(notesOutbox)).watch().map((rows) => rows.length);
+
+  /// Reactive count of note outbox entries that failed at least once
+  /// (attempts > 0) — i.e. genuinely stuck retrying, not just freshly queued.
+  Stream<int> watchFailedNoteOutboxCount() => (select(notesOutbox)
+        ..where((o) => o.attempts.isBiggerThanValue(0)))
+      .watch()
+      .map((rows) => rows.length);
+
   // ── Task queries ──────────────────────────────────────────────────────────
 
   Future<void> upsertTask(TasksCompanion task) =>
@@ -224,6 +235,13 @@ class AppDatabase extends _$AppDatabase {
   /// Reactive count of all pending task-toggle outbox entries.
   Stream<int> watchPendingOutboxCount() =>
       (select(syncOutbox)).watch().map((rows) => rows.length);
+
+  /// Reactive count of task-toggle outbox entries that failed at least once
+  /// (attempts > 0) — i.e. genuinely stuck retrying, not just freshly queued.
+  Stream<int> watchFailedOutboxCount() => (select(syncOutbox)
+        ..where((o) => o.attempts.isBiggerThanValue(0)))
+      .watch()
+      .map((rows) => rows.length);
 }
 
 LazyDatabase _openConnection() {
