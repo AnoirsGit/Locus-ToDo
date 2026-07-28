@@ -5,7 +5,7 @@ RUN corepack enable
 WORKDIR /repo
 
 # Copy workspace manifests first (better layer caching)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json ./apps/api/
 
