@@ -6,7 +6,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
 
 jobs:
   build-and-push:
@@ -36,6 +35,13 @@ jobs:
         id: meta
         run: echo "version=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
+      - name: Compute lowercase image prefix
+        id: repo
+        # GHCR rejects tags with uppercase characters; github.repository (owner/repo)
+        # must match this exact lowercase form when docker-compose.prod.yml later
+        # pulls "ghcr.io/${GITHUB_REPOSITORY}/locus-*" on the VPS.
+        run: echo "prefix=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       # ── API ──────────────────────────────────────────────────────────────────
       - name: Build & push API
         uses: docker/build-push-action@v5
@@ -44,8 +50,8 @@ jobs:
           file: apps/api/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/locus-api:latest
-            ${{ env.IMAGE_PREFIX }}/locus-api:${{ steps.meta.outputs.version }}
+            ${{ steps.repo.outputs.prefix }}/locus-api:latest
+            ${{ steps.repo.outputs.prefix }}/locus-api:${{ steps.meta.outputs.version }}
           cache-from: type=gha,scope=api
           cache-to:   type=gha,scope=api,mode=max
 
@@ -58,8 +64,8 @@ jobs:
           push: true
           build-args: PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
           tags: |
-            ${{ env.IMAGE_PREFIX }}/locus-web:latest
-            ${{ env.IMAGE_PREFIX }}/locus-web:${{ steps.meta.outputs.version }}
+            ${{ steps.repo.outputs.prefix }}/locus-web:latest
+            ${{ steps.repo.outputs.prefix }}/locus-web:${{ steps.meta.outputs.version }}
           cache-from: type=gha,scope=web
           cache-to:   type=gha,scope=web,mode=max
 
@@ -87,7 +93,8 @@ jobs:
 
             # Pull new images
             IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-            GITHUB_REPOSITORY=${{ github.repository }}
+            # Must be lowercase to match the tags pushed to GHCR (see build-and-push job)
+            GITHUB_REPOSITORY=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
 
             IMAGE_TAG=$IMAGE_TAG \
             GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
