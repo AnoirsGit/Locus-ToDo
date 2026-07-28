@@ -56,7 +56,7 @@ jobs:
           storePassword=$STORE_PASSWORD
           keyPassword=$KEY_PASSWORD
           keyAlias=$KEY_ALIAS
-          storeFile=../android/keystore/locus-release.jks
+          storeFile=../keystore/locus-release.jks
           EOF
 
       - name: Build APK
