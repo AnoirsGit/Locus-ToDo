@@ -60,4 +60,9 @@ class S {
   static String get addColumn => _ru ? 'Колонка' : 'Add column';
   static String get emptyCard => _ru ? 'Пусто' : 'Empty';
   static String nested(int n) => _ru ? 'вложенных: $n' : '$n nested';
+
+  // Task archive outcome chip — mirrors web `outcome.*` dict keys
+  static String get outcomeOnTime => _ru ? 'Выполнено вовремя' : 'Done on time';
+  static String get outcomeLate => _ru ? 'Выполнено с опозданием' : 'Done late';
+  static String get outcomeFailed => _ru ? 'Не выполнено' : 'Failed';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/core/strings.dart';
 import '../../../shared/theme/theme.dart';
 import '../../../shared/providers/tag_store.dart';
 import '../task.dart';
@@ -222,11 +223,11 @@ class TaskCard extends ConsumerWidget {
                       if (isArchived) ...[
                         _MetaChip(_periodLabel(), color: context.colorMuted),
                         if (archiveOutcome == 'ontime')
-                          _MetaChip('✓ выполнено', color: context.colorSuccess),
+                          _MetaChip('✓ ${S.outcomeOnTime}', color: context.colorSuccess),
                         if (archiveOutcome == 'late')
-                          _MetaChip('✓ с опозданием', color: context.colorYear),
+                          _MetaChip('✓ ${S.outcomeLate}', color: context.colorYear),
                         if (archiveOutcome == 'failed')
-                          _MetaChip('✗ не выполнено', color: context.colorDanger),
+                          _MetaChip('✗ ${S.outcomeFailed}', color: context.colorDanger),
                         if (doneAtLabel != null)
                           _MetaChip('· $doneAtLabel', color: context.colorMuted),
                       ] else ...[
