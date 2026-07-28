@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/task/task.dart';
 import '../../shared/api/tags_api.dart';
 import '../../shared/api/tasks_api.dart';
+import '../../shared/core/date_utils.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/ui/app_toast.dart';
@@ -147,13 +148,10 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
 
   String _periodStart() {
     final now = DateTime.now();
-    String iso(DateTime d) => d.toIso8601String().split('T')[0];
     if (_level == TaskLevel.day) return widget.defaultPeriodStart;
-    if (_level == TaskLevel.week) {
-      return iso(now.subtract(Duration(days: now.weekday - 1)));
-    }
-    if (_level == TaskLevel.month) return iso(DateTime(now.year, now.month, 1));
-    return '${now.year}-01-01';
+    if (_level == TaskLevel.week) return weekStartISO(now);
+    if (_level == TaskLevel.month) return monthStartISO(now);
+    return yearStartISO(now);
   }
 
   void _submit() {
@@ -226,18 +224,17 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
   void _replan() {
     final task = widget.existingTask!;
     final now = DateTime.now();
-    String iso(DateTime d) => d.toIso8601String().split('T')[0];
 
     String periodStart;
     switch (task.level) {
       case TaskLevel.day:
-        periodStart = iso(now);
+        periodStart = localIso(now);
       case TaskLevel.week:
-        periodStart = iso(now.subtract(Duration(days: now.weekday - 1)));
+        periodStart = weekStartISO(now);
       case TaskLevel.month:
-        periodStart = iso(DateTime(now.year, now.month, 1));
+        periodStart = monthStartISO(now);
       case TaskLevel.year:
-        periodStart = '${now.year}-01-01';
+        periodStart = yearStartISO(now);
     }
 
     showDialog(
@@ -292,7 +289,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       final sub = await api.createTask({
         'title': title,
         'level': _level.name,
-        'periodStart': widget.existingTask!.period.periodStart.toIso8601String().split('T')[0],
+        'periodStart': localIso(widget.existingTask!.period.periodStart),
         'parentTaskId': widget.existingTask!.id,
       });
       if (mounted) setState(() => _subtasks = [..._subtasks, sub]);
@@ -877,7 +874,7 @@ class _DateButton extends StatelessWidget {
               lastDate: now.add(const Duration(days: 365)),
             );
             if (picked != null) {
-              onChanged(picked.toIso8601String().split('T')[0]);
+              onChanged(localIso(picked));
             }
           },
           child: Container(

@@ -18,7 +18,7 @@ wrong stats `?today=`. Mobile uses local `DateTime.now()` components → web and
 disagree at night.
 - [x] Add `shared/lib/date.ts`: `localToday()`, `toLocalISO(d)` + `weekStartISO`/`monthStartISO`/`yearStartISO` (dedups Monday/month-start math from 4 components); reactive `clock.svelte.ts` (`clock.today`/`clock.now`/`refresh()`)
 - [x] Replace every `toISOString().split('T')[0]` call used as a *calendar date* (layout, today, stats, Sidebar, WeekView, DayColumn, TaskList, CreateTaskForm; stats string-math helpers kept — they parse ISO as UTC and format with `timeZone: 'UTC'`, correct)
-- [ ] Same helper on mobile for consistency (`shared/lib/date_utils.dart`) — deferred until B4 branch merges (same files)
+- [x] Same helper on mobile for consistency (`shared/core/date_utils.dart` — mobile's `shared/` has no `lib/` subdir, used the existing `core/` convention instead) — `localIso`/`localToday`/`weekStartISO`/`monthStartISO`/`yearStartISO`, dedups the `iso(DateTime d) => d.toIso8601String().split('T')[0]` closures repeated across `tasks_page.dart`, `view_tab_page.dart`, `task_form_sheet.dart` (×2), `subtask_checklist.dart`. Note: mobile's `toIso8601String()` on local `DateTime`s was already correct (no UTC conversion happens for non-UTC `DateTime` instances, unlike JS's `Date.toISOString()`) — this was a dedup/consistency pass, not a bug fix on mobile.
 
 ### B2. Web cannot delete or replan tasks
 `tasksApi.remove` and `tasksApi.replan` exist in `entities/task/api/tasks.api.ts` but
@@ -33,7 +33,7 @@ once on mount. A tab/app left open across midnight or an hourly tick shows stale
 statuses; "today" never rolls over. No `visibilitychange` / `AppLifecycleState`
 handling anywhere.
 - [x] Web: on `document.visibilitychange` → visible (throttled ≥60 s since last load): `loadAll()` refetch in `(app)/+layout.svelte`
-- [ ] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`) — deferred until B4 branch merges (same files)
+- [x] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`) — `AppShell.didChangeAppLifecycleState` (throttled ≥60 s since last load) invalidates `groupedTasksProvider` for day/week/month/year/backlog
 - [x] Recompute "today"/week window on refetch — `clock.refresh()` in `loadAll()`; today page, Sidebar, WeekView now `$derived` from `clock`
 
 ### B4. Mobile errors are swallowed silently

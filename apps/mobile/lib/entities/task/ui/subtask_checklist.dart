@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/api/tasks_api.dart';
+import '../../../shared/core/date_utils.dart';
 import '../../../shared/theme/theme.dart';
 import '../../../shared/ui/app_toast.dart';
 import '../task.dart';
@@ -74,8 +75,7 @@ class _SubtaskChecklistState extends ConsumerState<SubtaskChecklist> {
     if (title.isEmpty) return;
     setState(() => _adding = true);
     try {
-      final periodStart =
-          widget.parentPeriodStart.toIso8601String().substring(0, 10);
+      final periodStart = localIso(widget.parentPeriodStart);
       final created = await ref.read(tasksApiProvider).createTask({
         'title': title,
         'level': widget.parentLevel.name,
