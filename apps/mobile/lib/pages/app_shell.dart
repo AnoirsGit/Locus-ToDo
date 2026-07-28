@@ -110,29 +110,25 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             selectedIndex: idx,
             onDestinationSelected: (i) => context.go(_routes[i]),
             destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.grid_view_outlined),
-                selectedIcon: Icon(Icons.grid_view),
-                label: 'Просмотр',
+              NavigationDestination(
+                icon: const Icon(Icons.grid_view_outlined),
+                selectedIcon: const Icon(Icons.grid_view),
+                label: S.navView,
               ),
-              // S.notes already exists (notes page reuses it) — bugs.md flagged
-              // this literal as bypassing it. Other three labels are out of
-              // scope: no S.* keys exist for them yet (see mobile-tasks-parity
-              // Gap 5, the full mobile i18n sweep).
               NavigationDestination(
                 icon: const Icon(Icons.note_alt_outlined),
                 selectedIcon: const Icon(Icons.note_alt),
                 label: S.notes,
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.bar_chart_outlined),
-                selectedIcon: Icon(Icons.bar_chart),
-                label: 'Статистика',
+              NavigationDestination(
+                icon: const Icon(Icons.bar_chart_outlined),
+                selectedIcon: const Icon(Icons.bar_chart),
+                label: S.navStats,
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: 'Настройки',
+              NavigationDestination(
+                icon: const Icon(Icons.settings_outlined),
+                selectedIcon: const Icon(Icons.settings),
+                label: S.navSettings,
               ),
             ],
           ),
@@ -150,9 +146,7 @@ class _SyncBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = failed ? context.colorDanger : context.colorWarning;
-    final label = failed
-        ? '$count ${count == 1 ? 'изменение' : 'изменений'} не синхронизировано, повтор...'
-        : '$count ${count == 1 ? 'изменение ожидает' : 'изменений ожидают'} синхронизации';
+    final label = failed ? S.syncFailed(count) : S.syncPending(count);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/auth_notifier.dart';
+import '../shared/core/strings.dart';
 import '../shared/providers/view_provider.dart';
 import '../shared/theme/theme.dart';
 import '../shared/theme/theme_provider.dart';
@@ -91,11 +92,11 @@ class AppDrawer extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 children: [
-                  _SectionLabel('ГОРИЗОНТЫ'),
+                  _SectionLabel(S.sectionHorizons),
                   _NavItem(
                     icon: Icons.today_outlined,
                     selectedIcon: Icons.today,
-                    label: 'Сегодня',
+                    label: S.navToday,
                     count: _todoCount(dayData),
                     active: isActive('/view', view: 'day'),
                     onTap: () => navigate('/view', view: 'day'),
@@ -104,7 +105,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.view_week_outlined,
                     selectedIcon: Icons.view_week,
-                    label: 'Неделя',
+                    label: S.navWeek,
                     count: _todoCount(weekData),
                     active: isActive('/view', view: 'week'),
                     onTap: () => navigate('/view', view: 'week'),
@@ -113,7 +114,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.calendar_month_outlined,
                     selectedIcon: Icons.calendar_month,
-                    label: 'Месяц',
+                    label: S.navMonth,
                     count: _todoCount(monthData),
                     active: isActive('/view', view: 'month'),
                     onTap: () => navigate('/view', view: 'month'),
@@ -122,7 +123,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.calendar_today_outlined,
                     selectedIcon: Icons.calendar_today,
-                    label: 'Год',
+                    label: S.navYear,
                     count: _todoCount(yearData),
                     active: isActive('/view', view: 'year'),
                     onTap: () => navigate('/view', view: 'year'),
@@ -132,11 +133,11 @@ class AppDrawer extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Divider(color: context.colorBorder, height: 24, indent: 16, endIndent: 16),
 
-                  _SectionLabel('ЗАПИСИ'),
+                  _SectionLabel(S.sectionRecords),
                   _NavItem(
                     icon: Icons.inbox_outlined,
                     selectedIcon: Icons.inbox,
-                    label: 'Бэклог',
+                    label: S.navBacklog,
                     count: _backlogCount(),
                     showDot: _backlogCount() > 0,
                     active: isActive('/backlog'),
@@ -146,7 +147,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.archive_outlined,
                     selectedIcon: Icons.archive,
-                    label: 'Архив',
+                    label: S.navArchive,
                     active: isActive('/archive'),
                     onTap: () => navigate('/archive'),
                     context: context,
@@ -154,7 +155,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.bar_chart_outlined,
                     selectedIcon: Icons.bar_chart,
-                    label: 'Статистика',
+                    label: S.navStats,
                     active: isActive('/stats'),
                     onTap: () => navigate('/stats'),
                     context: context,
@@ -162,7 +163,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.note_outlined,
                     selectedIcon: Icons.note,
-                    label: 'Notes',
+                    label: S.notes,
                     active: isActive('/notes'),
                     onTap: () => navigate('/notes'),
                     context: context,
@@ -170,7 +171,7 @@ class AppDrawer extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.settings_outlined,
                     selectedIcon: Icons.settings,
-                    label: 'Настройки',
+                    label: S.navSettings,
                     active: isActive('/settings'),
                     onTap: () => navigate('/settings'),
                     context: context,
@@ -213,7 +214,7 @@ class AppDrawer extends ConsumerWidget {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                themeMode == ThemeMode.dark ? 'Светлая' : 'Тёмная',
+                                themeMode == ThemeMode.dark ? S.themeLight : S.themeDark,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: context.colorMuted,
