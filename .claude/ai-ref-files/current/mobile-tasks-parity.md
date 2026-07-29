@@ -5,6 +5,11 @@
 > Updated 2026-07-28: re-audited against current code — Gaps 1-4 were already implemented
 > (this doc had gone stale, not reflecting completed work); Gap 6's card/detail items were
 > also already done. Gap 5 (i18n) is the one gap still substantially open.
+> Updated 2026-07-29: Gap 5 closed — full ru/en string sweep across `apps/mobile/lib`
+> (task views, form sheet, stats, drawer, bottom nav, settings) confirmed via repo-wide
+> Cyrillic grep, plus a real in-app language switch (System/Русский/English) in Settings,
+> persisted via `SharedPreferences`. Only the minor "keep going" backlog-empty-state copy
+> nuance from Gap 6 remains open (see below); everything else in this doc is done.
 
 ## Audit verdict
 
@@ -101,20 +106,26 @@ Remaining gaps are below, priority order.
 
 **Todo**
 - [x] Minimal `shared/lib/strings.dart` (ru/en keyed table mirroring web `i18n` keys)
-      + locale provider persisted in SharedPreferences. — table exists
-      (`shared/core/strings.dart`, `S.*`), but it follows the OS locale
-      (`PlatformDispatcher.instance.locale`) rather than a user-facing in-app switch — see
-      next item, still open.
-- [ ] Language row in Settings (matches web's sidebar toggle). — not started; `S._ru` has
-      no override hook yet, needs a persisted preference + a settings row to flip it.
-- [ ] Sweep tasks-related strings first (view_tab, tasks_page, task_card, form sheet,
+      + locale provider persisted in SharedPreferences. — done (2026-07-29):
+      `S` now supports `setLocaleOverride`, and a new
+      `shared/providers/locale_provider.dart` (`LocaleOverrideNotifier`) persists the
+      user's ru/en/system choice via `SharedPreferences`; `null` (system) preserves the
+      original OS-locale-following behavior.
+- [x] Language row in Settings (matches web's sidebar toggle). — done: new "Language"
+      section in `settings_page.dart` (System / Русский / English segmented control,
+      same `_ThemeOption` widget style as the theme picker); `main.dart` re-keys the
+      `MaterialApp.router` subtree on locale change so `S.*` (a plain static table, not
+      Flutter `Localizations`) is re-read everywhere below it.
+- [x] Sweep tasks-related strings first (view_tab, tasks_page, task_card, form sheet,
       stats, drawer, bottom nav); notes strings are covered by `notes-v2/04`.
-      — partial: `task_card.dart` and `subtask_checklist.dart` fully swept onto `S.*`
-      (2026-07-28). Confirmed still hardcoded (not yet swept): `tasks_page.dart`
-      (`_titles`, `_contextTitles`, `_emptyPrimary`/`_emptyFiltered` copy), `view_tab_page.dart`,
+      — done: full-repo grep for hardcoded Cyrillic across `apps/mobile/lib` returns
+      zero matches outside `strings.dart` itself and comments. `tasks_page.dart`
+      (`_titles`, `_contextTitles`, `_emptyPrimary`/`_emptyFiltered`), `view_tab_page.dart`,
       `task_form_sheet.dart`, `stats_page.dart`, `app_drawer.dart`, `app_shell.dart` nav
-      labels (see bugs.md's "Mobile notes AppBar title" item — 3 of 4 nav labels still
-      plain strings), `settings_page.dart`.
+      labels, and `settings_page.dart` (appearance/notifications/tags sections,
+      sign-out/edit-profile dialogs, lead-time/evening-time pickers, tag management
+      dialogs, `Email` field label) are all now on `S.*`. Gap 5 is closed; only the
+      unrelated Gap 6 "keep going" backlog-empty-state copy nuance remains (see below).
 
 ## Gap 6 — Small card/detail mismatches (batch, low effort)
 

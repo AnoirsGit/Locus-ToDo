@@ -5,6 +5,7 @@ import '../../shared/api/tags_api.dart';
 import '../../shared/core/strings.dart';
 import '../../shared/notifications/notification_prefs.dart';
 import '../../shared/notifications/notification_service.dart';
+import '../../shared/providers/locale_provider.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/ui/app_toast.dart';
@@ -19,6 +20,7 @@ class SettingsPage extends ConsumerWidget {
     final user = ref.watch(authNotifierProvider).valueOrNull;
     final prefsAsync = ref.watch(notificationPrefsProvider);
     final themeMode = ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.dark;
+    final locale = ref.watch(localeOverrideProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -66,7 +68,7 @@ class SettingsPage extends ConsumerWidget {
           ],
 
           // ── Appearance ─────────────────────────────────────────────────
-          _SectionHeader(title: 'Appearance'),
+          _SectionHeader(title: S.appearanceSection),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
@@ -78,19 +80,19 @@ class SettingsPage extends ConsumerWidget {
                 children: [
                   _ThemeOption(
                     icon: Icons.light_mode_outlined,
-                    label: 'Light',
+                    label: S.themeLight,
                     selected: themeMode == ThemeMode.light,
                     onTap: () => ref.read(themeModeProvider.notifier).setMode(ThemeMode.light),
                   ),
                   _ThemeOption(
                     icon: Icons.brightness_auto_outlined,
-                    label: 'System',
+                    label: S.themeSystem,
                     selected: themeMode == ThemeMode.system,
                     onTap: () => ref.read(themeModeProvider.notifier).setMode(ThemeMode.system),
                   ),
                   _ThemeOption(
                     icon: Icons.dark_mode_outlined,
-                    label: 'Dark',
+                    label: S.themeDark,
                     selected: themeMode == ThemeMode.dark,
                     onTap: () => ref.read(themeModeProvider.notifier).setMode(ThemeMode.dark),
                   ),
@@ -101,8 +103,44 @@ class SettingsPage extends ConsumerWidget {
 
           Divider(color: context.colorBorder),
 
+          // ── Language ───────────────────────────────────────────────────
+          _SectionHeader(title: S.languageSection),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: context.colorSurface2,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  _ThemeOption(
+                    icon: Icons.smartphone_outlined,
+                    label: S.languageSystem,
+                    selected: locale == null,
+                    onTap: () => ref.read(localeOverrideProvider.notifier).setLocale(null),
+                  ),
+                  _ThemeOption(
+                    icon: Icons.language,
+                    label: S.languageRussian,
+                    selected: locale == 'ru',
+                    onTap: () => ref.read(localeOverrideProvider.notifier).setLocale('ru'),
+                  ),
+                  _ThemeOption(
+                    icon: Icons.language,
+                    label: S.languageEnglish,
+                    selected: locale == 'en',
+                    onTap: () => ref.read(localeOverrideProvider.notifier).setLocale('en'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Divider(color: context.colorBorder),
+
           // ── Notifications ───────────────────────────────────────────────
-          _SectionHeader(title: 'Notifications'),
+          _SectionHeader(title: S.notificationsSection),
 
           prefsAsync.when(
             loading: () => const Padding(
@@ -110,7 +148,7 @@ class SettingsPage extends ConsumerWidget {
               child: Center(child: CircularProgressIndicator()),
             ),
             error: (e, _) => ListTile(
-              title: Text('Failed to load preferences: $e',
+              title: Text(S.loadPrefsFailed(e),
                   style: TextStyle(color: context.colorDanger)),
             ),
             data: (prefs) => _NotificationSection(prefs: prefs),
@@ -119,7 +157,7 @@ class SettingsPage extends ConsumerWidget {
           Divider(color: context.colorBorder),
 
           // ── Tags ───────────────────────────────────────────────────────
-          _SectionHeader(title: 'Tags'),
+          _SectionHeader(title: S.tagsSection),
           _TagManagementSection(),
 
           Divider(color: context.colorBorder),
@@ -127,20 +165,20 @@ class SettingsPage extends ConsumerWidget {
           // ── Logout ─────────────────────────────────────────────────────
           ListTile(
             leading: Icon(Icons.logout, color: context.colorDanger),
-            title: Text('Sign out', style: TextStyle(color: context.colorDanger)),
+            title: Text(S.signOut, style: TextStyle(color: context.colorDanger)),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Sign out?'),
+                  title: Text(S.signOutQ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
+                      child: Text(S.cancel),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: Text('Sign out',
+                      child: Text(S.signOut,
                           style: TextStyle(color: context.colorDanger)),
                     ),
                   ],
@@ -167,19 +205,19 @@ void _showEditProfileDialog(BuildContext context, WidgetRef ref, String currentN
     builder: (ctx) => AlertDialog(
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      title: const Text('Edit profile'),
+      title: Text(S.editProfile),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: nameCtrl,
-            decoration: const InputDecoration(labelText: 'Name'),
+            decoration: InputDecoration(labelText: S.name),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: emailCtrl,
-            decoration: const InputDecoration(labelText: 'Email'),
+            decoration: InputDecoration(labelText: S.email),
             keyboardType: TextInputType.emailAddress,
           ),
         ],
@@ -187,7 +225,7 @@ void _showEditProfileDialog(BuildContext context, WidgetRef ref, String currentN
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+          child: Text(S.cancel),
         ),
         TextButton(
           onPressed: () async {
@@ -200,7 +238,7 @@ void _showEditProfileDialog(BuildContext context, WidgetRef ref, String currentN
             );
             // Failure toast is already shown by the notifier itself.
           },
-          child: const Text('Save'),
+          child: Text(S.save),
         ),
       ],
     ),
@@ -307,9 +345,9 @@ class _NotificationSection extends ConsumerWidget {
             ref,
             prefs.copyWith(preDeadlineEnabled: val),
           ),
-          title: Text('Pre-deadline reminder',
+          title: Text(S.preDeadlineReminder,
               style: TextStyle(color: context.colorTextStrong)),
-          subtitle: Text('Notify before a task is due',
+          subtitle: Text(S.notifyBeforeDue,
               style: TextStyle(color: context.colorMuted, fontSize: 12)),
           secondary: Icon(Icons.alarm, color: context.colorBrand),
         ),
@@ -340,9 +378,9 @@ class _NotificationSection extends ConsumerWidget {
             ref,
             prefs.copyWith(eveningSummaryEnabled: val),
           ),
-          title: Text('Evening summary',
+          title: Text(S.eveningSummary,
               style: TextStyle(color: context.colorTextStrong)),
-          subtitle: Text('Daily recap of pending tasks',
+          subtitle: Text(S.dailyRecapPending,
               style: TextStyle(color: context.colorMuted, fontSize: 12)),
           secondary: Icon(Icons.nightlight_round, color: context.colorBrand),
         ),
@@ -391,7 +429,7 @@ class _LeadTimePicker extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Remind me',
+            S.remindMe,
             style: TextStyle(fontSize: 12, color: context.colorMuted),
           ),
           const SizedBox(height: 8),
@@ -425,7 +463,7 @@ class _LeadTimePicker extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'before scheduled time',
+            S.beforeScheduledTime,
             style: TextStyle(fontSize: 12, color: context.colorMuted2),
           ),
         ],
@@ -460,22 +498,22 @@ class _TagManagementSection extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('New tag'),
+        title: Text(S.newTag),
         content: TextField(
           controller: nameCtrl,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Tag name'),
+          decoration: InputDecoration(labelText: S.tagNameHint),
           textCapitalization: TextCapitalization.words,
           onSubmitted: (_) => _createTag(ref, ctx, nameCtrl.text),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(S.cancel),
           ),
           TextButton(
             onPressed: () => _createTag(ref, ctx, nameCtrl.text),
-            child: const Text('Create'),
+            child: Text(S.create),
           ),
         ],
       ),
@@ -504,7 +542,7 @@ class _TagManagementSection extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Text(
-              'No tags yet',
+              S.noTagsYet,
               style: TextStyle(fontSize: 13, color: context.colorMuted),
             ),
           )
@@ -536,7 +574,7 @@ class _TagManagementSection extends ConsumerWidget {
         ListTile(
           dense: true,
           leading: Icon(Icons.add, size: 18, color: context.colorBrand),
-          title: Text('Add tag', style: TextStyle(fontSize: 14, color: context.colorBrand)),
+          title: Text(S.addTag, style: TextStyle(fontSize: 14, color: context.colorBrand)),
           onTap: () => _showCreateTagDialog(context, ref),
         ),
       ],
@@ -573,7 +611,7 @@ class _EveningTimePicker extends StatelessWidget {
           Icon(Icons.access_time, size: 18, color: context.colorMuted),
           const SizedBox(width: 10),
           Text(
-            'Send summary at',
+            S.sendSummaryAt,
             style: TextStyle(fontSize: 13, color: context.colorText),
           ),
           const Spacer(),
