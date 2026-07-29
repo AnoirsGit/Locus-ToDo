@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/core/strings.dart';
 import '../../../shared/theme/theme.dart';
 import '../task.dart';
 
@@ -7,11 +8,11 @@ class TaskLevelBadge extends StatelessWidget {
 
   const TaskLevelBadge({super.key, required this.level});
 
-  static const _labels = {
-    TaskLevel.day:   'ДЕНЬ',
-    TaskLevel.week:  'НЕД',
-    TaskLevel.month: 'МЕС',
-    TaskLevel.year:  'ГОД',
+  static Map<TaskLevel, String> get _labels => {
+    TaskLevel.day:   S.levelDayShort,
+    TaskLevel.week:  S.levelWeekShort,
+    TaskLevel.month: S.levelMonthShort,
+    TaskLevel.year:  S.levelYearShort,
   };
 
   Color _color(BuildContext context) => switch (level) {

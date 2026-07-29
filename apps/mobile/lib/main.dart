@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/router.dart';
+import 'shared/core/strings.dart';
 import 'shared/theme/theme.dart';
 import 'shared/theme/theme_provider.dart';
 import 'shared/notifications/notification_service.dart';
@@ -20,7 +21,7 @@ class LocusApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.dark;
 
     return MaterialApp.router(
-      title: 'Цикл',
+      title: S.appTitle,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,

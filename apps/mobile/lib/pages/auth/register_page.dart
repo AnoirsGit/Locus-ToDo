@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/auth_notifier.dart';
 import '../../shared/core/auth_error.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/theme/theme.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -76,7 +77,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   const SizedBox(height: 36),
 
                   Text(
-                    'Создать аккаунт.',
+                    S.createAccount,
                     style: TextStyle(
                       fontFamilyFallback: const ['Georgia', 'serif'],
                       fontStyle: FontStyle.italic,
@@ -88,7 +89,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Начните путь к дисциплине.',
+                    S.startDisciplinePath,
                     style: TextStyle(
                       fontFamilyFallback: const ['Georgia', 'serif'],
                       fontStyle: FontStyle.italic,
@@ -99,7 +100,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
                   const SizedBox(height: 28),
 
-                  _FieldLabel(label: 'Имя'),
+                  _FieldLabel(label: S.name),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _nameController,
@@ -109,7 +110,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     autocorrect: false,
                     onSubmitted: (_) => _emailFocus.requestFocus(),
                     onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(hintText: 'Ваше имя'),
+                    decoration: InputDecoration(hintText: S.yourNameHint),
                   ),
 
                   const SizedBox(height: 14),
@@ -130,7 +131,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
                   const SizedBox(height: 14),
 
-                  _FieldLabel(label: 'Пароль'),
+                  _FieldLabel(label: S.password),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _passwordController,
@@ -153,7 +154,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Минимум 8 символов',
+                    S.minPasswordHint,
                     style: TextStyle(fontSize: 12, color: context.colorMuted2),
                   ),
 
@@ -180,7 +181,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Зарегистрироваться'),
+                          : Text(S.register),
                     ),
                   ),
 
@@ -190,11 +191,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     onTap: () => context.go('/login'),
                     child: Text.rich(
                       TextSpan(
-                        text: 'Уже есть аккаунт? ',
+                        text: S.alreadyHaveAccountQ,
                         style: TextStyle(fontSize: 13, color: context.colorMuted),
                         children: [
                           TextSpan(
-                            text: 'Войти',
+                            text: S.login,
                             style: TextStyle(
                               color: context.colorTextStrong,
                               decoration: TextDecoration.underline,
@@ -288,9 +289,9 @@ class _HeroPanel extends StatelessWidget {
                 color: heroText,
               ),
               children: [
-                const TextSpan(text: 'Дисциплина — это не наказание.\nЭто тихая привилегия\n'),
+                TextSpan(text: S.taglineLine1),
                 TextSpan(
-                  text: 'выбирать то, что ты оставишь.',
+                  text: S.taglineLine2,
                   style: TextStyle(color: accentClr),
                 ),
               ],
@@ -300,7 +301,7 @@ class _HeroPanel extends StatelessWidget {
           const SizedBox(height: 24),
 
           Text(
-            '© 2026 — ИНСТРУМЕНТ САМОДИСЦИПЛИНЫ',
+            S.copyrightTagline,
             style: TextStyle(
               fontFamily: 'RobotoMono',
               fontSize: 9,

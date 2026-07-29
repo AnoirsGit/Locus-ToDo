@@ -5,6 +5,7 @@ import '../../entities/task/task.dart';
 import '../../shared/api/tags_api.dart';
 import '../../shared/api/tasks_api.dart';
 import '../../shared/core/date_utils.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/ui/app_toast.dart';
@@ -187,7 +188,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       tagsApi.setTaskTags(taskId, _tagIds)
           .then((_) => tagStore.setTaskTagsLocal(taskId, _tagIds))
           .catchError((_) {
-        toast.show('Не удалось сохранить теги задачи');
+        toast.show(S.taskTagsSaveFailed);
       });
     }
 
@@ -242,15 +243,15 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       builder: (ctx) => AlertDialog(
         backgroundColor: context.colorCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text('Перепланировать?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
+        title: Text(S.replanQ, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colorTextStrong)),
         content: Text(
-          'Задача будет перенесена в текущий период ($periodStart).',
+          S.replanBody(periodStart),
           style: TextStyle(fontSize: 13, color: context.colorMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Отмена', style: TextStyle(color: context.colorText)),
+            child: Text(S.cancel, style: TextStyle(color: context.colorText)),
           ),
           TextButton(
             onPressed: () async {
@@ -263,10 +264,10 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
               try {
                 await api.replanTask(task.id, periodStart);
               } catch (_) {
-                toast.show('Не удалось перепланировать задачу');
+                toast.show(S.replanFailed);
               }
             },
-            child: Text('Перенести', style: TextStyle(color: context.colorBrand, fontWeight: FontWeight.w600)),
+            child: Text(S.move, style: TextStyle(color: context.colorBrand, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -294,7 +295,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
       });
       if (mounted) setState(() => _subtasks = [..._subtasks, sub]);
     } catch (_) {
-      if (mounted) ref.read(appToastProvider.notifier).show('Не удалось добавить подзадачу');
+      if (mounted) ref.read(appToastProvider.notifier).show(S.subtaskAddFailed);
     }
   }
 
@@ -312,7 +313,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     } catch (_) {
       if (mounted) {
         setState(() { _subtasks[idx] = sub; });
-        ref.read(appToastProvider.notifier).show('Не удалось сохранить подзадачу');
+        ref.read(appToastProvider.notifier).show(S.subtaskSaveFailed);
       }
     }
   }
@@ -325,7 +326,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     } catch (_) {
       if (mounted) {
         setState(() => _subtasks = backup);
-        ref.read(appToastProvider.notifier).show('Не удалось удалить подзадачу');
+        ref.read(appToastProvider.notifier).show(S.subtaskDeleteFailed);
       }
     }
   }

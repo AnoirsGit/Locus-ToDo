@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/auth_notifier.dart';
 import '../../shared/core/auth_error.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/theme/theme.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -66,7 +67,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                   // Title
                   Text(
-                    'С возвращением.',
+                    S.welcomeBack,
                     style: TextStyle(
                       fontFamilyFallback: const ['Georgia', 'serif'],
                       fontStyle: FontStyle.italic,
@@ -78,7 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Войдите, чтобы продолжить.',
+                    S.loginToContinue,
                     style: TextStyle(
                       fontFamilyFallback: const ['Georgia', 'serif'],
                       fontStyle: FontStyle.italic,
@@ -106,7 +107,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   const SizedBox(height: 14),
 
                   // ── Password ─────────────────────────────────────────────
-                  _FieldLabel(label: 'Пароль'),
+                  _FieldLabel(label: S.password),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _passwordController,
@@ -152,7 +153,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Войти'),
+                          : Text(S.login),
                     ),
                   ),
 
@@ -163,11 +164,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onTap: () => context.go('/register'),
                     child: Text.rich(
                       TextSpan(
-                        text: 'Нет аккаунта? ',
+                        text: S.noAccountQ,
                         style: TextStyle(fontSize: 13, color: context.colorMuted),
                         children: [
                           TextSpan(
-                            text: 'Зарегистрироваться',
+                            text: S.register,
                             style: TextStyle(
                               color: context.colorTextStrong,
                               decoration: TextDecoration.underline,
@@ -263,9 +264,9 @@ class _HeroPanel extends StatelessWidget {
                 color: heroText,
               ),
               children: [
-                const TextSpan(text: 'Дисциплина — это не наказание.\nЭто тихая привилегия\n'),
+                TextSpan(text: S.taglineLine1),
                 TextSpan(
-                  text: 'выбирать то, что ты оставишь.',
+                  text: S.taglineLine2,
                   style: TextStyle(color: accentClr),
                 ),
               ],
@@ -276,7 +277,7 @@ class _HeroPanel extends StatelessWidget {
 
           // Tagline
           Text(
-            '© 2026 — ИНСТРУМЕНТ САМОДИСЦИПЛИНЫ',
+            S.copyrightTagline,
             style: TextStyle(
               fontFamily: 'RobotoMono',
               fontSize: 9,

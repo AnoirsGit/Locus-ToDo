@@ -8,6 +8,7 @@ import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/core/date_utils.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/providers/view_provider.dart';
 import '../../shared/theme/theme.dart';
@@ -112,11 +113,11 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Ошибка: $err', style: TextStyle(color: context.colorMuted)),
+              Text(S.errorPrefix(err), style: TextStyle(color: context.colorMuted)),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => ref.read(provider.notifier).refresh(),
-                child: const Text('Повторить'),
+                child: Text(S.retry),
               ),
             ],
           ),
@@ -198,11 +199,11 @@ class _ViewDropdown extends StatelessWidget {
   final String view;
   final void Function(String) onChanged;
 
-  static const _labels = {
-    'day':   'День',
-    'week':  'Неделя',
-    'month': 'Месяц',
-    'year':  'Год',
+  static Map<String, String> get _labels => {
+    'day':   S.dayLabel,
+    'week':  S.navWeek,
+    'month': S.navMonth,
+    'year':  S.navYear,
   };
 
   const _ViewDropdown({required this.view, required this.onChanged});
@@ -279,19 +280,10 @@ class _TodayBody extends ConsumerWidget {
     'quietly', 'focused', 'steady', 'present', 'clear', 'sharp', 'grounded',
   ];
 
-  static const _monthNamesRu = [
-    '', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-  ];
-
-  static const _dayNamesRu = [
-    '', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье',
-  ];
-
   String get _eyebrow {
     final now = DateTime.now();
     final weekNum = _weekNumber(now);
-    return '${_dayNamesRu[now.weekday]} · ${now.day} ${_monthNamesRu[now.month]} ${now.year} г. · Неделя $weekNum';
+    return S.todayEyebrow(now.weekday, now.day, now.month, now.year, weekNum);
   }
 
   String get _quietWord =>
@@ -338,7 +330,7 @@ class _TodayBody extends ConsumerWidget {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'Сегодня, ',
+                      text: S.todayComma,
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w400,
@@ -407,7 +399,7 @@ class _TodayBody extends ConsumerWidget {
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: context.colorTextStrong),
                             ),
                             Text(
-                              'ВЫПОЛНЕНО',
+                              S.doneUppercase,
                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: context.colorMuted),
                             ),
                           ],
@@ -423,7 +415,7 @@ class _TodayBody extends ConsumerWidget {
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: context.colorWarning),
                             ),
                             Text(
-                              'ШТРАФЫ',
+                              S.penaltiesUppercase,
                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: context.colorWarning),
                             ),
                           ],
@@ -495,7 +487,7 @@ class _TodayBody extends ConsumerWidget {
                   Icon(Icons.add, size: 16, color: context.colorMuted),
                   const SizedBox(width: 8),
                   Text(
-                    '+ Добавить задачу на сегодня',
+                    S.addTaskToday,
                     style: TextStyle(fontSize: 13, color: context.colorMuted),
                   ),
                 ],
@@ -509,7 +501,7 @@ class _TodayBody extends ConsumerWidget {
         // ── Context sections ─────────────────────────────────────────────
         if (filteredWeek.isNotEmpty)
           _CollapsibleSection(
-            title: 'Цели недели · контекст',
+            title: S.weekGoalsContext,
             tasks: filteredWeek,
             storageKey: 'today:week',
             onToggle: onToggle,
@@ -517,7 +509,7 @@ class _TodayBody extends ConsumerWidget {
           ),
         if (filteredMonth.isNotEmpty)
           _CollapsibleSection(
-            title: 'Цели месяца · контекст',
+            title: S.monthGoalsContext,
             tasks: filteredMonth,
             storageKey: 'today:month',
             onToggle: onToggle,
@@ -525,7 +517,7 @@ class _TodayBody extends ConsumerWidget {
           ),
         if (filteredYear.isNotEmpty)
           _CollapsibleSection(
-            title: 'Цели года · контекст',
+            title: S.yearGoalsContext,
             tasks: filteredYear,
             storageKey: 'today:year',
             onToggle: onToggle,
@@ -543,11 +535,11 @@ Widget _emptyFiltered(BuildContext context, WidgetRef ref) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         children: [
-          Text('Нет задач по фильтру', style: TextStyle(color: context.colorMuted)),
+          Text(S.noTasksFiltered, style: TextStyle(color: context.colorMuted)),
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => ref.read(tagStoreProvider.notifier).clearFilter(),
-            child: const Text('Очистить фильтр'),
+            child: Text(S.clearFilterTasks),
           ),
         ],
       ),
@@ -578,11 +570,7 @@ class _WeekKanban extends ConsumerWidget {
     required this.onCreateDay,
   });
 
-  static const _dayShort = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  static const _monthShort = [
-    '', 'янв', 'фев', 'мар', 'апр', 'май', 'июн',
-    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
-  ];
+  static List<String> get _dayShort => List.generate(7, S.weekdayShortMon);
 
   DateTime get _monday {
     final now = DateTime.now();
@@ -593,9 +581,9 @@ class _WeekKanban extends ConsumerWidget {
     final mon = _monday;
     final sun = mon.add(const Duration(days: 6));
     if (mon.month == sun.month) {
-      return '${mon.day}–${sun.day} ${_monthShort[mon.month]} ${mon.year}';
+      return '${mon.day}–${sun.day} ${S.monthShort(mon.month)} ${mon.year}';
     }
-    return '${mon.day} ${_monthShort[mon.month]} – ${sun.day} ${_monthShort[sun.month]} ${mon.year}';
+    return '${mon.day} ${S.monthShort(mon.month)} – ${sun.day} ${S.monthShort(sun.month)} ${mon.year}';
   }
 
   @override
@@ -638,12 +626,12 @@ class _WeekKanban extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ГОРИЗОНТ · НЕДЕЛЯ',
+                S.horizonWeekLabel,
                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: context.colorMuted),
               ),
               const SizedBox(height: 8),
               Text(
-                'Неделя.',
+                S.weekDot,
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w400,
@@ -682,7 +670,7 @@ class _WeekKanban extends ConsumerWidget {
                     GestureDetector(
                       onTap: () => onOffsetChanged(0),
                       child: Text(
-                        'Сегодня',
+                        S.navToday,
                         style: TextStyle(fontSize: 12, color: context.colorBrand, fontWeight: FontWeight.w500),
                       ),
                     ),
@@ -702,7 +690,7 @@ class _WeekKanban extends ConsumerWidget {
           child: Row(
             children: [
               Text(
-                'По дням',
+                S.byDays,
                 style: TextStyle(
                   fontSize: 18,
                   fontFamily: 'Georgia',
@@ -749,7 +737,7 @@ class _WeekKanban extends ConsumerWidget {
 
         // ── Week tasks (always shown) ─────────────────────────────────────
         _CollapsibleSection(
-          title: 'Задачи недели',
+          title: S.weekTasksTitle,
           tasks: unassigned,
           storageKey: 'week:goals',
           onToggle: onToggle,
@@ -768,7 +756,7 @@ class _WeekKanban extends ConsumerWidget {
         // ── Context sections ─────────────────────────────────────────────
         if (filteredMonth.isNotEmpty)
           _CollapsibleSection(
-            title: 'Задачи месяца · контекст',
+            title: S.monthTasksContext,
             tasks: filteredMonth,
             storageKey: 'week:month',
             onToggle: onToggle,
@@ -776,7 +764,7 @@ class _WeekKanban extends ConsumerWidget {
           ),
         if (filteredYear.isNotEmpty)
           _CollapsibleSection(
-            title: 'Задачи года · контекст',
+            title: S.yearTasksContext,
             tasks: filteredYear,
             storageKey: 'week:year',
             onToggle: onToggle,
@@ -952,8 +940,6 @@ class _MiniTaskCard extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onEdit;
 
-  static const _dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-
   const _MiniTaskCard({required this.task, required this.onToggle, required this.onEdit});
 
   Color _checkboxColor(BuildContext context, bool isDone) {
@@ -982,9 +968,9 @@ class _MiniTaskCard extends StatelessWidget {
       if (task.level == TaskLevel.week && r.daysOfWeek != null && r.daysOfWeek!.isNotEmpty) {
         final sorted = [...r.daysOfWeek!]..sort();
         final mf = [...sorted.where((d) => d != 0), ...sorted.where((d) => d == 0)];
-        rec = '↻ ${mf.map((d) => _dayNames[d]).join(' ')}';
+        rec = '↻ ${mf.map((d) => S.weekdayShort(d)).join(' ')}';
       } else if (task.level == TaskLevel.month && r.dayOfMonth != null) {
-        rec = '↻ ${r.dayOfMonth}-го';
+        rec = '↻ ${S.recurDayOfMonth(r.dayOfMonth!)}';
       }
       if (task.scheduledTime != null) {
         parts.add('$rec · ${task.scheduledTime!}');
@@ -996,7 +982,7 @@ class _MiniTaskCard extends StatelessWidget {
       if (task.level == TaskLevel.week && task.period.targetDate != null) {
         try {
           final d = DateTime.parse('${task.period.targetDate!.split('T')[0]}T00:00:00Z');
-          parts.add('→ ${_dayNames[d.weekday % 7]}');
+          parts.add('→ ${S.weekdayShort(d.weekday % 7)}');
         } catch (_) {}
       }
     }
@@ -1114,9 +1100,9 @@ class _GenericBody extends ConsumerWidget {
   final void Function(TaskWithPeriod) onEdit;
   final VoidCallback onCreate;
 
-  static const _headers = {
-    'month': ('ГОРИЗОНТ · МЕСЯЦ', 'Месяц.'),
-    'year':  ('ГОРИЗОНТ · ГОД',   'Год.'),
+  static Map<String, (String, String)> get _headers => {
+    'month': (S.horizonMonthLabel, S.monthDot),
+    'year':  (S.horizonYearLabel,  S.yearDot),
   };
 
   const _GenericBody({
@@ -1187,12 +1173,12 @@ class _GenericBody extends ConsumerWidget {
               children: [
                 Text('—', style: TextStyle(fontSize: 40, color: context.colorBorder2)),
                 const SizedBox(height: 8),
-                Text('Нет задач', style: TextStyle(color: context.colorMuted)),
+                Text(S.noTasks, style: TextStyle(color: context.colorMuted)),
                 const SizedBox(height: 12),
                 TextButton.icon(
                   onPressed: onCreate,
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Добавить'),
+                  label: Text(S.add),
                 ),
               ],
             ),
@@ -1200,7 +1186,7 @@ class _GenericBody extends ConsumerWidget {
 
         if (filteredWeek.isNotEmpty)
           _CollapsibleSection(
-            title: 'Задачи недели',
+            title: S.weekTasksTitle,
             tasks: filteredWeek,
             storageKey: '$view:week',
             onToggle: onToggle,
@@ -1208,7 +1194,7 @@ class _GenericBody extends ConsumerWidget {
           ),
         if (filteredMonth.isNotEmpty)
           _CollapsibleSection(
-            title: 'Задачи месяца',
+            title: S.monthTasksTitle,
             tasks: filteredMonth,
             storageKey: '$view:month',
             onToggle: onToggle,
@@ -1216,7 +1202,7 @@ class _GenericBody extends ConsumerWidget {
           ),
         if (filteredYear.isNotEmpty)
           _CollapsibleSection(
-            title: 'Задачи года',
+            title: S.yearTasksTitle,
             tasks: filteredYear,
             storageKey: '$view:year',
             onToggle: onToggle,
@@ -1341,7 +1327,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
                               children: [
                                 Icon(Icons.add, size: 14, color: context.colorMuted),
                                 const SizedBox(width: 6),
-                                Text('Добавить задачу',
+                                Text(S.addTask,
                                     style: TextStyle(fontSize: 13, color: context.colorMuted)),
                               ],
                             ),
