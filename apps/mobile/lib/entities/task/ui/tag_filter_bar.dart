@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/core/strings.dart';
 import '../../../shared/providers/tag_store.dart';
 import '../../../shared/theme/theme.dart';
 
@@ -50,7 +51,7 @@ class TagFilterBar extends StatelessWidget {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                'Сбросить',
+                S.reset,
                 style: TextStyle(fontSize: 12, color: context.colorMuted),
               ),
             ),

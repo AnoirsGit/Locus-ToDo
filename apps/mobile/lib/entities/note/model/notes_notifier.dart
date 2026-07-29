@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/api/notes_api.dart';
 import '../../../shared/api/offline_notes_api.dart';
+import '../../../shared/core/strings.dart';
 import '../../../shared/sync/notes_sync_worker.dart';
 import '../../../shared/ui/app_toast.dart';
 import 'note_node.dart';
@@ -153,7 +154,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     _api
         .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
         .catchError((_) {
-      ref.read(appToastProvider.notifier).show('Не удалось создать заметку');
+      ref.read(appToastProvider.notifier).show(S.noteCreateFailed);
     });
   }
 
@@ -168,7 +169,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     _api
         .create(id: fresh.id, parentId: null, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
         .catchError((_) {
-      ref.read(appToastProvider.notifier).show('Не удалось создать заметку');
+      ref.read(appToastProvider.notifier).show(S.noteCreateFailed);
     });
   }
 
@@ -189,7 +190,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     _api
         .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: (idx + 1) * 10)
         .catchError((_) {
-      ref.read(appToastProvider.notifier).show('Не удалось создать заметку');
+      ref.read(appToastProvider.notifier).show(S.noteCreateFailed);
     });
   }
 
@@ -362,7 +363,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     }()
         .catchError((_) {
       state = AsyncData(_removeNode(_nodes, clone.id));
-      ref.read(appToastProvider.notifier).show('Не удалось дублировать заметку');
+      ref.read(appToastProvider.notifier).show(S.noteDuplicateFailed);
     });
   }
 
@@ -429,7 +430,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     _cancelDebounce(id);
     state = AsyncData(_removeNode(_nodes, id));
     _api.delete(id).catchError((_) {
-      ref.read(appToastProvider.notifier).show('Не удалось удалить заметку');
+      ref.read(appToastProvider.notifier).show(S.noteDeleteFailed);
     });
   }
 
@@ -442,7 +443,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     state = AsyncData(nodes);
     for (final id in ids) {
       _api.delete(id).catchError((_) {
-        ref.read(appToastProvider.notifier).show('Не удалось удалить заметку');
+        ref.read(appToastProvider.notifier).show(S.noteDeleteFailed);
       });
     }
   }

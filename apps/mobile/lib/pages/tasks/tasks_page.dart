@@ -9,6 +9,7 @@ import '../../entities/task/ui/task_card.dart';
 import '../../features/task_form/task_form_sheet.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/core/date_utils.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/providers/tag_store.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/ui/skeleton.dart';
@@ -18,19 +19,19 @@ class TasksPage extends ConsumerWidget {
 
   const TasksPage({super.key, required this.view});
 
-  static const _titles = {
-    'day':     'Сегодня',
-    'week':    'Неделя',
-    'month':   'Месяц',
-    'year':    'Год',
-    'backlog': 'Бэклог',
-    'archive': 'Архив',
+  static Map<String, String> get _titles => {
+    'day':     S.navToday,
+    'week':    S.navWeek,
+    'month':   S.navMonth,
+    'year':    S.navYear,
+    'backlog': S.navBacklog,
+    'archive': S.navArchive,
   };
 
-  static const _contextTitles = {
-    'week':  'Задачи недели',
-    'month': 'Задачи месяца',
-    'year':  'Задачи года',
+  static Map<String, String> get _contextTitles => {
+    'week':  S.weekTasksTitle,
+    'month': S.monthTasksTitle,
+    'year':  S.yearTasksTitle,
   };
 
   bool get _canCreate => view != 'backlog' && view != 'archive';
@@ -67,11 +68,11 @@ class TasksPage extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Ошибка: $err', style: TextStyle(color: context.colorMuted)),
+              Text(S.errorPrefix(err), style: TextStyle(color: context.colorMuted)),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => ref.read(provider.notifier).refresh(),
-                child: const Text('Повторить'),
+                child: Text(S.retry),
               ),
             ],
           ),
@@ -102,13 +103,13 @@ class TasksPage extends ConsumerWidget {
         if (isHorizon) ...[
           _AppBarChip(
             icon: Icons.inbox_outlined,
-            label: 'Бэклог',
+            label: S.navBacklog,
             onTap: () => context.go('/backlog'),
           ),
           const SizedBox(width: 6),
           _AppBarChip(
             icon: Icons.archive_outlined,
-            label: 'Архив',
+            label: S.navArchive,
             onTap: () => context.go('/archive'),
           ),
           const SizedBox(width: 4),
@@ -250,12 +251,12 @@ class _Body extends ConsumerWidget {
       children: [
         Text('—', style: TextStyle(fontSize: 36, color: context.colorBorder2)),
         const SizedBox(height: 8),
-        Text('Нет задач', style: TextStyle(color: context.colorMuted)),
+        Text(S.noTasks, style: TextStyle(color: context.colorMuted)),
         const SizedBox(height: 12),
         TextButton.icon(
           onPressed: onCreate,
           icon: const Icon(Icons.add, size: 16),
-          label: const Text('Добавить'),
+          label: Text(S.add),
         ),
       ],
     ),
@@ -268,11 +269,11 @@ class _Body extends ConsumerWidget {
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     child: Column(
       children: [
-        Text('Нет задач по фильтру', style: TextStyle(color: context.colorMuted)),
+        Text(S.noTasksFiltered, style: TextStyle(color: context.colorMuted)),
         const SizedBox(height: 12),
         TextButton(
           onPressed: () => ref.read(tagStoreProvider.notifier).clearFilter(),
-          child: const Text('Очистить фильтр'),
+          child: Text(S.clearFilterTasks),
         ),
       ],
     ),
@@ -437,13 +438,13 @@ class _Empty extends StatelessWidget {
             children: [
               Text('—', style: TextStyle(fontSize: 48, color: context.colorBorder2)),
               const SizedBox(height: 12),
-              Text('Нет задач', style: TextStyle(color: context.colorMuted, fontSize: 16)),
+              Text(S.noTasks, style: TextStyle(color: context.colorMuted, fontSize: 16)),
               if (canCreate) ...[
                 const SizedBox(height: 16),
                 TextButton.icon(
                   onPressed: onCreate,
                   icon: const Icon(Icons.add),
-                  label: const Text('Добавить'),
+                  label: Text(S.add),
                 ),
               ],
             ],

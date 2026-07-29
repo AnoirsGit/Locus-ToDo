@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../pages/app_shell.dart';
 import '../../shared/api/stats_api.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/theme/theme.dart';
 import '../../shared/ui/skeleton.dart';
 
@@ -28,19 +29,17 @@ String _monthStartIso() {
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
 }
 
-const _kMonthAbbr = ['', 'янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-
 String _weekLabel(String isoStart) {
   final s = DateTime.parse('${isoStart}T00:00:00Z');
   final e = s.add(const Duration(days: 6));
-  final sm = _kMonthAbbr[s.month];
-  final em = _kMonthAbbr[e.month];
+  final sm = S.monthShort(s.month);
+  final em = S.monthShort(e.month);
   return s.month == e.month ? '${s.day} – ${e.day} $sm' : '${s.day} $sm – ${e.day} $em';
 }
 
 String _monthLabel(String isoStart) {
   final d = DateTime.parse('${isoStart}T00:00:00Z');
-  final abbr = _kMonthAbbr[d.month];
+  final abbr = S.monthShort(d.month);
   return d.year == DateTime.now().year ? abbr : '$abbr ${d.year}';
 }
 
@@ -119,7 +118,7 @@ class StatsPage extends ConsumerWidget {
             ],
           ),
         ),
-        title: Text('Статистика', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
+        title: Text(S.navStats, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -135,11 +134,11 @@ class StatsPage extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Ошибка загрузки', style: TextStyle(color: context.colorMuted)),
+              Text(S.loadError, style: TextStyle(color: context.colorMuted)),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => ref.invalidate(statsProvider),
-                child: const Text('Повторить'),
+                child: Text(S.retry),
               ),
             ],
           ),
@@ -162,7 +161,7 @@ class _ConsistencyRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text('Повторяющиеся задачи',
+          child: Text(S.recurringTasksHeading,
               style: TextStyle(fontSize: 13, color: context.colorMuted)),
         ),
         SizedBox(
@@ -200,11 +199,11 @@ class _StatsBody extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          'ОБЗОР',
+          S.overviewSection,
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.2, color: context.colorMuted),
         ),
         const SizedBox(height: 4),
-        Text('Статистика.', style: Theme.of(context).textTheme.headlineMedium),
+        Text(S.statsHeading, style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 24),
 
         // ── Snapshot grid ───────────────────────────────────────────────────
@@ -216,10 +215,10 @@ class _StatsBody extends StatelessWidget {
           mainAxisSpacing: 10,
           childAspectRatio: 1.5,
           children: [
-            _SnapshotCard(label: 'Сегодня', stat: data.today, color: context.colorDay,   softColor: context.colorDaySoft),
-            _SnapshotCard(label: 'Неделя',  stat: data.week,  color: context.colorWeek,  softColor: context.colorWeekSoft),
-            _SnapshotCard(label: 'Месяц',   stat: data.month, color: context.colorMonth, softColor: context.colorMonthSoft),
-            _SnapshotCard(label: 'Год',     stat: data.year,  color: context.colorYear,  softColor: context.colorYearSoft),
+            _SnapshotCard(label: S.navToday, stat: data.today, color: context.colorDay,   softColor: context.colorDaySoft),
+            _SnapshotCard(label: S.navWeek,  stat: data.week,  color: context.colorWeek,  softColor: context.colorWeekSoft),
+            _SnapshotCard(label: S.navMonth, stat: data.month, color: context.colorMonth, softColor: context.colorMonthSoft),
+            _SnapshotCard(label: S.navYear,  stat: data.year,  color: context.colorYear,  softColor: context.colorYearSoft),
           ],
         ),
 
@@ -227,27 +226,27 @@ class _StatsBody extends StatelessWidget {
 
         // ── Consistency (recurring habits) ──────────────────────────────────
         if (data.consistency.total > 0) ...[
-          _SectionTitle('Постоянство (привычки)'),
+          _SectionTitle(S.consistencyHabits),
           const SizedBox(height: 8),
           _ConsistencyRow(stat: data.consistency),
           const SizedBox(height: 20),
         ],
 
         // ── Week trend ──────────────────────────────────────────────────────
-        _SectionTitle('По неделям'),
+        _SectionTitle(S.byWeeks),
         const SizedBox(height: 8),
         _TrendChart(rows: _buildWeekRows(data), accentColor: context.colorWeek),
         const SizedBox(height: 20),
 
         // ── Month trend ─────────────────────────────────────────────────────
-        _SectionTitle('По месяцам'),
+        _SectionTitle(S.byMonths),
         const SizedBox(height: 8),
         _TrendChart(rows: _buildMonthRows(data), accentColor: context.colorMonth),
         const SizedBox(height: 20),
 
         // ── Year history ─────────────────────────────────────────────────────
         if (data.yearHistory.isNotEmpty) ...[
-          _SectionTitle('По годам'),
+          _SectionTitle(S.byYears),
           const SizedBox(height: 8),
           _TrendChart(rows: _buildYearRows(data), accentColor: context.colorYear),
           const SizedBox(height: 100),
@@ -320,7 +319,7 @@ class _SnapshotCard extends StatelessWidget {
               ),
               if (stat.overdue > 0)
                 Text(
-                  '${stat.overdue} просроч.',
+                  S.overdueAbbr(stat.overdue),
                   style: TextStyle(fontSize: 11, color: context.colorWarning),
                 ),
             ],
@@ -390,7 +389,7 @@ class _TrendChart extends StatelessWidget {
                             borderRadius: BorderRadius.circular(3),
                           ),
                           child: Text(
-                            'сейчас',
+                            S.now,
                             style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: context.colorBrand),
                           ),
                         ),

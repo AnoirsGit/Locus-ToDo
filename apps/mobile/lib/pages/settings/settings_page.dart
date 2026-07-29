@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/auth_notifier.dart';
 import '../../shared/api/tags_api.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/notifications/notification_prefs.dart';
 import '../../shared/notifications/notification_service.dart';
 import '../../shared/providers/tag_store.dart';
@@ -34,7 +35,7 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
         ),
-        title: Text('Настройки', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
+        title: Text(S.navSettings, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: context.colorText)),
         actions: [
           IconButton(icon: const Icon(Icons.menu), onPressed: AppShell.openDrawer),
           const SizedBox(width: 4),
@@ -489,7 +490,7 @@ class _TagManagementSection extends ConsumerWidget {
       await ref.read(tagsApiProvider).create(name);
       await ref.read(tagStoreProvider.notifier).reload();
     } catch (_) {
-      ref.read(appToastProvider.notifier).show('Не удалось создать тег');
+      ref.read(appToastProvider.notifier).show(S.tagCreateFailed);
     }
   }
 
@@ -527,7 +528,7 @@ class _TagManagementSection extends ConsumerWidget {
                       await ref.read(tagsApiProvider).delete(tag.id);
                       await ref.read(tagStoreProvider.notifier).reload();
                     } catch (_) {
-                      ref.read(appToastProvider.notifier).show('Не удалось удалить тег');
+                      ref.read(appToastProvider.notifier).show(S.tagDeleteFailed);
                     }
                   },
                 ),

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'strings.dart';
 
 /// Maps a login/register failure to a short, human-readable message.
 ///
@@ -8,15 +9,15 @@ import 'package:dio/dio.dart';
 String formatAuthError(Object error) {
   if (error is DioException) {
     final status = error.response?.statusCode;
-    if (status == 401) return 'Неверный email или пароль';
-    if (status == 409) return 'Пользователь с таким email уже существует';
-    if (status == 422 || status == 400) return 'Проверьте правильность введённых данных';
+    if (status == 401) return S.errorInvalidCreds;
+    if (status == 409) return S.errorUserExists;
+    if (status == 422 || status == 400) return S.errorValidation;
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return 'Нет соединения с сервером';
+      return S.errorNoConnection;
     }
   }
-  return 'Что-то пошло не так. Попробуйте ещё раз';
+  return S.errorGeneric;
 }

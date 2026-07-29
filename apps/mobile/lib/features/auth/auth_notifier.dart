@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../entities/user/user.dart';
 import '../../shared/api/auth_api.dart';
 import '../../shared/api/api_client.dart';
+import '../../shared/core/strings.dart';
 import '../../shared/ui/app_toast.dart';
 
 class AuthNotifier extends AsyncNotifier<User?> {
@@ -66,7 +67,7 @@ class AuthNotifier extends AsyncNotifier<User?> {
       state = AsyncData(updated);
       return true;
     } catch (_) {
-      ref.read(appToastProvider.notifier).show('Не удалось обновить профиль');
+      ref.read(appToastProvider.notifier).show(S.profileUpdateFailed);
       return false;
     }
   }
