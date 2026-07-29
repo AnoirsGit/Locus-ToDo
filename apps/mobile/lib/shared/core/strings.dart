@@ -3,8 +3,24 @@ import 'dart:ui';
 /// Minimal ru/en string table, mirroring the web `i18n` store approach.
 /// Notes scope only — the app-wide localization sweep is a separate task.
 class S {
-  static bool get _ru =>
-      PlatformDispatcher.instance.locale.languageCode == 'ru';
+  /// Persisted 'ru'/'en' override set by [LocaleOverrideNotifier] — `null`
+  /// means "follow the OS locale" (the original, pre-settings behavior).
+  static String? _localeOverride;
+  static void setLocaleOverride(String? code) => _localeOverride = code;
+
+  static bool get _ru {
+    final override = _localeOverride;
+    if (override != null) return override == 'ru';
+    return PlatformDispatcher.instance.locale.languageCode == 'ru';
+  }
+
+  // Language picker in settings — option labels. "System" follows the app's
+  // own translation rules; the two language names are proper nouns and are
+  // always shown in their own language/script, never translated by `_ru`.
+  static String get languageSystem => _ru ? 'Системный' : 'System';
+  static const languageRussian = 'Русский';
+  static const languageEnglish = 'English';
+  static String get languageSection => _ru ? 'Язык' : 'Language';
 
   // Page
   static String get notes => _ru ? 'Заметки' : 'Notes';
@@ -195,6 +211,7 @@ class S {
   static String get createAccount => _ru ? 'Создать аккаунт.' : 'Create an account.';
   static String get startDisciplinePath => _ru ? 'Начните путь к дисциплине.' : 'Start your path to discipline.';
   static String get name => _ru ? 'Имя' : 'Name';
+  static String get email => _ru ? 'Эл. почта' : 'Email';
   static String get yourNameHint => _ru ? 'Ваше имя' : 'Your name';
   static String get minPasswordHint => _ru ? 'Минимум 8 символов' : 'At least 8 characters';
   static String get alreadyHaveAccountQ => _ru ? 'Уже есть аккаунт? ' : 'Already have an account? ';
@@ -301,4 +318,29 @@ class S {
     }
     return '${weekdayFull(weekday1Mon)} · ${monthFull(month1to12)} $day, $year · Week $weekNum';
   }
+
+  // Settings page: section headers, theme picker, sign-out, edit-profile dialog,
+  // notification prefs, tag management dialogs.
+  static String get appearanceSection => _ru ? 'Оформление' : 'Appearance';
+  static String get notificationsSection => _ru ? 'Уведомления' : 'Notifications';
+  static String get tagsSection => _ru ? 'Теги' : 'Tags';
+  static String get themeSystem => _ru ? 'Системная' : 'System';
+  static String loadPrefsFailed(Object e) =>
+      _ru ? 'Не удалось загрузить настройки: $e' : 'Failed to load preferences: $e';
+  static String get signOut => _ru ? 'Выйти' : 'Sign out';
+  static String get signOutQ => _ru ? 'Выйти из аккаунта?' : 'Sign out?';
+  static String get editProfile => _ru ? 'Редактировать профиль' : 'Edit profile';
+  static String get remindMe => _ru ? 'Напомнить' : 'Remind me';
+  static String get beforeScheduledTime => _ru ? 'до запланированного времени' : 'before scheduled time';
+  static String get newTag => _ru ? 'Новый тег' : 'New tag';
+  static String get tagNameHint => _ru ? 'Название тега' : 'Tag name';
+  static String get create => _ru ? 'Создать' : 'Create';
+  static String get noTagsYet => _ru ? 'Пока нет тегов' : 'No tags yet';
+  static String get addTag => _ru ? 'Добавить тег' : 'Add tag';
+  static String get preDeadlineReminder => _ru ? 'Напоминание перед дедлайном' : 'Pre-deadline reminder';
+  static String get notifyBeforeDue =>
+      _ru ? 'Уведомить перед сроком выполнения задачи' : 'Notify before a task is due';
+  static String get eveningSummary => _ru ? 'Вечерняя сводка' : 'Evening summary';
+  static String get dailyRecapPending => _ru ? 'Ежедневная сводка невыполненных задач' : 'Daily recap of pending tasks';
+  static String get sendSummaryAt => _ru ? 'Отправить сводку в' : 'Send summary at';
 }
