@@ -62,6 +62,9 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
     );
   }
 
+  // Kanban column create. Day tasks go through the 'day' provider — the one
+  // the columns render from — so the new card shows up without a manual
+  // refresh; anything else the sheet was switched to lands in 'week'.
   void _openCreateForDate(String dateStr) {
     showModalBottomSheet(
       context: context,
@@ -71,10 +74,20 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
       builder: (_) => TaskFormSheet(
         defaultLevel: TaskLevel.day,
         defaultPeriodStart: dateStr,
-        onSubmit: (data) =>
-            ref.read(groupedTasksProvider('week').notifier).createTask(data),
+        onSubmit: (data) => ref
+            .read(groupedTasksProvider(data['level'] == 'day' ? 'day' : 'week').notifier)
+            .createTask(data),
       ),
     );
+  }
+
+  // Inline quick-add at the bottom of a kanban column (web DayColumn parity).
+  void _quickCreateForDate(String title, String dateStr) {
+    ref.read(groupedTasksProvider('day').notifier).createTask({
+      'title': title,
+      'level': 'day',
+      'periodStart': dateStr,
+    });
   }
 
   void _openEdit(String view, TaskWithPeriod task) {
@@ -134,7 +147,7 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
             backgroundColor: context.colorSurface,
             child: switch (view) {
               'day'  => _TodayBody(data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
-              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view), onCreateDay: _openCreateForDate),
+              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view), onCreateDay: _openCreateForDate, onQuickCreateDay: _quickCreateForDate),
               _      => _GenericBody(view: view, data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
             },
           );
@@ -558,6 +571,7 @@ class _WeekKanban extends ConsumerWidget {
   final void Function(TaskWithPeriod) onEdit;
   final VoidCallback onCreate;
   final void Function(String dateStr) onCreateDay;
+  final void Function(String title, String dateStr) onQuickCreateDay;
 
   const _WeekKanban({
     required this.data,
@@ -568,6 +582,7 @@ class _WeekKanban extends ConsumerWidget {
     required this.onEdit,
     required this.onCreate,
     required this.onCreateDay,
+    required this.onQuickCreateDay,
   });
 
   static List<String> get _dayShort => List.generate(7, S.weekdayShortMon);
@@ -720,6 +735,9 @@ class _WeekKanban extends ConsumerWidget {
               final columnTasks = byDay[dateStr] ?? [];
               final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
               return _DayColumn(
+                // Keyed by date so an open quick-add field doesn't carry
+                // over to another week when navigating.
+                key: ValueKey(dateStr),
                 width: colWidth,
                 dayName: _dayShort[i],
                 dayNumber: day.day,
@@ -728,6 +746,7 @@ class _WeekKanban extends ConsumerWidget {
                 onToggle: onToggle,
                 onEdit: onEdit,
                 onCreate: () => onCreateDay(dateStr),
+                onQuickCreate: (title) => onQuickCreateDay(title, dateStr),
               );
             },
           ),
@@ -800,7 +819,7 @@ class _NavArrow extends StatelessWidget {
 
 // ── Day column (kanban) ────────────────────────────────────────────────────────
 
-class _DayColumn extends StatelessWidget {
+class _DayColumn extends StatefulWidget {
   final double width;
   final String dayName;
   final int dayNumber;
@@ -808,9 +827,13 @@ class _DayColumn extends StatelessWidget {
   final bool isToday;
   final void Function(TaskWithPeriod) onToggle;
   final void Function(TaskWithPeriod) onEdit;
+  /// Full create sheet, bound to this column's date.
   final VoidCallback onCreate;
+  /// Inline quick-add: creates a day task for this column's date.
+  final void Function(String title) onQuickCreate;
 
   const _DayColumn({
+    super.key,
     required this.width,
     required this.dayName,
     required this.dayNumber,
@@ -819,11 +842,42 @@ class _DayColumn extends StatelessWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onCreate,
+    required this.onQuickCreate,
   });
+
+  @override
+  State<_DayColumn> createState() => _DayColumnState();
+}
+
+class _DayColumnState extends State<_DayColumn> {
+  // "+ Add task" opens an inline title field (web DayColumn parity): submit
+  // creates the task, submitting it empty closes it, the expand icon switches
+  // to the full sheet for the same date.
+  bool _quickActive = false;
+  final _quickCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _quickCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submitQuick() {
+    final title = _quickCtrl.text.trim();
+    setState(() => _quickActive = false);
+    _quickCtrl.clear();
+    if (title.isNotEmpty) widget.onQuickCreate(title);
+  }
+
+  void _openFullForm() {
+    setState(() => _quickActive = false);
+    _quickCtrl.clear();
+    widget.onCreate();
+  }
 
   // Today header bg: day-tint (light) / brand-soft (dark) — matches web
   Color _headerBg(BuildContext context) =>
-      isToday ? (context.isDark ? context.colorBrandSoft : context.colorDayTint) : Colors.transparent;
+      widget.isToday ? (context.isDark ? context.colorBrandSoft : context.colorDayTint) : Colors.transparent;
 
   // Today circle bg: day (light) / brand (dark) — matches web
   Color _circleBg(BuildContext context) =>
@@ -831,8 +885,9 @@ class _DayColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isToday = widget.isToday;
     return Container(
-      width: width,
+      width: widget.width,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
         color: context.colorCard,
@@ -852,7 +907,7 @@ class _DayColumn extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  dayName,
+                  widget.dayName,
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 10,
@@ -871,7 +926,7 @@ class _DayColumn extends StatelessWidget {
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    '$dayNumber',
+                    '${widget.dayNumber}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -889,43 +944,85 @@ class _DayColumn extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
               children: [
-                ...tasks.map((task) => _MiniTaskCard(
+                ...widget.tasks.map((task) => _MiniTaskCard(
                       task: task,
-                      onToggle: () => onToggle(task),
-                      onEdit: () => onEdit(task),
+                      onToggle: () => widget.onToggle(task),
+                      onEdit: () => widget.onEdit(task),
                     )),
 
-                // ── "+ Add task" dashed button ─────────────────────────
-                GestureDetector(
-                  onTap: onCreate,
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: context.colorBorder2,
-                        width: 1.5,
-                        strokeAlign: BorderSide.strokeAlignInside,
+                // ── Inline quick-add / "+ Add task" dashed button ──────
+                if (_quickActive)
+                  _buildQuickInput(context)
+                else
+                  GestureDetector(
+                    onTap: () => setState(() => _quickActive = true),
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: context.colorBorder2,
+                          width: 1.5,
+                          strokeAlign: BorderSide.strokeAlignInside,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            '+',
+                            style: TextStyle(fontSize: 15, color: context.colorMuted2, height: 1),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            S.addTask,
+                            style: TextStyle(fontSize: 13, color: context.colorMuted2),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Text(
-                          '+',
-                          style: TextStyle(fontSize: 15, color: context.colorMuted2, height: 1),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Add task',
-                          style: TextStyle(fontSize: 13, color: context.colorMuted2),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickInput(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: context.colorBrand.withAlpha(120), width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _quickCtrl,
+              autofocus: true,
+              style: TextStyle(fontSize: 13, color: context.colorText),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: InputBorder.none,
+                hintText: S.taskNameHint,
+                hintStyle: TextStyle(fontSize: 13, color: context.colorMuted2),
+              ),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submitQuick(),
+            ),
+          ),
+          IconButton(
+            onPressed: _openFullForm,
+            tooltip: S.openFullForm,
+            icon: Icon(Icons.open_in_full, size: 14, color: context.colorMuted),
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
           ),
         ],
       ),

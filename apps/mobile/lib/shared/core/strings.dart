@@ -277,6 +277,8 @@ class S {
   static String get clearFilterTasks => _ru ? 'Очистить фильтр' : 'Clear filter';
   static String get addTaskToday => _ru ? '+ Добавить задачу на сегодня' : '+ Add task for today';
   static String get addTask => _ru ? 'Добавить задачу' : 'Add task';
+  static String get taskNameHint => _ru ? 'Название задачи…' : 'Task name…';
+  static String get openFullForm => _ru ? 'Открыть полную форму' : 'Open full form';
   static String get doneUppercase => _ru ? 'ВЫПОЛНЕНО' : 'DONE';
   static String get penaltiesUppercase => _ru ? 'ШТРАФЫ' : 'PENALTIES';
   static String get horizonWeekLabel => _ru ? 'ГОРИЗОНТ · НЕДЕЛЯ' : 'HORIZON · WEEK';

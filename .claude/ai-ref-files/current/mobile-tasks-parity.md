@@ -92,10 +92,13 @@ Remaining gaps are below, priority order.
 - [x] Thread the column date through: `_WeekKanban` → `_DayColumn(onCreate)` becomes
       `onCreate(String dateStr)` → `TaskFormSheet` with `defaultLevel: day`,
       `defaultPeriodStart: dateStr`. — done, `_openCreateForDate`/`onCreateDay` wired through.
-- [ ] Optional (full parity): inline quick-add text field at the bottom of each column
-      (submit → `createTask({title, level: 'day', periodStart: date})`, no sheet). — not done,
-      still opens the sheet (correct date now); true inline quick-add is a nice-to-have, low
-      priority, left open.
+- [x] Optional (full parity): inline quick-add text field at the bottom of each column
+      (submit → `createTask({title, level: 'day', periodStart: date})`, no sheet). — done
+      (2026-10-07, ported from the never-pushed local commit `0975cbc`): "+ Add task" opens
+      an inline field (submit = create, empty submit = close, expand icon = full sheet for
+      the same date). Column creates now go through the `'day'` provider the columns render
+      from — via `'week'` the new card only appeared after a manual refresh.
+      `test/week_kanban_day_column_test.dart`.
 
 ## Gap 5 — i18n: no language switch, hardcoded mixed-language strings
 
