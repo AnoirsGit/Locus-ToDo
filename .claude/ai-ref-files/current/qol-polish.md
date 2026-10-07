@@ -48,7 +48,7 @@ Bug-flavored bullets from sections C–F below were moved there too.
 ## G — Dev QoL (supports everything above)
 
 - [ ] **Dev date/time control widget** — already in backlog memory (`project_ideas.md`): floating dev-only widget to mock "now" for scheduler/rollover testing; becomes much more valuable once B1/B3 (`bugs.md`) land (verifying midnight behavior without waiting for midnight)
-- [ ] **Seed data refresh script** — verify `seed` covers all statuses/levels/recurring/tags/notes so every QoL state (overdue, backlog age, archive outcomes) is reproducible locally
+- [x] **Seed data refresh script** — verify `seed` covers all statuses/levels/recurring/tags/notes so every QoL state (overdue, backlog age, archive outcomes) is reproducible locally. DONE: `pnpm --filter @locus/api db:seed` now covers every status × level, archive outcomes (on time/late/failed), backlog ages (today/days/>1 month), recurring (daily, weekday set, monthly), a week target day, a year deadline month, subtasks, 4 tags (one uncolored) across every view and on notes, and a notes tree with every node type (checked/unchecked todos, a collapsed node). It resets only `dev@locus.dev`, is re-runnable, and month anchors no longer overflow on the 29th–31st (verified on 03-31, 02-29, 01-01, 12-31)
 
 ---
 
