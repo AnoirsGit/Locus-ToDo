@@ -153,7 +153,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
 
     _api
         .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
-        .catchError((_) {
+        .then<void>((_) {}, onError: (Object _) {
       ref.read(appToastProvider.notifier).show(S.noteCreateFailed);
     });
   }
@@ -168,7 +168,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     state = AsyncData([..._nodes, fresh]);
     _api
         .create(id: fresh.id, parentId: null, nodeType: fresh.type.api, content: '', sortOrder: sortOrder)
-        .catchError((_) {
+        .then<void>((_) {}, onError: (Object _) {
       ref.read(appToastProvider.notifier).show(S.noteCreateFailed);
     });
   }
@@ -189,7 +189,7 @@ class NotesNotifier extends AsyncNotifier<List<NoteNode>> {
     }
     _api
         .create(id: fresh.id, parentId: parentId, nodeType: fresh.type.api, content: '', sortOrder: (idx + 1) * 10)
-        .catchError((_) {
+        .then<void>((_) {}, onError: (Object _) {
       ref.read(appToastProvider.notifier).show(S.noteCreateFailed);
     });
   }
