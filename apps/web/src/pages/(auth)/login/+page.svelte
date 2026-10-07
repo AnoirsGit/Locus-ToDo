@@ -53,21 +53,21 @@
     </div>
 
     <div class="auth-pull-quote" style="position:relative; z-index:1;">
-      Дисциплина — это не наказание.<br/>
-      Это тихая привилегия<br/>
-      <span class="accent">выбирать то, что ты оставишь.</span>
+      {i18n.t('auth.login_quote_1')}<br/>
+      {i18n.t('auth.login_quote_2')}<br/>
+      <span class="accent">{i18n.t('auth.login_quote_3')}</span>
     </div>
 
     <div class="font-mono uppercase" style="font-size:11px; letter-spacing:0.12em; opacity:0.5; position:relative; z-index:1;">
-      © 2026 — инструмент самодисциплины
+      {i18n.t('auth.login_footer')}
     </div>
   </div>
 
   <!-- Right panel -->
   <div class="auth-right">
     <div class="auth-form">
-      <h1 class="auth-title"><em>С возвращением.</em></h1>
-      <p class="auth-sub">Войдите, чтобы продолжить.</p>
+      <h1 class="auth-title"><em>{i18n.t('auth.welcome_back')}</em></h1>
+      <p class="auth-sub">{i18n.t('auth.login_sub')}</p>
 
       <form onsubmit={handleSubmit}>
         <div class="auth-field">
@@ -86,7 +86,7 @@
         </div>
 
         <div class="auth-field">
-          <label class="label" for="password">Пароль</label>
+          <label class="label" for="password">{i18n.t('auth.password')}</label>
           <PasswordInput
             id="password"
             bind:value={password}
@@ -105,12 +105,12 @@
           disabled={loading}
           class="btn primary w-full mt-2"
         >
-          {loading ? 'Входим…' : 'Войти'}
+          {loading ? i18n.t('auth.login_loading') : i18n.t('auth.login_submit')}
         </button>
       </form>
 
       <p class="auth-foot">
-        Нет аккаунта? <a href="/register">Зарегистрироваться</a>
+        {i18n.t('auth.no_account')} <a href="/register">{i18n.t('auth.sign_up')}</a>
       </p>
     </div>
   </div>

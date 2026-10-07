@@ -12,6 +12,13 @@ export const i18n = {
     }
   },
 
+  /** Re-apply the language saved in localStorage (browser only). */
+  restore() {
+    if (typeof localStorage === 'undefined') return;
+    const saved = localStorage.getItem('lang');
+    if (saved === 'ru' || saved === 'en') this.locale = saved;
+  },
+
   t(path: string): string {
     const dict = dictionaries[currentLocale];
     const keys = path.split('.');

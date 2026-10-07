@@ -1,5 +1,6 @@
 <script lang="ts">
   import { authApi } from '$shared/api/auth.api'
+  import { ApiError } from '$shared/api/client'
   import { userStore } from '$entities/user'
   import { goto } from '$app/navigation'
   import { i18n } from '$shared/lib/i18n'
@@ -22,8 +23,13 @@
       userStore.set(result.user)
       localStorage.removeItem('returnTo')
       goto('/today')
-    } catch (err: any) {
-      error = err.message ?? i18n.t('auth.error_register')
+    } catch (err) {
+      // The API's message ('Email already in use', validation dumps) is an
+      // untranslated technical string, and an ApiError always carries one, so
+      // the localized fallback never showed. Map the status instead.
+      error = err instanceof ApiError && err.status === 409
+        ? i18n.t('auth.error_exists')
+        : i18n.t('auth.error_register')
     } finally {
       loading = false
     }
@@ -41,25 +47,25 @@
     </div>
 
     <div class="auth-pull-quote" style="position:relative; z-index:1;">
-      Начни там, где стоишь.<br/>
-      Locus будет держать тебя<br/>
-      <span class="accent">верным тому, чего ты хотел.</span>
+      {i18n.t('auth.register_quote_1')}<br/>
+      {i18n.t('auth.register_quote_2')}<br/>
+      <span class="accent">{i18n.t('auth.register_quote_3')}</span>
     </div>
 
     <div class="font-mono uppercase" style="font-size:11px; letter-spacing:0.12em; opacity:0.5; position:relative; z-index:1;">
-      Три правила · честность · системность · рефлексия
+      {i18n.t('auth.register_footer')}
     </div>
   </div>
 
   <!-- Right panel -->
   <div class="auth-right">
     <div class="auth-form">
-      <h1 class="auth-title"><em>Новый аккаунт.</em></h1>
-      <p class="auth-sub">Бесплатно, пока ты пользуешься.</p>
+      <h1 class="auth-title"><em>{i18n.t('auth.register_title')}</em></h1>
+      <p class="auth-sub">{i18n.t('auth.register_sub')}</p>
 
       <form onsubmit={handleSubmit}>
         <div class="auth-field">
-          <label class="label" for="name">Имя</label>
+          <label class="label" for="name">{i18n.t('auth.name')}</label>
           <!-- svelte-ignore a11y_autofocus -->
           <input
             id="name"
@@ -68,7 +74,7 @@
             required
             autofocus
             autocomplete="name"
-            placeholder="Как тебя зовут?"
+            placeholder={i18n.t('auth.name_question')}
             class="input"
           />
         </div>
@@ -87,14 +93,14 @@
         </div>
 
         <div class="auth-field">
-          <label class="label" for="password">Пароль</label>
+          <label class="label" for="password">{i18n.t('auth.password')}</label>
           <PasswordInput
             id="password"
             bind:value={password}
             required
             minlength={8}
             autocomplete="new-password"
-            placeholder="Минимум 8 символов"
+            placeholder={i18n.t('auth.password_min')}
           />
         </div>
 
@@ -107,12 +113,12 @@
           disabled={loading}
           class="btn primary w-full mt-2"
         >
-          {loading ? 'Создаём аккаунт…' : 'Создать аккаунт'}
+          {loading ? i18n.t('auth.register_loading') : i18n.t('auth.register_submit')}
         </button>
       </form>
 
       <p class="auth-foot">
-        Уже есть аккаунт? <a href="/login">Войти</a>
+        {i18n.t('auth.have_account')} <a href="/login">{i18n.t('auth.login_submit')}</a>
       </p>
     </div>
   </div>

@@ -33,8 +33,13 @@
   })
 
   // When entire text is selected in the input → add this node to selection
+  // (and drop it when the user narrows the text selection). A collapsed caret
+  // is not a text selection: the focus effect's setSelectionRange() fires
+  // `select` too, and treating that as "deselected" kicked rows picked with
+  // Ctrl/Shift-click or Shift+Arrow straight back out of the selection.
   const handleTextSelect = (e: Event) => {
     const input = e.target as HTMLInputElement
+    if (input.selectionStart === input.selectionEnd) return
     const fullySelected =
       input.value.length > 0 &&
       input.selectionStart === 0 &&
@@ -77,17 +82,19 @@
       return
     }
 
-    // Delete selected nodes (not just text): multi-selection, or this row's
-    // text fully selected. Plain click-to-edit keeps normal text editing.
+    // Delete selected nodes (not just text): a multi-selection containing this
+    // row, or this row's text fully selected (however it got selected). Plain
+    // click-to-edit keeps normal text editing.
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const input = e.target as HTMLInputElement
       const fullySelected =
         input.value.length > 0 &&
         input.selectionStart === 0 &&
         input.selectionEnd === input.value.length
-      const inSelection = noteStore.selectedIds.has(node.id)
-      if (inSelection && (noteStore.selectedIds.size > 1 || fullySelected)) {
+      const inMultiSelection = noteStore.selectedIds.has(node.id) && noteStore.selectedIds.size > 1
+      if (inMultiSelection || fullySelected) {
         e.preventDefault()
+        if (!inMultiSelection) noteStore.setSelection(new Set([node.id]))
         noteStore.deleteSelected()
         onFocusChange(null)
         return

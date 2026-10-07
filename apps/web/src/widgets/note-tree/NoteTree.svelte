@@ -79,8 +79,10 @@
       noteStore.setSelection(newSel)
       anchorId = id
     } else {
-      // Single select
-      noteStore.setSelection(new Set([id]))
+      // Plain click is click-to-edit: reset the row selection and move the range
+      // anchor. (A row whose whole text gets selected still joins the selection
+      // through NoteRow's select handler.)
+      noteStore.clearSelection()
       anchorId = id
     }
   }
