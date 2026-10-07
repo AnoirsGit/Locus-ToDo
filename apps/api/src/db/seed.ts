@@ -154,6 +154,129 @@ const insertPeriod = async (
   `
 }
 
+// ─── Notes ──────────────────────────────────────────────────────────────────
+// node_type: text | heading1 | heading2 | bullet | image | link | todo
+
+type NoteType = 'text' | 'heading1' | 'heading2' | 'bullet' | 'image' | 'link' | 'todo'
+
+type NoteSeed = {
+  type: NoteType
+  content: string
+  url?: string
+  done?: boolean
+  collapsed?: boolean
+  children?: NoteSeed[]
+}
+
+const insertNote = async (
+  userId: string,
+  parentId: string | null,
+  node: NoteSeed,
+  sortOrder: number,
+) => {
+  const [row] = await db`
+    INSERT INTO notes (user_id, parent_id, node_type, content, url, sort_order, collapsed, done)
+    VALUES (
+      ${userId}, ${parentId}, ${node.type}, ${node.content}, ${node.url ?? null},
+      ${sortOrder}, ${node.collapsed ?? false}, ${node.done ?? false}
+    )
+    RETURNING id
+  `
+  const id = row.id as string
+  const children = node.children ?? []
+  for (let i = 0; i < children.length; i++) {
+    await insertNote(userId, id, children[i], i)
+  }
+  return id
+}
+
+const seedNotes = async (userId: string) => {
+  // Root documents. Each demonstrates the node types at depths 1–3.
+  const roots: NoteSeed[] = [
+    {
+      // depth 0: heading1
+      type: 'heading1',
+      content: '📒 Notes showcase — every node type',
+      children: [
+        {
+          // depth 1: heading2
+          type: 'heading2',
+          content: 'Headings & text',
+          children: [
+            // depth 2
+            { type: 'text', content: 'This is a plain text paragraph node — free-form prose lives here.' },
+            {
+              type: 'bullet',
+              content: 'A bullet point at depth 2',
+              children: [
+                // depth 3
+                { type: 'bullet', content: 'Nested sub-bullet (depth 3)' },
+                { type: 'text', content: 'Text nested under a bullet (depth 3)' },
+              ],
+            },
+          ],
+        },
+        {
+          // depth 1: heading2
+          type: 'heading2',
+          content: 'Checkboxes (todo nodes)',
+          children: [
+            // depth 2
+            { type: 'todo', done: false, content: 'Unchecked task — buy groceries' },
+            {
+              type: 'todo',
+              done: true,
+              content: 'Checked task — finish the seed script',
+              children: [
+                // depth 3
+                { type: 'todo', done: false, content: 'Subtask: add notes to seed (depth 3)' },
+                { type: 'todo', done: true, content: 'Subtask: add all node types (depth 3)' },
+              ],
+            },
+          ],
+        },
+        {
+          // depth 1: heading2
+          type: 'heading2',
+          content: 'Media & links',
+          children: [
+            // depth 2
+            { type: 'link', content: 'Locus repository', url: 'https://github.com/locus/todo' },
+            { type: 'image', content: 'Sample image', url: 'https://picsum.photos/seed/locus/600/300' },
+            {
+              type: 'bullet',
+              content: 'Resources',
+              children: [
+                // depth 3
+                { type: 'link', content: 'Svelte docs (depth 3)', url: 'https://svelte.dev/docs' },
+                { type: 'image', content: 'Nested image (depth 3)', url: 'https://picsum.photos/seed/nested/400/200' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // Second root document — flat capture list, shows multiple roots
+      type: 'heading1',
+      content: '⚡ Quick capture',
+      children: [
+        { type: 'bullet', content: 'Idea: dev time-travel widget for the scheduler' },
+        { type: 'todo', done: false, content: 'Review DB schema with the team' },
+        { type: 'text', content: 'Remember to test the mobile offline outbox sync.' },
+        { type: 'link', content: 'Tailwind v4 release notes', url: 'https://tailwindcss.com/blog' },
+      ],
+    },
+    // Root-level single nodes — prove each type renders at depth 0 too
+    { type: 'text', content: 'A standalone root-level text note.' },
+    { type: 'todo', done: false, content: 'A standalone root-level checkbox.' },
+  ]
+
+  for (let i = 0; i < roots.length; i++) {
+    await insertNote(userId, null, roots[i], i)
+  }
+}
+
 // ─── Seed ─────────────────────────────────────────────────────────────────────
 
 const seed = async () => {
@@ -161,6 +284,7 @@ const seed = async () => {
   await db`DELETE FROM user_settings`
   await db`DELETE FROM recurring_configs`
   await db`DELETE FROM task_periods`
+  await db`DELETE FROM notes`
   await db`DELETE FROM tasks`
   await db`DELETE FROM users WHERE email = 'dev@locus.dev'`
 
@@ -330,6 +454,14 @@ const seed = async () => {
 
   id = await insertTask(uid, `YEAR archived ✗ failed (${Y_2_S.slice(0, 4)}, never done)`, 'year')
   await insertPeriod(id, uid, 'year', Y_2_S, Y_2_E, 'archived', { archivedAt: now })
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // NOTES — every node type, nested 1–3 deep
+  // ────────────────────────────────────────────────────────────────────────────
+
+  await seedNotes(uid)
+  const [{ count: noteCount }] = await db<{ count: string }[]>`SELECT count(*) FROM notes`
+  console.log(`[seed] notes inserted: ${noteCount}`)
 
   // ────────────────────────────────────────────────────────────────────────────
   // SUMMARY
