@@ -127,6 +127,19 @@ export const dictionaries = {
       no_match: 'Нет задач по этому фильтру',
       clear_filter: 'Сбросить фильтр',
     },
+    undo: {
+      task_delete_failed: 'Не удалось удалить задачу',
+      task_restore_failed: 'Не удалось восстановить задачу',
+      note_deleted: 'Заметка удалена',
+      notes_deleted: 'Удалено заметок: {n}',
+      note_restore_failed: 'Не удалось восстановить заметку',
+    },
+    session: {
+      expired: 'Сессия истекла. Войдите снова, чтобы продолжить.',
+      sign_in: 'Войти',
+      unreachable: 'Сервер недоступен. Попробуйте ещё раз.',
+      refresh_failed: 'Не удалось обновить данные — показаны последние загруженные.',
+    },
     shortcuts: {
       title: 'Горячие клавиши',
       create: 'Создать задачу',
@@ -261,6 +274,19 @@ export const dictionaries = {
       keep_going: 'Keep going.',
       no_match: 'No tasks match this filter',
       clear_filter: 'Clear filter',
+    },
+    undo: {
+      task_delete_failed: 'Could not delete the task',
+      task_restore_failed: 'Could not restore the task',
+      note_deleted: 'Note deleted',
+      notes_deleted: '{n} notes deleted',
+      note_restore_failed: 'Could not restore the note',
+    },
+    session: {
+      expired: 'Your session has expired. Sign in again to continue.',
+      sign_in: 'Sign in',
+      unreachable: 'The server is unreachable. Please try again.',
+      refresh_failed: "Couldn't refresh — showing the last loaded data.",
     },
     shortcuts: {
       title: 'Keyboard shortcuts',

@@ -106,3 +106,5 @@ Design system classes in `app.css`: `.task`, `.btn`, `.sidebar`, `.modal`, `.aut
 | Responsive Grid Layout | Use CSS Grid for task lists on desktop (min 300px per card) to optimize space |
 | `kit.files.routes: 'src/pages'` | FSD naming for routes dir |
 | TaskFormFields — dumb `$bindable` | Parent owns state; form is just UI |
+| API client session handling | One shared refresh per burst (refresh tokens rotate); `CallOptions { background, quiet }` — background calls never redirect on 401 (sticky sign-in toast) and don't toast per request |
+| Global shortcuts via `commands.onCreate()` | Views register their create action while mounted (`$effect` cleanup unregisters); layout ignores keys in inputs/contenteditable and while a modal is open |

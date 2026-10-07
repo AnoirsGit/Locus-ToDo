@@ -4,8 +4,8 @@
   import { tagsApi } from '$shared/api/tags.api'
   import { tagStore } from '$entities/tag'
   import { ApiError } from '$shared/api/client'
-  import { createTask } from '$features/create-task'
   import { toastStore } from '$shared/lib/toast.svelte'
+  import { canUndoDelete, snapshotForUndo, restoreDeletedTask } from '../model/delete-undo'
   import { i18n } from '$shared/lib/i18n'
   import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import { onMount } from 'svelte'
@@ -69,57 +69,33 @@
     return yearStartISO(now)
   }
 
-  // Re-create a just-deleted task from a snapshot (delete is blocked server-side
-  // when the task has archive history, so a clean create fully restores it).
-  type DeleteSnapshot = {
-    title: string; description?: string; level: TaskLevel; periodStart: string
-    scheduledTime?: string; targetDate?: string; deadlineMonth?: number
-    recurring: boolean; daysOfWeek?: number[]; dayOfMonth?: number; tagIds: string[]
-  }
-  const recreate = async (snap: DeleteSnapshot) => {
-    const item = await createTask({
-      title: snap.title,
-      description: snap.description || undefined,
-      level: snap.level,
-      periodStart: snap.periodStart,
-      scheduledTime: snap.scheduledTime || undefined,
-      targetDate: snap.level === 'week' ? snap.targetDate : undefined,
-      deadlineMonth: snap.level === 'year' ? snap.deadlineMonth : undefined,
-      recurringConfig: snap.recurring
-        ? { isActive: true, daysOfWeek: snap.daysOfWeek, dayOfMonth: snap.dayOfMonth }
-        : undefined,
-    })
-    if (snap.tagIds.length > 0) {
-      tagsApi.setTaskTags(item.id, snap.tagIds).then(() => tagStore.setTaskTagsLocal(item.id, snap.tagIds)).catch(() => {})
-    }
-  }
-
   const handleDelete = async () => {
     dangerBusy = true
     deleteError = null
-    const snap: DeleteSnapshot = {
-      title: task.title,
-      description: task.description ?? undefined,
-      level: task.level,
-      periodStart: task.period.periodStart,
-      scheduledTime: task.scheduledTime ?? undefined,
-      targetDate: task.period.targetDate ?? undefined,
-      deadlineMonth: task.period.deadlineMonth ?? undefined,
-      recurring: !!task.recurringConfig,
-      daysOfWeek: task.recurringConfig?.daysOfWeek,
-      dayOfMonth: task.recurringConfig?.dayOfMonth,
-      tagIds: [...tagIds],
-    }
+    // Saved tags (not unsaved picker edits); fall back to the store cache if not loaded yet.
+    const savedTagIds = initialTagIds ?? tagStore.getTagsForTask(task.id).map(t => t.id)
+    // Read everything from `task` up front: onClose() unmounts this form and its props go away.
+    const snap = snapshotForUndo(task, savedTagIds)
+    const undoable = canUndoDelete(task)
+    const taskId = task.id
     try {
-      await tasksApi.remove(task.id)
-      taskStore.removeByTaskId(task.id)
+      // quiet: failures are reported inline (localized) below, incl. the 409 rule.
+      await tasksApi.remove(taskId, { quiet: true })
+      if (undoable) {
+        toastStore.withAction(i18n.t('action.deleted'), {
+          label: i18n.t('action.undo'),
+          run: () => { void restoreDeletedTask(snap) },
+        })
+      } else {
+        toastStore.info(i18n.t('action.deleted'))
+      }
+      taskStore.removeByTaskId(taskId)
       onClose?.()
-      toastStore.withAction(i18n.t('action.deleted'), { label: i18n.t('action.undo'), run: () => { recreate(snap) } }, 'info')
     } catch (e) {
       // API contract: 409 when the task has archived periods (hard delete blocked)
       deleteError = e instanceof ApiError && e.status === 409
         ? i18n.t('action.delete_blocked')
-        : e instanceof Error ? e.message : String(e)
+        : i18n.t('undo.task_delete_failed')
       confirming = null
     } finally {
       dangerBusy = false

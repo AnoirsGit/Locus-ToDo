@@ -22,8 +22,8 @@ Bug-flavored bullets from sections C–F below were moved there too.
 
 ## C — Input & interaction (web)
 
-- [x] **Global keyboard shortcuts** — DONE: `c`/`n` quick-add on the active view (via `shared/lib/commands.svelte.ts` bus), `g`+`t/w/m/y/b/a/s/n` navigation, `?` help overlay (`ShortcutsHelp`); wired in `(app)/+layout.svelte`
-- [~] **Undo toasts** — task DELETE done (toast with Undo → client-side re-create in `EditTaskForm`). Replan-undo and note-delete-undo still pending.
+- [x] **Global keyboard shortcuts** — DONE: `c`/`n` quick-add on the active view (via `shared/lib/commands.svelte.ts` bus), `g`+`t/w/m/y/b/a/s/n` navigation, `?` help overlay (`ShortcutsHelp`); wired in `(app)/+layout.svelte`. Fixed 2026-10-08: the bus is now a handler registry (a stale counter auto-opened the create modal on the next view mounted after any `c`); shortcuts are ignored while a task modal is open (they replaced it / navigated away, dropping input); letters fall back to the physical key on non-Latin layouts (Russian ЙЦУКЕН); help lists `c / n`.
+- [x] **Undo toasts** — DONE 2026-10-08 (5 s, ru/en): task delete → `features/edit-task/model/delete-undo.ts` re-creates with time (API HH:MM:SS → HH:MM; this used to 500), recurrence (nulls stripped), done status, tags; no ghost card on failure. Undo only for `todo`/`done` — `overdue`/`backlog` come from the scheduler and can't be re-created (plain "deleted" toast instead). 409 → localized inline message only (no raw server toast). Note delete (`note.store`) → localized toast; restore waits for the DELETE, re-applies done/collapsed and tag links (`entities/tag/@x/note.ts`), drops un-restored nodes on failure. Replan-undo not offered: replan archives the old period, which then can't be deleted (409).
 - [~] **Drag-and-drop**: DONE for kanban day columns — week tasks drag between days (`PATCH /tasks/:id { targetDate }`, optimistic + revert). Day tasks don't drag: no `periodStart` update path in the API (only `status` on `/task-periods`). Notes DnD (notes-v2 N5) still separate.
 - [ ] **Web-on-phone pass**: burger sidebar exists ✓, kanban drag-scroll ✓ — verify TaskModal usability at 360 px (sticky footer buttons, no horizontal overflow), tap targets ≥40 px in note rows
 
@@ -37,13 +37,13 @@ Bug-flavored bullets from sections C–F below were moved there too.
 
 - [ ] **E1. i18n unification** — single biggest consistency win; mobile plan already in `mobile-tasks-parity.md` Gap 5. Hardcoded-string leaks (web RU-in-EN, chip language mismatch, mobile AppBar title, date locale) are itemized in `bugs.md` — this item is the systematic sweep that closes them all
 - [~] **Empty states** — filtered-to-empty DONE on web: TaskList + today show "No tasks match this filter" + a Clear-filter button when `tagStore.isFiltering`. Mobile equivalent still pending; archive/stats-no-data already have copy.
-- [x] **Page titles (web)** — DONE: localized `<title>` in `(app)/+layout.svelte` per route; auth pages + root fallback; `NotePage` sets the note content as title
+- [x] **Page titles (web)** — DONE: localized `<title>` in `(app)/+layout.svelte` per route; auth pages + root fallback; `NotePage` sets the note content as title. Fixed 2026-10-08: `/notes/[id]` was mapped to the Today view (sidebar "Today" active, horizon tabs shown, title flipped to "Today" on locale switch) — now Notes section, and the layout leaves the title to `NotePage` there.
 
 ## F — Auth & session QoL
 
 - [x] **Return-to URL after login** — DONE: `client.ts` stores `returnTo` before the 401 redirect; login sends the user back (validated path), register clears it
-- [ ] **Login/register form polish** — show/hide password toggle, autofocus first field, min-length hint on register, localized error messages (currently hardcoded Russian fallback 'Неверный email или пароль')
-- [ ] **Graceful 401 during background refetch** (after `bugs.md` B3 lands) — don't yank the user to login from a background tab refresh failure without a toast
+- [x] **Login/register form polish** — done earlier (`f63f0a8`, `c9b6f1d`): show/hide password toggle, autofocus first field, min-length hint on register, localized error messages (currently hardcoded Russian fallback 'Неверный email или пароль')
+- [x] **Graceful 401 during background refetch** — DONE 2026-10-08 in `shared/api/client.ts`: single-flight token refresh (refresh tokens rotate; the 15 parallel visibility-refetch requests each refreshed and all but one failed → user logged out with a VALID session); `/auth/me` + `/auth/profile` now refresh too (every reload after the 15-min access TTL logged the user out); refresh network/5xx keeps the session ("server unreachable" toast) instead of logging out. Background requests (`{ background: true }`) on a dead session show a sticky "session expired — Sign in" toast (returnTo kept) instead of redirecting; other background failures → one "couldn't refresh" toast instead of one per request.
 
 ## G — Dev QoL (supports everything above)
 

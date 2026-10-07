@@ -42,12 +42,8 @@
   }
 
   // Global "create task" shortcut (c/n) → open create when this view supports it.
-  let lastCreateTick = 0
   $effect(() => {
-    if (commands.createTick !== lastCreateTick) {
-      lastCreateTick = commands.createTick
-      if (canCreate) openCreate()
-    }
+    if (canCreate) return commands.onCreate(openCreate)
   })
 
   const VIEW_LABELS: Record<TaskView, { title: string; eyebrow: string }> = $derived({

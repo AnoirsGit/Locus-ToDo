@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, type CallOptions } from './client'
 import type { NoteNodeType, NoteNode } from '$entities/note'
 
 // ── API DTO (flat, from server) ────────────────────────────────────────────
@@ -42,7 +42,7 @@ export const notesApi = {
     content?:   string
     url?:       string | null
     sortOrder?: number
-  }) => api.post<NoteDto>('/notes', input),
+  }, opts?: CallOptions) => api.post<NoteDto>('/notes', input, opts),
 
   update: (id: string, patch: Partial<{
     nodeType:  NoteNodeType
@@ -52,7 +52,7 @@ export const notesApi = {
     collapsed: boolean
     done:      boolean
     parentId:  string | null
-  }>) => api.patch<NoteDto>(`/notes/${id}`, patch),
+  }>, opts?: CallOptions) => api.patch<NoteDto>(`/notes/${id}`, patch, opts),
 
   delete: (id: string) => api.delete<void>(`/notes/${id}`),
 }

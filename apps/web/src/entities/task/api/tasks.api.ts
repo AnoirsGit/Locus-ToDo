@@ -1,4 +1,4 @@
-import { api } from '$shared/api/client'
+import { api, type CallOptions } from '$shared/api/client'
 import type { TaskPeriod, TaskWithPeriod, TaskLevel, TaskStatus, RecurringConfig } from '../model/task.types'
 
 type CreateTaskDto = {
@@ -28,30 +28,30 @@ type UpdatePeriodDto = Partial<{
 
 export const tasksApi = {
   /** Get tasks with their current period for a given week/month/year */
-  getByPeriod: (params: { periodType: TaskLevel; periodStart: string }) =>
-    api.get<TaskWithPeriod[]>(`/tasks?${new URLSearchParams(params).toString()}`),
+  getByPeriod: (params: { periodType: TaskLevel; periodStart: string }, opts?: CallOptions) =>
+    api.get<TaskWithPeriod[]>(`/tasks?${new URLSearchParams(params).toString()}`, opts),
 
   /** Get all backlog periods */
-  getBacklog: () => api.get<TaskWithPeriod[]>('/tasks?status=backlog'),
+  getBacklog: (opts?: CallOptions) => api.get<TaskWithPeriod[]>('/tasks?status=backlog', opts),
 
   /** Get archived */
-  getArchive: () => api.get<TaskWithPeriod[]>('/tasks?status=archived'),
+  getArchive: (opts?: CallOptions) => api.get<TaskWithPeriod[]>('/tasks?status=archived', opts),
 
-  create: (dto: CreateTaskDto) => api.post<TaskWithPeriod>('/tasks', dto),
+  create: (dto: CreateTaskDto, opts?: CallOptions) => api.post<TaskWithPeriod>('/tasks', dto, opts),
 
   /** Update task metadata (title, description) */
   update: (taskId: string, dto: UpdateTaskDto) =>
     api.patch<TaskWithPeriod>(`/tasks/${taskId}`, dto),
 
   /** Toggle period status (done ↔ todo) */
-  updatePeriod: (periodId: string, dto: UpdatePeriodDto) =>
-    api.patch<TaskPeriod>(`/task-periods/${periodId}`, dto),
+  updatePeriod: (periodId: string, dto: UpdatePeriodDto, opts?: CallOptions) =>
+    api.patch<TaskPeriod>(`/task-periods/${periodId}`, dto, opts),
 
   /** Replan: create a new period for the task in the next period */
   replan: (taskId: string, dto: { periodStart: string }) =>
     api.post<TaskWithPeriod>(`/tasks/${taskId}/replan`, dto),
 
-  remove: (taskId: string) => api.delete<void>(`/tasks/${taskId}`),
+  remove: (taskId: string, opts?: CallOptions) => api.delete<void>(`/tasks/${taskId}`, opts),
 
   /** Get subtasks for a task */
   getSubtasks: (taskId: string) => api.get<TaskWithPeriod[]>(`/tasks/${taskId}/subtasks`),
