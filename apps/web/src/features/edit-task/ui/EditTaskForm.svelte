@@ -74,13 +74,14 @@
     deleteError = null
     // Saved tags (not unsaved picker edits); fall back to the store cache if not loaded yet.
     const savedTagIds = initialTagIds ?? tagStore.getTagsForTask(task.id).map(t => t.id)
+    // Read everything from `task` up front: onClose() unmounts this form and its props go away.
     const snap = snapshotForUndo(task, savedTagIds)
+    const undoable = canUndoDelete(task)
+    const taskId = task.id
     try {
       // quiet: failures are reported inline (localized) below, incl. the 409 rule.
-      await tasksApi.remove(task.id, { quiet: true })
-      taskStore.removeByTaskId(task.id)
-      onClose?.()
-      if (canUndoDelete(task)) {
+      await tasksApi.remove(taskId, { quiet: true })
+      if (undoable) {
         toastStore.withAction(i18n.t('action.deleted'), {
           label: i18n.t('action.undo'),
           run: () => { void restoreDeletedTask(snap) },
@@ -88,6 +89,8 @@
       } else {
         toastStore.info(i18n.t('action.deleted'))
       }
+      taskStore.removeByTaskId(taskId)
+      onClose?.()
     } catch (e) {
       // API contract: 409 when the task has archived periods (hard delete blocked)
       deleteError = e instanceof ApiError && e.status === 409
