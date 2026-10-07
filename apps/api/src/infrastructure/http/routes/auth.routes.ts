@@ -6,6 +6,7 @@ import { loginUseCase } from '../../../application/auth/login.usecase.js'
 import { authenticate } from '../plugins/authenticate.js'
 import { redis } from '../../redis/client.js'
 import { createRefreshTokenService } from '../../auth/refresh-token.service.js'
+import { jwtExpiresIn } from '../../auth/jwt-expiry.js'
 
 const registerSchema = z.object({
   email:    z.string().email(),
@@ -32,7 +33,7 @@ const profileSchema = z.object({
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   const sign = (payload: object) =>
-    fastify.jwt.sign(payload, { expiresIn: process.env.JWT_EXPIRES_IN ?? '15m' })
+    fastify.jwt.sign(payload, { expiresIn: jwtExpiresIn() })
 
   const tokens = createRefreshTokenService(redis)
 

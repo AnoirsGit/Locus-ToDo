@@ -10,6 +10,7 @@ import { tagsRoutes } from './infrastructure/http/routes/tags.routes.js'
 import { scheduler } from './infrastructure/scheduler/scheduler.js'
 import { db } from './infrastructure/db/client.js'
 import { redis } from './infrastructure/redis/client.js'
+import { jwtExpiresIn } from './infrastructure/auth/jwt-expiry.js'
 
 const server = Fastify({ logger: true })
 
@@ -21,7 +22,7 @@ const start = async () => {
 
   await server.register(jwt, {
     secret: process.env.JWT_SECRET ?? 'dev-secret-change-in-production',
-    sign: { expiresIn: process.env.JWT_EXPIRES_IN ?? '15m' },
+    sign: { expiresIn: jwtExpiresIn() },
   })
 
   await server.register(authRoutes,       { prefix: '/api/auth' })
