@@ -33,7 +33,7 @@
     <div class="flex flex-col gap-1.5 p-1">
       <div class="sc-row">
         <span class="sc-label">{i18n.t('shortcuts.create')}</span>
-        <span class="sc-keys"><kbd>c</kbd></span>
+        <span class="sc-keys"><kbd>c</kbd><span class="sc-or">/</span><kbd>n</kbd></span>
       </div>
 
       <div class="sc-section">{i18n.t('shortcuts.go_prefix')}</div>
@@ -58,7 +58,8 @@
   .sc-row { display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.5rem; }
   .sc-label { font-size: 13px; color: var(--color-text-2); }
   .sc-section { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-muted); padding: 0.5rem 0.5rem 0.1rem; }
-  .sc-keys { display: inline-flex; gap: 0.25rem; }
+  .sc-keys { display: inline-flex; align-items: center; gap: 0.25rem; }
+  .sc-or { font-size: 11px; color: var(--color-muted); }
   kbd {
     font-family: var(--font-mono, monospace);
     font-size: 11px;

@@ -60,13 +60,7 @@
   }
 
   // Global "create task" shortcut (c/n) → open a day-level create on this view.
-  let lastCreateTick = 0
-  $effect(() => {
-    if (commands.createTick !== lastCreateTick) {
-      lastCreateTick = commands.createTick
-      openCreate('day')
-    }
-  })
+  $effect(() => commands.onCreate(() => openCreate('day')))
 </script>
 
 <div class="main-inner">

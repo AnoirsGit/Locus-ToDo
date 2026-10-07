@@ -1,5 +1,7 @@
 import { notesApi, dtoToNode, type NoteDto } from '$shared/api/notes.api'
 import { toastStore } from '$shared/lib/toast.svelte'
+import { i18n } from '$shared/lib/i18n'
+import { restoreNoteTags } from '$entities/tag/@x/note'
 import type { NoteNode, NoteNodeType } from './note.types'
 
 // ─── Flat representation used for keyboard navigation ──────────────────────
@@ -184,6 +186,14 @@ const collectRecreates = (node: NoteNode, parentId: string | null, sortOrder: nu
   node.children.forEach((c, i) => collectRecreates(c, node.id, i * 10, acc))
 }
 
+// Create can't carry these flags — re-apply them after the re-create.
+const collectFlagPatches = (node: NoteNode, acc: Array<{ id: string; done?: boolean; collapsed?: boolean }>) => {
+  if (node.done || node.collapsed) {
+    acc.push({ id: node.id, ...(node.done ? { done: true } : {}), ...(node.collapsed ? { collapsed: true } : {}) })
+  }
+  node.children.forEach(c => collectFlagPatches(c, acc))
+}
+
 // Re-insert captured subtrees locally and re-create them server-side
 // (parent-first; original ids are free again after the cascade delete).
 const restoreEntries = (entries: DeletedEntry[]) => {
@@ -201,8 +211,22 @@ const restoreEntries = (entries: DeletedEntry[]) => {
   }
   const acc: CreatePayload[] = []
   for (const e of entries) collectRecreates(e.node, e.parentId, e.index * 10, acc)
-  ;(async () => { for (const p of acc) await notesApi.create(p) })()
-    .catch(() => toastStore.error('Failed to restore note'))
+  const flags: Array<{ id: string; done?: boolean; collapsed?: boolean }> = []
+  for (const e of entries) collectFlagPatches(e.node, flags)
+  let created = 0
+  ;(async () => {
+    for (const p of acc) {
+      await notesApi.create(p, { quiet: true })
+      created++
+    }
+    for (const { id, ...patch } of flags) notesApi.update(id, patch).catch(() => {})
+    restoreNoteTags(acc.map(p => p.id))
+  })().catch(() => {
+    // Drop what didn't make it back (parent-first order → a suffix), so the
+    // tree never shows notes the server doesn't have.
+    for (const p of acc.slice(created)) state.nodes = removeNodeFromTree(state.nodes, p.id)
+    toastStore.error(i18n.t('undo.note_restore_failed'))
+  })
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────────
@@ -288,8 +312,10 @@ export const noteStore = {
     }))
 
     if (entries.length) {
-      const label = entries.length > 1 ? `${entries.length} notes deleted` : 'Note deleted'
-      toastStore.withAction(label, { label: 'Undo', run: () => restoreEntries(entries) })
+      const label = entries.length > 1
+        ? i18n.t('undo.notes_deleted').replace('{n}', String(entries.length))
+        : i18n.t('undo.note_deleted')
+      toastStore.withAction(label, { label: i18n.t('action.undo'), run: () => restoreEntries(entries) })
     }
   },
 
@@ -375,18 +401,19 @@ export const noteStore = {
     cancelContentDebounce(state.nodes, id)
     state.nodes = removeNodeFromTree(state.nodes, id)
 
-    if (entry) {
-      toastStore.withAction('Note deleted', { label: 'Undo', run: () => restoreEntries([entry]) })
-    }
-
     const pending = pendingCreates.get(id)
     const doDelete = () => notesApi.delete(id).catch(() => {
       toastStore.error('Failed to delete note')
     })
-    if (pending) {
-      pending.then(doDelete)
-    } else {
-      doDelete()
+    const deletion = pending ? pending.then(doDelete) : doDelete()
+
+    if (entry) {
+      toastStore.withAction(i18n.t('undo.note_deleted'), {
+        label: i18n.t('action.undo'),
+        // Re-create only once the DELETE settled: an in-flight DELETE would
+        // otherwise remove the restored copy (same id).
+        run: () => { void deletion.then(() => restoreEntries([entry])) },
+      })
     }
 
     return focusId

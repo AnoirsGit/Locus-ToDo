@@ -108,13 +108,9 @@
   }
 
   // Global "create task" shortcut (c/n) → open a week-level create on this view.
-  let lastCreateTick = 0
-  $effect(() => {
-    if (commands.createTick !== lastCreateTick) {
-      lastCreateTick = commands.createTick
-      modal = { mode: 'create', defaultLevel: 'week', defaultPeriodStart: toISO(weekDays[0]) }
-    }
-  })
+  $effect(() => commands.onCreate(() => {
+    modal = { mode: 'create', defaultLevel: 'week', defaultPeriodStart: toISO(weekDays[0]) }
+  }))
 </script>
 
 <div class="main-inner flex flex-col gap-0">

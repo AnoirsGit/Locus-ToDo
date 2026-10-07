@@ -7,7 +7,8 @@
   import { userStore } from '$entities/user'
   import { tagStore, TagFilterBar } from '$entities/tag'
   import { authApi } from '$shared/api/auth.api'
-  import { ApiError } from '$shared/api/client'
+  import { ApiError, type CallOptions } from '$shared/api/client'
+  import { toastStore } from '$shared/lib/toast.svelte'
   import { toLocalISO, weekStartISO, monthStartISO, yearStartISO } from '$shared/lib/date'
   import { clock } from '$shared/lib/clock.svelte'
   import type { TaskView } from '$entities/task'
@@ -35,10 +36,13 @@
     '/notes':    'docs',
   }
 
-  const currentView = $derived(routeToView[$page.url.pathname] ?? 'day')
+  // Nested notes pages (/notes/[id]) belong to the Notes section.
+  const currentView = $derived<AppView>(
+    routeToView[$page.url.pathname] ?? ($page.url.pathname.startsWith('/notes/') ? 'docs' : 'day'),
+  )
 
-  // Per-route document title (localized). A deeper page (e.g. a specific note)
-  // can override this with its own <svelte:head><title>.
+  // Per-route document title (localized). Notes pages own their title instead
+  // (a zoomed note is titled by its content) — see the <svelte:head> below.
   const viewTitleKey: Record<AppView, string> = {
     day: 'nav.today', week: 'nav.week', month: 'nav.month', year: 'nav.year',
     backlog: 'nav.backlog', archive: 'nav.archive', settings: 'nav.settings',
@@ -57,29 +61,47 @@
     b: '/backlog', a: '/archive', s: '/stats', n: '/notes',
   }
 
+  // Layout-independent letter: on a non-Latin layout (e.g. Russian ЙЦУКЕН) fall
+  // back to the physical key, so shortcuts work without switching layouts.
+  const shortcutLetter = (e: KeyboardEvent): string => {
+    const key = e.key.toLowerCase()
+    if (/^[a-z]$/.test(key)) return key
+    return /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : key
+  }
+
+  const isTypingTarget = (el: HTMLElement | null) =>
+    !!el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')
+
   const handleShortcut = (e: KeyboardEvent) => {
-    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
-    const el = e.target as HTMLElement | null
-    if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return
+    if (e.defaultPrevented || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return
+    if (isTypingTarget(e.target as HTMLElement | null)) return
 
-    if (e.key === '?') { e.preventDefault(); helpOpen = !helpOpen; return }
-    if (e.key === 'Escape' && helpOpen) { helpOpen = false; return }
-    if (helpOpen) return
+    const isHelpKey = e.key === '?' || (e.shiftKey && e.code === 'Slash')
+    if (helpOpen) {
+      if (isHelpKey || e.key === 'Escape') { e.preventDefault(); helpOpen = false }
+      return
+    }
+    // An open dialog (task modal) owns the keyboard: a shortcut would replace it
+    // or navigate away from it, silently dropping unsaved input.
+    if (document.querySelector('[aria-modal="true"]')) return
 
+    if (isHelpKey) { e.preventDefault(); helpOpen = true; return }
+
+    const letter = shortcutLetter(e)
     if (gPending) {
       gPending = false
       clearTimeout(gTimer)
-      const route = routeForKey[e.key.toLowerCase()]
+      const route = routeForKey[letter]
       if (route) { e.preventDefault(); goto(route) }
       return
     }
-    if (e.key === 'g') {
+    if (letter === 'g') {
       gPending = true
       clearTimeout(gTimer)
       gTimer = setTimeout(() => { gPending = false }, 1200)
       return
     }
-    if (e.key === 'c' || e.key === 'n') { e.preventDefault(); commands.requestCreate() }
+    if ((letter === 'c' || letter === 'n') && commands.requestCreate()) e.preventDefault()
   }
 
   let isSidebarOpen = $state(false)
@@ -103,7 +125,7 @@
   const REFETCH_THROTTLE_MS = 60_000
   let lastLoadAt = 0
 
-  const loadAll = async () => {
+  const loadAll = async (opts?: CallOptions) => {
     lastLoadAt = Date.now()
     clock.refresh()
     const now = new Date()
@@ -119,12 +141,12 @@
     })
 
     const [dayResults, week, month, year, backlog, archive] = await Promise.all([
-      Promise.all(dayDates.map(date => tasksApi.getByPeriod({ periodType: 'day', periodStart: date }))),
-      tasksApi.getByPeriod({ periodType: 'week',  periodStart: weekStart }),
-      tasksApi.getByPeriod({ periodType: 'month', periodStart: monthStart }),
-      tasksApi.getByPeriod({ periodType: 'year',  periodStart: yearStart }),
-      tasksApi.getBacklog(),
-      tasksApi.getArchive(),
+      Promise.all(dayDates.map(date => tasksApi.getByPeriod({ periodType: 'day', periodStart: date }, opts))),
+      tasksApi.getByPeriod({ periodType: 'week',  periodStart: weekStart }, opts),
+      tasksApi.getByPeriod({ periodType: 'month', periodStart: monthStart }, opts),
+      tasksApi.getByPeriod({ periodType: 'year',  periodStart: yearStart }, opts),
+      tasksApi.getBacklog(opts),
+      tasksApi.getArchive(opts),
     ])
 
     taskStore.setItems([...dayResults.flat(), ...week, ...month, ...year, ...backlog, ...archive])
@@ -187,7 +209,13 @@
     if (document.visibilityState !== 'visible') return
     if (Date.now() - lastLoadAt < REFETCH_THROTTLE_MS) return
     if (!localStorage.getItem('access_token')) return
-    loadAll().catch((err) => console.error('[layout] background refetch error', err))
+    // Background refresh: an expired session gets a sticky sign-in toast from the
+    // API client instead of a redirect; any other failure keeps the loaded data
+    // and says so once (not one toast per request).
+    loadAll({ background: true }).catch((err) => {
+      console.error('[layout] background refetch error', err)
+      if (!(err instanceof ApiError && err.status === 401)) toastStore.error(i18n.t('session.refresh_failed'))
+    })
   }
 
   onMount(() => {
@@ -197,7 +225,9 @@
   })
 </script>
 
-<svelte:head><title>{pageTitle} — Locus</title></svelte:head>
+<svelte:head>
+  {#if currentView !== 'docs'}<title>{pageTitle} — Locus</title>{/if}
+</svelte:head>
 <svelte:window onkeydown={handleShortcut} />
 
 <div class="app">
