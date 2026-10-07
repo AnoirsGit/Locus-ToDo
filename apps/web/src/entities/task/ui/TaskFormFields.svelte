@@ -2,19 +2,22 @@
   import type { TaskLevel, TaskWithPeriod } from '../model/task.types'
   import RichTextEditor from '$shared/ui/RichTextEditor.svelte'
   import { TagPicker } from '$entities/tag'
+  import { i18n } from '$shared/lib/i18n'
 
-  const MONTH_NAMES = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
-  ]
+  // Month / weekday names follow the app locale (UTC-anchored so they never
+  // shift by timezone), like TaskCard. Month-only formats give the standalone
+  // form ("январь"), capitalized for the select list.
+  const MONTH_NAMES = $derived(Array.from({ length: 12 }, (_, i) => {
+    const name = new Date(Date.UTC(2000, i, 1)).toLocaleDateString(i18n.locale, { month: 'long', timeZone: 'UTC' })
+    return name.charAt(0).toLocaleUpperCase(i18n.locale) + name.slice(1)
+  }))
 
-  // Mon-first order: value = JS DOW (0=Sun,1=Mon…), label = short name
-  const DOW_OPTIONS = [
-    { value: 1, label: 'Mon' }, { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' }, { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' }, { value: 6, label: 'Sat' },
-    { value: 0, label: 'Sun' },
-  ]
+  // Mon-first order: value = JS DOW (0=Sun,1=Mon…), label = short name.
+  // 2023-01-01 was a Sunday, so day index 0..6 maps Sun..Sat.
+  const DOW_OPTIONS = $derived([1, 2, 3, 4, 5, 6, 0].map(value => ({
+    value,
+    label: new Date(Date.UTC(2023, 0, 1 + value)).toLocaleDateString(i18n.locale, { weekday: 'short', timeZone: 'UTC' }),
+  })))
 
   type Props = {
     title: string

@@ -240,7 +240,7 @@
       <button
         class="btn-icon"
         onclick={() => isSidebarOpen = true}
-        aria-label="Открыть меню"
+        aria-label={i18n.t('action.open_menu')}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
