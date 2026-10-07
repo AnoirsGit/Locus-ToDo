@@ -120,13 +120,39 @@ const cancelContentDebounce = (nodes: NoteNode[], id: string) => {
   }
 }
 
-// In-flight optimistic creates: a DELETE issued before the POST resolves
-// would 404 and the INSERT would land after, leaving a ghost note.
+// In-flight optimistic creates: a PATCH/DELETE issued before the POST resolves
+// would 404 ("Note not found") and the INSERT would land after it — a ghost
+// note, or lost content when the debounced save fires first on a slow network.
 const pendingCreates = new Map<string, Promise<unknown>>()
 
 const trackCreate = (id: string, promise: Promise<unknown>) => {
   pendingCreates.set(id, promise)
   promise.finally(() => pendingCreates.delete(id))
+}
+
+/** Resolves once every listed node's optimistic create (if any) has settled. */
+const whenCreated = (ids: string[]): Promise<unknown> =>
+  Promise.all(ids.map(id => pendingCreates.get(id)))
+
+// Sequential parent-first creates, each id tracked until its own POST settles.
+const createInOrder = (payloads: CreatePayload[]): Promise<void> => {
+  let chain: Promise<unknown> = Promise.resolve()
+  for (const p of payloads) {
+    chain = chain.then(() => notesApi.create(p))
+    trackCreate(p.id, chain.catch(() => {}))
+  }
+  return chain.then(() => {})
+}
+
+// PATCH a node once it exists server-side; skipped when the node was deleted
+// (or its create failed and rolled back) while waiting.
+const patchNote = (id: string, patch: Parameters<typeof notesApi.update>[1], errorMessage = 'Failed to save note') => {
+  whenCreated([id])
+    .then(() => {
+      if (!findNodeById(state.nodes, id)) return
+      return notesApi.update(id, patch)
+    })
+    .catch(() => toastStore.error(errorMessage))
 }
 
 // Swap a node with its adjacent sibling and persist both sort orders.
@@ -149,9 +175,7 @@ const moveSibling = (id: string, delta: -1 | 1) => {
   }
 
   for (const i of [idx, target]) {
-    notesApi.update(reordered[i].id, { sortOrder: i * 10 }).catch(() => {
-      toastStore.error('Failed to move note')
-    })
+    patchNote(reordered[i].id, { sortOrder: i * 10 }, 'Failed to move note')
   }
 }
 
@@ -201,8 +225,7 @@ const restoreEntries = (entries: DeletedEntry[]) => {
   }
   const acc: CreatePayload[] = []
   for (const e of entries) collectRecreates(e.node, e.parentId, e.index * 10, acc)
-  ;(async () => { for (const p of acc) await notesApi.create(p) })()
-    .catch(() => toastStore.error('Failed to restore note'))
+  createInOrder(acc).catch(() => toastStore.error('Failed to restore note'))
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────────
@@ -267,23 +290,28 @@ export const noteStore = {
   async deleteSelected() {
     const ids = [...state.selectedIds]
     if (!ids.length) return
-    // Capture disjoint subtree roots (a selected child of a selected node is
-    // restored with its ancestor) before removing anything.
+    // Work on disjoint subtree roots only: a selected descendant of a selected
+    // node goes with its ancestor (restored with it on undo, and removed by the
+    // server's ON DELETE CASCADE — a DELETE of its own would 404).
     const selected = new Set(ids)
-    const entries = ids
-      .filter(id => !hasSelectedAncestor(id, selected))
+    const roots = ids.filter(id => !hasSelectedAncestor(id, selected))
+    const entries = roots
       .map(captureForUndo)
       .filter((e): e is DeletedEntry => e !== null)
+    const subtreeIds = new Map(roots.map(id => {
+      const node = findNodeById(state.nodes, id)
+      return [id, node ? collectSubtreeIds(node) : [id]] as const
+    }))
 
     state.selectedIds = new Set()
     let nodes = state.nodes
-    for (const id of ids) {
+    for (const id of roots) {
       cancelContentDebounce(nodes, id)
       nodes = removeNodeFromTree(nodes, id)
     }
     state.nodes = nodes
-    await Promise.all(ids.map(async id => {
-      await pendingCreates.get(id)
+    await Promise.all(roots.map(async id => {
+      await whenCreated(subtreeIds.get(id) ?? [id])
       await notesApi.delete(id).catch(() => {})
     }))
 
@@ -311,27 +339,11 @@ export const noteStore = {
   update(id: string, patch: Partial<NoteNode>) {
     state.nodes = updateNodeInTree(state.nodes, id, patch)
     if (patch.content !== undefined) {
-      debounce(`content:${id}`, () => {
-        notesApi.update(id, { content: patch.content! }).catch(() => {
-          toastStore.error('Failed to save note')
-        })
-      })
+      debounce(`content:${id}`, () => patchNote(id, { content: patch.content! }))
     }
-    if (patch.type !== undefined) {
-      notesApi.update(id, { nodeType: patch.type }).catch(() => {
-        toastStore.error('Failed to save note')
-      })
-    }
-    if (patch.url !== undefined) {
-      notesApi.update(id, { url: patch.url || null }).catch(() => {
-        toastStore.error('Failed to save note')
-      })
-    }
-    if (patch.done !== undefined) {
-      notesApi.update(id, { done: patch.done }).catch(() => {
-        toastStore.error('Failed to save note')
-      })
-    }
+    if (patch.type !== undefined) patchNote(id, { nodeType: patch.type })
+    if (patch.url !== undefined) patchNote(id, { url: patch.url || null })
+    if (patch.done !== undefined) patchNote(id, { done: patch.done })
   },
 
   /** Insert a new sibling node directly after `afterId`. Returns the new node. */
@@ -372,6 +384,8 @@ export const noteStore = {
     const flat = flattenTree(state.nodes)
     const idx = flat.findIndex(f => f.node.id === id)
     const focusId = idx > 0 ? flat[idx - 1].node.id : null
+    const target = findNodeById(state.nodes, id)
+    const subtreeIds = target ? collectSubtreeIds(target) : [id]
     cancelContentDebounce(state.nodes, id)
     state.nodes = removeNodeFromTree(state.nodes, id)
 
@@ -379,15 +393,10 @@ export const noteStore = {
       toastStore.withAction('Note deleted', { label: 'Undo', run: () => restoreEntries([entry]) })
     }
 
-    const pending = pendingCreates.get(id)
-    const doDelete = () => notesApi.delete(id).catch(() => {
+    // Children still being created would otherwise INSERT under a deleted parent.
+    whenCreated(subtreeIds).then(() => notesApi.delete(id).catch(() => {
       toastStore.error('Failed to delete note')
-    })
-    if (pending) {
-      pending.then(doDelete)
-    } else {
-      doDelete()
-    }
+    }))
 
     return focusId
   },
@@ -472,12 +481,10 @@ export const noteStore = {
     state.nodes = insert(state.nodes)
 
     // Parent-first sequential creates so each child's FK parent already exists.
-    trackCreate(clone.id, (async () => {
-      for (const payload of creates) await notesApi.create(payload)
-    })().catch(() => {
+    createInOrder(creates).catch(() => {
       toastStore.error('Failed to duplicate note')
       state.nodes = removeNodeFromTree(state.nodes, clone.id)
-    }))
+    })
 
     return clone
   },
@@ -540,7 +547,7 @@ export const noteStore = {
       const patch = n.id === dragId
         ? { parentId: targetParentId, sortOrder: i * 10 }
         : { sortOrder: i * 10 }
-      notesApi.update(n.id, patch).catch(() => toastStore.error('Failed to move note'))
+      patchNote(n.id, patch, 'Failed to move note')
     })
   },
 
@@ -564,9 +571,7 @@ export const noteStore = {
         children: [...(parent?.children ?? []), node],
       })
     }
-    notesApi.update(id, { parentId: newParentId, sortOrder }).catch(() => {
-      toastStore.error('Failed to move note')
-    })
+    patchNote(id, { parentId: newParentId, sortOrder }, 'Failed to move note')
   },
 
   // ── Indent / Unindent ────────────────────────────────────────────────────
@@ -591,9 +596,7 @@ export const noteStore = {
       children: [...prevSibling.children, node],
     })
 
-    notesApi.update(id, { parentId: prevSibling.id, sortOrder: newSortOrder }).catch(() => {
-      toastStore.error('Failed to move note')
-    })
+    patchNote(id, { parentId: prevSibling.id, sortOrder: newSortOrder }, 'Failed to move note')
   },
 
   unindent(id: string) {
@@ -623,9 +626,7 @@ export const noteStore = {
     const parentIdx = grandParentList.findIndex(n => n.id === parentEntry.node.id)
     const newSortOrder = (parentIdx + 1) * 10
 
-    notesApi.update(id, { parentId: grandParentId, sortOrder: newSortOrder }).catch(() => {
-      toastStore.error('Failed to move note')
-    })
+    patchNote(id, { parentId: grandParentId, sortOrder: newSortOrder }, 'Failed to move note')
   },
 
   // ── Collapse / Expand ────────────────────────────────────────────────────
@@ -636,9 +637,7 @@ export const noteStore = {
     if (!entry) return
     const collapsed = !entry.node.collapsed
     state.nodes = updateNodeInTree(state.nodes, id, { collapsed })
-    notesApi.update(id, { collapsed }).catch(() => {
-      toastStore.error('Failed to save note')
-    })
+    patchNote(id, { collapsed })
   },
 
   /** Add a root-level node at the end */
