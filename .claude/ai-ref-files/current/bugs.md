@@ -33,7 +33,7 @@ once on mount. A tab/app left open across midnight or an hourly tick shows stale
 statuses; "today" never rolls over. No `visibilitychange` / `AppLifecycleState`
 handling anywhere.
 - [x] Web: on `document.visibilitychange` → visible (throttled ≥60 s since last load): `loadAll()` refetch in `(app)/+layout.svelte`
-- [x] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`) — `AppShell.didChangeAppLifecycleState` (throttled ≥60 s since last load) invalidates `groupedTasksProvider` for day/week/month/year/backlog
+- [x] Mobile: on `AppLifecycleState.resumed`: same (notifiers already have `refresh()`) — `AppShell.didChangeAppLifecycleState` (throttled ≥60 s since last load) invalidates `groupedTasksProvider` for day/week/month/year/backlog, and also flushes both outboxes (`syncWorkerProvider`/`notesSyncWorkerProvider`) — before that, nothing flushed the notes outbox on foreground, so offline note edits sat in the sync banner until the notes list was reloaded
 - [x] Recompute "today"/week window on refetch — `clock.refresh()` in `loadAll()`; today page, Sidebar, WeekView now `$derived` from `clock`
 
 ### B4. Mobile errors are swallowed silently
@@ -41,7 +41,7 @@ No `SnackBar`/`ScaffoldMessenger` usage in the entire app. `tasks_notifier.dart`
 `sync_worker.dart`, notes notifier — all `catch (_) {}`. A failed create/toggle just
 silently reverts (or worse, doesn't).
 - [x] Minimal toast service (`shared/ui/app_toast.dart`, ScaffoldMessenger-based) — mirrors web `toastStore` semantics; wired into `AppShell` (`ref.listen(appToastProvider, ...)`)
-- [x] Wire into task/notes/tags mutation error paths (non-auth failures) — `tasks_notifier.dart` create/update/delete already covered; `subtask_checklist.dart` (`_toggle`/`_add`) and `task_form_sheet.dart` (`_replan`, tag-save-on-submit) and `tag_store.dart` (`setNoteTags`) now show toasts too (were silently swallowing). Note: `notes_notifier.dart`'s own create/update/delete `.catchError` only fires for local (Drift) write failures — `OfflineNotesApi` deliberately never rethrows network failures (offline-first: queues to outbox instead), documented in `offline_notes_api.dart`.
+- [x] Wire into task/notes/tags mutation error paths (non-auth failures) — task CRUD: the pages mutate through `GroupedTasksNotifier` (`grouped_tasks_notifier.dart`), **not** `TasksNotifier` (`tasks_notifier.dart` is used by no page, so the toasts first wired there never fired); `GroupedTasksNotifier` create/update/delete/replan now toast (delete 409 → "has archived periods") and a failed toggle rolls its optimistic flip back + toasts — covered by `test/grouped_tasks_notifier_test.dart`; `subtask_checklist.dart` (`_toggle`/`_add`) and `task_form_sheet.dart` (`_replan`, tag-save-on-submit) and `tag_store.dart` (`setNoteTags`) now show toasts too (were silently swallowing). Note: `notes_notifier.dart`'s own create/update/delete `.catchError` only fires for local (Drift) write failures — `OfflineNotesApi` deliberately never rethrows network failures (offline-first: queues to outbox instead), documented in `offline_notes_api.dart`.
 - [x] Sync outbox: surface "N changes pending sync" + a failed-sync indicator — `AppShell`'s `_SyncBanner` now combines task + note outbox counts (`noteOutboxCountProvider` added, previously notes had zero visibility) and switches to a red "not synced, retrying..." style once any entry has failed at least once (`failedOutboxCountProvider`/`failedNoteOutboxCountProvider`, `attempts > 0`)
 
 ---

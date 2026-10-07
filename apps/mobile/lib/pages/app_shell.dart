@@ -62,6 +62,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     for (final view in ['day', 'week', 'month', 'year', 'backlog']) {
       ref.invalidate(groupedTasksProvider(view));
     }
+    // Coming back to the foreground is also when connectivity usually returns:
+    // replay what the outboxes queued while offline (both workers expect a
+    // foreground flush), instead of leaving the sync banner up until notes
+    // happen to be reloaded.
+    ref.read(syncWorkerProvider).flush();
+    ref.read(notesSyncWorkerProvider).flush();
   }
 
   int _currentIndex(String path) {

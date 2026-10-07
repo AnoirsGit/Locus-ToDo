@@ -18,12 +18,18 @@ directly to `main` (no PRs).
   resume, throttled ≥60s (mirrors web's `visibilitychange` handler)
 - B4: `appToastProvider` (ScaffoldMessenger-based) wired into every *discrete*
   mutation across tasks/notes (create/update/delete/replan) + subtask CRUD inside
-  `TaskFormSheet`. Micro-edits (note reorder/indent/collapse/content-debounce,
-  task toggle) are intentionally silent — they go through an offline outbox/sync
-  worker (`sync_worker.dart` / `notes_sync_worker.dart`) with retry + a pending-sync
-  banner in `AppShell`, not a per-edit toast. Don't add toasts to those paths —
-  it was a deliberate design split (irreversible/structural ops = toast,
-  fire-and-forget queued edits = banner), not an oversight.
+  `TaskFormSheet`. Micro-edits (note reorder/indent/collapse/content-debounce)
+  are intentionally silent — they go through the notes outbox/sync worker
+  (`notes_sync_worker.dart`) with retry + a pending-sync banner in `AppShell`,
+  not a per-edit toast. Don't add toasts to those paths — it was a deliberate
+  design split (irreversible/structural ops = toast, fire-and-forget queued
+  edits = banner), not an oversight.
+  **Correction (2026-10-07):** task toggle is *not* queued. Every page mutates
+  tasks through `GroupedTasksNotifier` (direct API calls); the outbox-backed
+  `TasksNotifier` (`tasks_notifier.dart`) is used by no page, so the toasts first
+  wired there never fired. `GroupedTasksNotifier` now toasts on create/update/
+  delete/replan failure and rolls back + toasts a failed toggle
+  (`test/grouped_tasks_notifier_test.dart`).
 - TaskFormSheet: dirty-dismiss confirm (PopScope + X-button guard), drag handle,
   keyboard-avoidance via `viewInsets.bottom` — all already present.
 - Notes: pull-to-refresh, backspace-delete-empty-block, debounced-save flush on

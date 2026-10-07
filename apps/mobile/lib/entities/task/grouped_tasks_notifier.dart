@@ -1,5 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/api/tasks_api.dart';
+import '../../shared/core/strings.dart';
+import '../../shared/ui/app_toast.dart';
 import 'task.dart';
 
 class GroupedTasks {
@@ -67,23 +70,49 @@ class GroupedTasksNotifier extends FamilyAsyncNotifier<GroupedTasks, String> {
     state = await AsyncValue.guard(() => build(arg));
   }
 
+  // B4: this is the notifier the pages mutate through, and they call it
+  // fire-and-forget (the form sheet has already closed), so every failure
+  // must end here as a toast — otherwise it is an unhandled, invisible error.
+
   Future<void> createTask(Map<String, dynamic> data) async {
-    await _api.createTask(data);
+    try {
+      await _api.createTask(data);
+    } catch (_) {
+      _toast(S.taskCreateFailed);
+      return;
+    }
     await refresh();
   }
 
   Future<void> updateTask(String id, Map<String, dynamic> data) async {
-    await _api.updateTask(id, data);
+    try {
+      await _api.updateTask(id, data);
+    } catch (_) {
+      _toast(S.taskSaveFailed);
+      return;
+    }
     await refresh();
   }
 
   Future<void> deleteTask(String id) async {
-    await _api.deleteTask(id);
+    try {
+      await _api.deleteTask(id);
+    } catch (e) {
+      // 409 = the task has archived periods and can't be deleted (as on web).
+      final hasArchive = e is DioException && e.response?.statusCode == 409;
+      _toast(hasArchive ? S.taskDeleteArchivedError : S.taskDeleteFailed);
+      return;
+    }
     await refresh();
   }
 
   Future<void> replan(String taskId, String periodStart) async {
-    await _api.replanTask(taskId, periodStart);
+    try {
+      await _api.replanTask(taskId, periodStart);
+    } catch (_) {
+      _toast(S.replanFailed);
+      return;
+    }
     await refresh();
   }
 
@@ -94,21 +123,32 @@ class GroupedTasksNotifier extends FamilyAsyncNotifier<GroupedTasks, String> {
     final doneAt = newStatus == TaskStatus.done ? DateTime.now() : null;
 
     // Optimistic update
-    if (state.hasValue) {
-      final v = state.value!;
-      TaskWithPeriod upd(TaskWithPeriod t) => t.period.id == task.period.id
-          ? t.copyWithPeriod(t.period.copyWith(status: newStatus, doneAt: doneAt))
-          : t;
-      state = AsyncData(GroupedTasks(
-        primary: v.primary.map(upd).toList(),
-        week:    v.week.map(upd).toList(),
-        month:   v.month.map(upd).toList(),
-        year:    v.year.map(upd).toList(),
-      ));
-    }
+    _replacePeriod(task.period.id, (p) => p.copyWith(status: newStatus, doneAt: doneAt));
 
-    await _api.toggleTask(task.period.id, newStatus);
+    try {
+      await _api.toggleTask(task.period.id, newStatus);
+    } catch (_) {
+      // Roll back to the period as it was before the tap (the server never
+      // saw the change), so the checkbox doesn't lie until the next refetch.
+      _replacePeriod(task.period.id, (_) => task.period);
+      _toast(S.taskSaveFailed);
+    }
   }
+
+  void _replacePeriod(String periodId, TaskPeriod Function(TaskPeriod) update) {
+    if (!state.hasValue) return;
+    final v = state.value!;
+    TaskWithPeriod upd(TaskWithPeriod t) =>
+        t.period.id == periodId ? t.copyWithPeriod(update(t.period)) : t;
+    state = AsyncData(GroupedTasks(
+      primary: v.primary.map(upd).toList(),
+      week:    v.week.map(upd).toList(),
+      month:   v.month.map(upd).toList(),
+      year:    v.year.map(upd).toList(),
+    ));
+  }
+
+  void _toast(String message) => ref.read(appToastProvider.notifier).show(message);
 }
 
 final groupedTasksProvider = AsyncNotifierProviderFamily<GroupedTasksNotifier, GroupedTasks, String>(
