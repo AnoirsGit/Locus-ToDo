@@ -61,6 +61,12 @@ class _FakeTasksApi extends TasksApi {
 
   @override
   Future<void> toggleTask(String periodId, TaskStatus status) async => toggled.add(periodId);
+
+  @override
+  Future<void> deleteTask(String id) async => dayTasks.removeWhere((t) => t.id == id);
+
+  @override
+  Future<List<TaskWithPeriod>> getSubtasks(String taskId) async => const [];
 }
 
 class _FakeTagsApi extends TagsApi {
@@ -71,6 +77,9 @@ class _FakeTagsApi extends TagsApi {
 
   @override
   Future<List<TaskTagAssignment>> getAllTaskAssignments() async => const [];
+
+  @override
+  Future<List<TagDto>> getTaskTags(String taskId) async => const [];
 }
 
 class _WeekView extends ActiveViewNotifier {
@@ -127,5 +136,36 @@ void main() {
 
     expect(api.created, isEmpty);
     expect(find.byType(TextField), findsNothing);
+  });
+
+  // Day tasks in the columns come from the 'day' provider while the week view
+  // itself is the 'week' provider: their toggle/edit/delete must update 'day'.
+
+  testWidgets('toggling a day task in a column flips its checkbox', (tester) async {
+    api.dayTasks.add(_dayTask('d1', 'Gym', mondayIso));
+    await pumpWeekView(tester);
+    expect(find.byIcon(Icons.check), findsNothing);
+
+    final row = find.ancestor(of: find.text('Gym'), matching: find.byType(InkWell)).first;
+    await tester.tap(find.descendant(of: row, matching: find.byType(AnimatedContainer)).first);
+    await tester.pumpAndSettle();
+
+    expect(api.toggled, ['p-d1']);
+    expect(find.byIcon(Icons.check), findsOneWidget);
+  });
+
+  testWidgets('deleting a day task from a column removes its card', (tester) async {
+    api.dayTasks.add(_dayTask('d1', 'Gym', mondayIso));
+    await pumpWeekView(tester);
+
+    await tester.tap(find.text('Gym')); // opens the edit sheet
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete')); // confirm dialog
+    await tester.pumpAndSettle();
+
+    expect(api.dayTasks, isEmpty);
+    expect(find.text('Gym'), findsNothing);
   });
 }

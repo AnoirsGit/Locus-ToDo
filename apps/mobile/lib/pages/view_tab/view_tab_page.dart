@@ -90,7 +90,18 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
     });
   }
 
+  // The week view shows day tasks (kanban columns) from the 'day' provider
+  // next to its own 'week' data. Mutations must go to the provider that holds
+  // the task, otherwise its card never updates (toggle didn't flip, a deleted
+  // card stayed) until some unrelated refetch.
+  String _ownerView(String view, TaskWithPeriod task) =>
+      view == 'week' && task.level == TaskLevel.day ? 'day' : view;
+
+  void _toggle(String view, TaskWithPeriod task) =>
+      ref.read(groupedTasksProvider(_ownerView(view, task)).notifier).toggle(task);
+
   void _openEdit(String view, TaskWithPeriod task) {
+    final owner = groupedTasksProvider(_ownerView(view, task));
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -100,10 +111,8 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
         existingTask: task,
         defaultLevel: task.level,
         defaultPeriodStart: localIso(task.period.periodStart),
-        onSubmit: (data) =>
-            ref.read(groupedTasksProvider(view).notifier).updateTask(task.id, data),
-        onDelete: () =>
-            ref.read(groupedTasksProvider(view).notifier).deleteTask(task.id),
+        onSubmit: (data) => ref.read(owner.notifier).updateTask(task.id, data),
+        onDelete: () => ref.read(owner.notifier).deleteTask(task.id),
       ),
     );
   }
@@ -142,13 +151,17 @@ class _ViewTabPageState extends ConsumerState<ViewTabPage> {
               : <TaskWithPeriod>[];
 
           return RefreshIndicator(
-            onRefresh: () => ref.read(provider.notifier).refresh(),
+            // Week view: pull also refetches the 'day' provider its columns use.
+            onRefresh: () => Future.wait([
+              ref.read(provider.notifier).refresh(),
+              if (view == 'week') ref.read(groupedTasksProvider('day').notifier).refresh(),
+            ]),
             color: context.colorBrand,
             backgroundColor: context.colorSurface,
             child: switch (view) {
-              'day'  => _TodayBody(data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
-              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view), onCreateDay: _openCreateForDate, onQuickCreateDay: _quickCreateForDate),
-              _      => _GenericBody(view: view, data: data, onToggle: (t) => ref.read(provider.notifier).toggle(t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
+              'day'  => _TodayBody(data: data, onToggle: (t) => _toggle(view, t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
+              'week' => _WeekKanban(data: data, dayTasks: dayTasks, weekOffset: _weekOffset, onOffsetChanged: (o) => setState(() => _weekOffset = o), onToggle: (t) => _toggle(view, t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view), onCreateDay: _openCreateForDate, onQuickCreateDay: _quickCreateForDate),
+              _      => _GenericBody(view: view, data: data, onToggle: (t) => _toggle(view, t), onEdit: (t) => _openEdit(view, t), onCreate: () => _openCreate(view)),
             },
           );
         },
