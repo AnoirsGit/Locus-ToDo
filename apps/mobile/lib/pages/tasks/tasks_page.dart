@@ -197,7 +197,7 @@ class _Body extends ConsumerWidget {
     final filteredPrimary = tagState.filterTasks(data.primary, (t) => t.id);
 
     if (filteredPrimary.isEmpty && !data.hasContext && !tagState.isFiltering) {
-      return _Empty(canCreate: canCreate, onCreate: onCreate);
+      return _Empty(view: view, canCreate: canCreate, onCreate: onCreate);
     }
 
     return ListView(
@@ -423,13 +423,16 @@ class _AppBarChip extends StatelessWidget {
 // ── Empty state ────────────────────────────────────────────────────────────────
 
 class _Empty extends StatelessWidget {
+  final String view;
   final bool canCreate;
   final VoidCallback onCreate;
 
-  const _Empty({required this.canCreate, required this.onCreate});
+  const _Empty({required this.view, required this.canCreate, required this.onCreate});
 
   @override
   Widget build(BuildContext context) {
+    // Same copy as web TaskList: an empty backlog/archive is good news.
+    final isRecords = view == 'backlog' || view == 'archive';
     return ListView(
       children: [
         SizedBox(height: MediaQuery.of(context).size.height * 0.35),
@@ -438,7 +441,14 @@ class _Empty extends StatelessWidget {
             children: [
               Text('—', style: TextStyle(fontSize: 48, color: context.colorBorder2)),
               const SizedBox(height: 12),
-              Text(S.noTasks, style: TextStyle(color: context.colorMuted, fontSize: 16)),
+              Text(
+                isRecords ? S.emptyClean : S.noTasks,
+                style: TextStyle(color: context.colorMuted, fontSize: 16),
+              ),
+              if (view == 'backlog') ...[
+                const SizedBox(height: 6),
+                Text(S.keepGoing, style: TextStyle(color: context.colorMuted)),
+              ],
               if (canCreate) ...[
                 const SizedBox(height: 16),
                 TextButton.icon(

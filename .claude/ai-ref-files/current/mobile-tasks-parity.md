@@ -10,6 +10,8 @@
 > Cyrillic grep, plus a real in-app language switch (System/Русский/English) in Settings,
 > persisted via `SharedPreferences`. Only the minor "keep going" backlog-empty-state copy
 > nuance from Gap 6 remains open (see below); everything else in this doc is done.
+> Updated 2026-10-07: the two remaining items (Gap 4 inline quick-add, Gap 6 backlog/archive
+> empty copy) ported from never-pushed local June commits — every gap in this doc is now done.
 
 ## Audit verdict
 
@@ -140,11 +142,11 @@ Remaining gaps are below, priority order.
 - [x] Recurring chip day-order: mobile sorts plainly with a Sun-last hack; web sorts
       Mon-first explicitly — unify (extract one shared rule, Mon-first). — done,
       `_recurringLabel()` already sorts Mon-first (`monFirst` filter on the sorted list).
-- [ ] Empty states: web has copy ("keep going" on backlog); align mobile copy via i18n keys.
-      — still open: `tasks_page.dart`'s `_emptyPrimary` shows plain "Нет задач" for every
-      view, no backlog-specific "keep going" subtitle (web: `common.empty` + `common.keep_going`
-      only for `view === 'backlog'`), and the string itself is hardcoded Russian, not yet
-      routed through `S.*` — folds into the Gap 5 sweep of this same file, not split out.
+- [x] Empty states: web has copy ("keep going" on backlog); align mobile copy via i18n keys.
+      — done (2026-10-07, ported from the never-pushed local commit `b4ae126`): `tasks_page.dart`'s
+      `_Empty` shows `S.emptyClean` for backlog/archive (web `common.empty`) plus `S.keepGoing`
+      on backlog only (web `common.keep_going`); other views keep `S.noTasks`.
+      `test/tasks_page_empty_state_test.dart`.
 
 ---
 

@@ -273,6 +273,9 @@ class S {
   }
   static String errorPrefix(Object err) => _ru ? 'Ошибка: $err' : 'Error: $err';
   static String get noTasks => _ru ? 'Нет задач' : 'No tasks';
+  // Backlog/archive empty state — web `common.empty` / `common.keep_going`.
+  static String get emptyClean => _ru ? 'Чисто' : 'Empty';
+  static String get keepGoing => _ru ? 'Продолжай в том же духе.' : 'Keep going.';
   static String get noTasksFiltered => _ru ? 'Нет задач по фильтру' : 'No tasks match the filter';
   static String get clearFilterTasks => _ru ? 'Очистить фильтр' : 'Clear filter';
   static String get addTaskToday => _ru ? '+ Добавить задачу на сегодня' : '+ Add task for today';
